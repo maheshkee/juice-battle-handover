@@ -1,3 +1,15 @@
 app_to_lcd/ble_display/core.1
 app_to_lcd/ble_display/dbus.sock
 app_to_lcd/ble_display/launcher.sock
+
+# Build cache and artifacts
+**/.cache/
+**/__pycache__/
+**/*.pyc
+**/*.o
+**/*.d
+**/*.elf
+**/*.bin
+**/*.map
+**/*.hex
+**/*.a
