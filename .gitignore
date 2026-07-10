@@ -1,0 +1,59 @@
+# ── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+venv/
+.venv/
+pip-wheel-metadata/
+
+# ── C++ / Arduino / ESP32 ─────────────────────────────────────────────────────
+*.o
+*.elf
+*.bin
+*.hex
+*.map
+.pio/
+.arduino15/
+build/
+.cache/
+*.d
+
+# ── Secrets — NEVER commit these ─────────────────────────────────────────────
+.env
+.env.*
+config_secrets.h
+wifi_creds.h
+secrets.py
+
+# ── SQLite databases ──────────────────────────────────────────────────────────
+*.db
+*.sqlite
+*.sqlite3
+
+# ── Logs ─────────────────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ── Editor / OS artifacts ─────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# ── App Lab internal cache ────────────────────────────────────────────────────
+.cache/
+*.arduino15/internal/
+
+# ── Test outputs ──────────────────────────────────────────────────────────────
+.pytest_cache/
+htmlcov/
+.coverage
