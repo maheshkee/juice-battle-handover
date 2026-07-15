@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Juice Battle — Project Bible & Handoff</title>
+<style>
+:root{
+  --bg:#F9F8F6;--surface:#FFFFFF;--s2:#F1EFE9;--s3:#E8E6E0;
+  --border:rgba(0,0,0,0.09);--text:#1A1917;--muted:#6B6965;--faint:#9B9791;
+  --blue:#1862a8;--blue-bg:rgba(55,138,221,0.08);--blue-b:rgba(55,138,221,0.25);
+  --green:#0a5540;--green-bg:rgba(29,158,117,0.08);--green-b:rgba(29,158,117,0.25);
+  --amber:#7a4800;--amber-bg:rgba(250,170,50,0.1);--amber-b:rgba(250,170,50,0.3);
+  --red:#8b2000;--red-bg:rgba(216,90,48,0.08);--red-b:rgba(216,90,48,0.25);
+  --danger:#7a1a1a;--danger-bg:rgba(163,45,45,0.08);--danger-b:rgba(163,45,45,0.25);
+  --purple:#3C3489;--purple-bg:rgba(175,169,236,0.12);--purple-b:rgba(175,169,236,0.35);
+  --accent:#378ADD;
+}
+@media(prefers-color-scheme:dark){:root{
+  --bg:#141412;--surface:#1E1C1A;--s2:#262420;--s3:#2E2C29;
+  --border:rgba(255,255,255,0.09);--text:#F0EDE8;--muted:#9B9791;--faint:#6B6965;
+  --blue:#7EB8F7;--blue-bg:rgba(55,138,221,0.12);--blue-b:rgba(55,138,221,0.3);
+  --green:#5DCAA5;--green-bg:rgba(29,158,117,0.12);--green-b:rgba(29,158,117,0.3);
+  --amber:#F5C97A;--amber-bg:rgba(250,170,50,0.12);--amber-b:rgba(250,170,50,0.35);
+  --red:#F0967A;--red-bg:rgba(216,90,48,0.12);--red-b:rgba(216,90,48,0.35);
+  --danger:#F09595;--danger-bg:rgba(163,45,45,0.12);--danger-b:rgba(163,45,45,0.35);
+  --purple:#AFA9EC;--purple-bg:rgba(175,169,236,0.12);--purple-b:rgba(175,169,236,0.3);
+}}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;line-height:1.6;padding:0}
+a{color:var(--accent);text-decoration:none}
+code,pre{font-family:'SF Mono','Fira Code','Consolas',monospace}
+
+/* Layout */
+#layout{display:grid;grid-template-columns:220px 1fr;min-height:100vh}
+@media(max-width:700px){#layout{grid-template-columns:1fr}}
+nav{position:sticky;top:0;height:100vh;overflow-y:auto;background:var(--surface);border-right:0.5px solid var(--border);padding:20px 0}
+nav h2{font-size:11px;font-weight:600;letter-spacing:0.08em;color:var(--faint);text-transform:uppercase;padding:0 16px;margin-bottom:8px;margin-top:16px}
+nav h2:first-child{margin-top:0}
+nav a{display:block;font-size:12px;padding:5px 16px;color:var(--muted);border-left:2px solid transparent;transition:all 0.1s}
+nav a:hover{color:var(--text);background:var(--s2);border-left-color:var(--accent)}
+@media(max-width:700px){nav{display:none}}
+
+main{padding:32px 40px;max-width:900px}
+@media(max-width:700px){main{padding:20px 16px}}
+
+/* Typography */
+h1{font-size:24px;font-weight:700;margin-bottom:4px}
+h2{font-size:18px;font-weight:600;margin:40px 0 16px;padding-top:8px;border-top:1px solid var(--border)}
+h3{font-size:14px;font-weight:600;margin:20px 0 8px;color:var(--text)}
+h4{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin:16px 0 6px}
+p{margin-bottom:10px;color:var(--text)}
+ul{padding-left:18px;margin-bottom:10px}
+li{margin-bottom:4px;font-size:13px}
+
+/* Callout boxes */
+.box{border:1px solid;border-radius:10px;padding:12px 16px;margin:12px 0}
+.box-locked{border-color:var(--red-b);background:var(--red-bg)}
+.box-locked::before{content:"🔒 LOCKED DECISION";font-size:10px;font-weight:700;color:var(--red);letter-spacing:0.06em;display:block;margin-bottom:6px}
+.box-insight{border-color:var(--blue-b);background:var(--blue-bg)}
+.box-insight::before{content:"💡 KEY INSIGHT";font-size:10px;font-weight:700;color:var(--blue);letter-spacing:0.06em;display:block;margin-bottom:6px}
+.box-next{border-color:var(--green-b);background:var(--green-bg)}
+.box-next::before{content:"▶ NEXT ACTION";font-size:10px;font-weight:700;color:var(--green);letter-spacing:0.06em;display:block;margin-bottom:6px}
+.box-warn{border-color:var(--amber-b);background:var(--amber-bg)}
+.box-warn::before{content:"⚠ DO NOT";font-size:10px;font-weight:700;color:var(--amber);letter-spacing:0.06em;display:block;margin-bottom:6px}
+.box-gold{border-color:var(--purple-b);background:var(--purple-bg)}
+.box-gold::before{content:"★ GOLD — carry forward";font-size:10px;font-weight:700;color:var(--purple);letter-spacing:0.06em;display:block;margin-bottom:6px}
+
+/* Code */
+pre{background:var(--s2);border:0.5px solid var(--border);border-radius:8px;padding:12px 16px;overflow-x:auto;font-size:12px;line-height:1.7;margin:10px 0}
+code{background:var(--s2);border:0.5px solid var(--border);border-radius:4px;padding:1px 5px;font-size:11.5px}
+
+/* Tables */
+table{width:100%;border-collapse:collapse;margin:10px 0;font-size:12px}
+th{background:var(--s2);text-align:left;padding:7px 10px;font-weight:600;font-size:11px;color:var(--muted);letter-spacing:0.03em;border-bottom:1px solid var(--border)}
+td{padding:7px 10px;border-bottom:0.5px solid var(--border);vertical-align:top}
+tr:last-child td{border-bottom:none}
+
+/* Cards */
+.card-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin:10px 0}
+.card{background:var(--surface);border:0.5px solid var(--border);border-radius:10px;padding:12px 14px}
+.card-label{font-size:10px;font-weight:600;color:var(--faint);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px}
+.card-value{font-size:13px;color:var(--text);line-height:1.5}
+
+/* State boxes */
+.state-list{display:grid;gap:6px;margin:10px 0}
+.state{border:1px solid;border-radius:8px;padding:8px 12px}
+.st-init{border-color:var(--blue-b);background:var(--blue-bg)}
+.st-meas{border-color:var(--amber-b);background:var(--amber-bg)}
+.st-pour{border-color:var(--red-b);background:var(--red-bg)}
+.st-settl{border-color:var(--border);background:var(--s2)}
+.st-ok{border-color:var(--green-b);background:var(--green-bg)}
+.st-bad{border-color:var(--danger-b);background:var(--danger-bg)}
+.state-name{font-size:12px;font-weight:600;margin-bottom:3px}
+.state-detail{font-size:11px;color:var(--muted);line-height:1.5}
+
+/* Phase roadmap */
+.phase-row{display:flex;gap:10px;align-items:flex-start;margin-bottom:10px}
+.phase-num{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;margin-top:2px}
+.ph-done{background:var(--green-bg);color:var(--green);border:1.5px solid var(--green-b)}
+.ph-next{background:var(--amber-bg);color:var(--amber);border:1.5px solid var(--amber-b)}
+.ph-later{background:var(--s2);color:var(--faint);border:1.5px solid var(--border)}
+.phase-content{flex:1}
+.phase-title{font-size:13px;font-weight:600;margin-bottom:2px}
+.phase-sub{font-size:11px;color:var(--muted);line-height:1.5}
+
+/* Header */
+.header-bar{background:var(--surface);border-bottom:0.5px solid var(--border);padding:16px 40px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+@media(max-width:700px){.header-bar{padding:12px 16px}}
+.header-title{font-size:13px;font-weight:600}
+.header-meta{font-size:11px;color:var(--muted)}
+.badge{font-size:10px;font-weight:600;padding:2px 8px;border-radius:4px;display:inline-block}
+.badge-done{background:var(--green-bg);color:var(--green);border:0.5px solid var(--green-b)}
+.badge-next{background:var(--amber-bg);color:var(--amber);border:0.5px solid var(--amber-b)}
+
+/* Context block */
+.context-block{background:var(--s3);border-radius:10px;padding:16px;margin:10px 0;font-size:12px;line-height:1.7;font-family:monospace;white-space:pre-wrap;word-break:break-word}
+</style>
+</head>
+<body>
+
+<div class="header-bar">
+  <div>
+    <div class="header-title">⚡ Juice Battle — Project Bible & Handoff Document</div>
+    <div class="header-meta">Arduino UNO Q (AQ3) · ESP32-C3 nodes · ADS1232 + CZL601 · Generated from session S002</div>
+  </div>
+  <div style="display:flex;gap:6px;flex-wrap:wrap">
+    <span class="badge badge-done">Phase 0 ✓ Complete</span>
+    <span class="badge badge-next">Phase 1 → Next</span>
+  </div>
+</div>
+
+<div id="layout">
+<nav>
+  <h2>Navigation</h2>
+  <a href="#identity">Project Identity</a>
+  <a href="#locked">Locked Decisions</a>
+  <a href="#hardware">Hardware Stack</a>
+  <h2>Core Design</h2>
+  <a href="#five-concepts">The Five Concepts</a>
+  <a href="#calibration">Calibration System</a>
+  <a href="#state-machine">Node State Machine</a>
+  <a href="#game-mechanics">Game Mechanics</a>
+  <h2>Philosophy</h2>
+  <a href="#filter-philosophy">Filter Philosophy</a>
+  <a href="#error-weapons">Error → Best Weapon</a>
+  <a href="#result-struct">Result Struct Contract</a>
+  <h2>Execution</h2>
+  <a href="#roadmap">Implementation Roadmap</a>
+  <a href="#do-not">Do Not Rebuild</a>
+  <a href="#artifacts">Artifacts Created</a>
+  <a href="#new-chat">New Chat Prompt</a>
+</nav>
+
+<main>
+
+<!-- ═══ PROJECT IDENTITY ═══ -->
+<h1>Juice Battle — Project Bible</h1>
+<p style="color:var(--muted);margin-bottom:24px">Complete context for all future chat sessions. Every decision made here is captured below. Do not re-discuss locked items.</p>
+
+<h2 id="identity">Project Identity</h2>
+<div class="card-grid">
+  <div class="card"><div class="card-label">Project</div><div class="card-value">Juice Battle — crowd-facing real-time juice pouring competition at market stalls</div></div>
+  <div class="card"><div class="card-label">Game mechanic</div><div class="card-value">Two jars compete. Crowd pours juice from jars into glasses. Volume poured = score. Volume-based (not time-based).</div></div>
+  <div class="card"><div class="card-label">Hub</div><div class="card-value">Arduino UNO Q, hostname AQ3. Python on Debian Linux (MPU). App Lab Docker.</div></div>
+  <div class="card"><div class="card-label">Nodes</div><div class="card-value">Two ESP32-C3 SuperMini. One per jar. C++ / Zephyr. BLE advertising to hub.</div></div>
+  <div class="card"><div class="card-label">Sensor per node</div><div class="card-value">CZL601 40kg single-point load cell + WCMCU ADS1232 24-bit ADC breakout</div></div>
+  <div class="card"><div class="card-label">Project path</div><div class="card-value"><code>~/ArduinoApps/juice_battle/</code> on AQ3. Git initialised, S001 committed.</div></div>
+</div>
+
+<div class="box box-locked">
+  <strong>Orchestrator law:</strong> <code>main.py</code> and <code>node.ino</code> own ZERO logic — they only wire modules. NODE_ID lives only in <code>config.h</code>. No WiFi credentials in source. No module imports another module on Python side.
+</div>
+
+<!-- ═══ HARDWARE ═══ -->
+<h2 id="hardware">Hardware Stack</h2>
+<table>
+  <tr><th>Component</th><th>Role</th><th>Critical notes</th></tr>
+  <tr><td>Arduino UNO Q (AQ3)</td><td>Hub brain, MPU + MCU dual-processor</td><td>MPU = Qualcomm QRB2210 Cortex-A53, Debian Linux, Python. MCU = STM32U585 Cortex-M33, Zephyr/Arduino.</td></tr>
+  <tr><td>ESP32-C3 SuperMini</td><td>Node (one per jar)</td><td>C++ firmware. BLE advertising. ADS1232 bit-bang. Two identical binaries, differ only in NODE_ID in config.h.</td></tr>
+  <tr><td>CZL601 (40kg)</td><td>Single-point load cell</td><td>2mV/V sensitivity, 0.017% FS nonlinearity, 0.01% repeatability. Working range: 0–500g (1.25% of FS).</td></tr>
+  <tr><td>WCMCU ADS1232</td><td>24-bit ΔΣ ADC</td><td>AVDD=5V, DVDD=3.3V. Gain=128. 10 SPS (better noise). 17nV RMS at 10 SPS gain 128. ~80,000–130,000 noise-free counts. Bit-bang only — no library.</td></tr>
+</table>
+
+<div class="box box-warn">
+  VOLTAGE DISCIPLINE: MCU headers = 3.3V logic (5V tolerant EXCEPT A0, A1). MPU headers (JCTL, JMISC) = 1.8V ONLY. 3.3V on JCTL = hardware damage. ADS1232: AVDD=5V, DVDD=3.3V — never swap.
+</div>
+
+<h4>ADS1232 Wiring (confirmed, 6 connections remaining as of S001)</h4>
+<pre>GND → SPEED   |  5V → REFP   |  GPIO4 → SCLK
+GPIO5 → DOUT  |  GPIO6 → PDWN |  GPIO7 → A0 (routes below components)
+CLKIN → GND (mandatory tie — never omit)
+AINN1 silkscreen on module = known mislabel (ignore)</pre>
+
+<!-- ═══ LOCKED DECISIONS ═══ -->
+<h2 id="locked">All Locked Decisions</h2>
+<p>These are immutable. Do not re-discuss in future sessions.</p>
+
+<div class="box box-locked">ADC = ADS1232 at gain 128, 10 SPS. Bit-bang only. No external library.</div>
+<div class="box box-locked">Communication: BLE advertising (ESP32-C3 → UNO Q hub). No WiFi on nodes.</div>
+<div class="box box-locked">Calibration reference weights: 100g, 250g, 500g (locked rule — three points only).</div>
+<div class="box box-locked">Calibration model: 3-point piecewise linear interpolation (not polynomial, not single-point).</div>
+<div class="box box-locked">Result struct contract: every C++ module returns <code>{value_g, sigma_g, quality, diagnosis}</code>. quality = GOOD / DEGRADED / FAILED. Orchestrator acts on quality, never on raw value.</div>
+<div class="box box-locked">Game is VOLUME-based (not time-based). A glass = fixed volume_g (e.g. 200g). Score = glasses counted.</div>
+<div class="box box-locked">Transparency invariant: <code>glasses × glass_vol_g</code> must equal <code>start_weight − current_weight</code>. Hub validates this continuously.</div>
+<div class="box box-locked">noise.cpp is written FIRST before cal.cpp. σ_live must be measured in real environment before any threshold is set.</div>
+<div class="box box-locked">delayMicroseconds(1) on every GPIO edge during bit-bang. No exceptions.</div>
+<div class="box box-locked">Cal data stored in ESP32 NVS. Survives power cycle.</div>
+
+<!-- ═══ FIVE CONCEPTS ═══ -->
+<h2 id="five-concepts">The Five Concepts — Complete Reference</h2>
+<p>Everything in the firmware is an application of exactly one of these five concepts. Understand the concept before touching the code.</p>
+
+<h3>Concept 1 — σ and the Noise Floor</h3>
+<div class="box box-insight">σ (standard deviation) is the noise floor expressed in grams. It is the single number that sets every threshold in the entire system. Without measuring it in the real environment first, every threshold is a guess.</div>
+<ul>
+  <li>One ADC sample has uncertainty ±σ. Averaging N samples gives ±σ/√N.</li>
+  <li><strong>ADS1232 theoretical floor:</strong> 17nV ÷ (2mV/V × 5V ÷ 5000g) ≈ 0.085g per sample. Real-world σ_live in a noisy stall: 10–30g.</li>
+  <li><strong>σ_quiet</strong> = measured at rest in lab conditions. <strong>σ_live</strong> = measured WITH motor, music, crowd. Use σ_live for all thresholds.</li>
+  <li>Every weight reading in the result struct includes sigma_g alongside value_g.</li>
+  <li>68% of readings fall within ±1σ. 95% within ±2σ. 99.7% within ±3σ.</li>
+</ul>
+<pre>// Noise floor measurement (node.ino → noise.cpp)
+sigma_g = measure_sigma(n_samples=100, adc_driver)
+// Returns result struct: {sigma_raw, sigma_g, quality, diagnosis}</pre>
+
+<h3>Concept 2 — Stability Detection</h3>
+<div class="box box-insight">The state machine IS stability detection. Slope + persistence detects pour start. Spread confirms settlement. These are the two instruments: one for change, one for quiet.</div>
+<ul>
+  <li><strong>Slope estimate:</strong> <code>(EMA[i] − EMA[i−M]) / M × SPS</code> in g/s. Stable=≈0, Pouring=−40g/s.</li>
+  <li><strong>Persistence:</strong> require K consecutive samples below slope threshold before firing POURING. Rejects bumps (short transients). K=3–5 at 10 SPS.</li>
+  <li><strong>Spread check:</strong> rolling std dev of last N samples. Used in SETTLING state to confirm quiet before reading new baseline.</li>
+  <li><strong>Slope threshold</strong> derived from σ_live: threshold = 2.5 × σ_live × √2 × SPS / M. If SNR &lt; 1.5×, increase N before proceeding.</li>
+</ul>
+
+<h3>Concept 3 — Averaging and What It Cannot Fix</h3>
+<div class="box box-insight">Averaging kills exactly one class of error: zero-mean random noise. It has zero power against bias, gain error, nonlinearity, drift, or creep. Match the tool to the error type.</div>
+<table>
+  <tr><th>Error class</th><th>Averaging fixes?</th><th>What actually fixes it</th></tr>
+  <tr><td>Random noise</td><td>✓ Yes — σ/√N</td><td>Averaging (EMA for runtime, block avg for cal)</td></tr>
+  <tr><td>Systematic offset (bias)</td><td>✗ No</td><td>Tare / zero calibration</td></tr>
+  <tr><td>Gain error</td><td>✗ No</td><td>Single-point calibration (minimum)</td></tr>
+  <tr><td>Nonlinearity</td><td>✗ No</td><td>Multi-point calibration (3-point piecewise)</td></tr>
+  <tr><td>Thermal drift</td><td>✗ No</td><td>Re-tare at each game reset. Temperature compensation if needed.</td></tr>
+  <tr><td>Creep</td><td>✗ No</td><td>Mechanical design + wait time after loading</td></tr>
+</table>
+<ul>
+  <li><strong>EMA for runtime:</strong> <code>ema = α × new_sample + (1−α) × ema</code>. α = 2/(N+1). One variable stored. Lower lag than MA for same noise reduction.</li>
+  <li><strong>Block average for calibration:</strong> 50 independent samples → true √N applies. Use this only during confirmed STABLE state.</li>
+  <li><strong>Never stack filters blindly.</strong> Each filter adds lag, phase shift, distortion. Add one only when you can name the specific error class it addresses.</li>
+</ul>
+
+<h3>Concept 4 — Nonlinearity and Multi-Point Calibration</h3>
+<div class="box box-insight">Single-point calibration fits a straight line to a curved reality. The error is parabolic — zero at the calibration point, growing toward the extremes. Three points detect AND correct this. The residual spread between the three cal_factors IS the nonlinearity expressed as a number.</div>
+<pre>// Piecewise linear conversion — cal.cpp
+float u = raw - raw_zero;
+if      (u &lt;= u1) weight_g = (u / u1) * 100.0f;
+else if (u &lt;= u2) weight_g = 100.0f + (u-u1)/(u2-u1) * 150.0f;
+else              weight_g = 250.0f + (u-u2)/(u3-u2) * 250.0f;
+// u1=raw_100-raw_zero, u2=raw_250-raw_zero, u3=raw_500-raw_zero</pre>
+<ul>
+  <li>Max error: single-point ≈ ±3g across 0–500g range. Three-point piecewise ≈ ±0.25g.</li>
+  <li><strong>Confidence score:</strong> <code>spread = max(cf1,cf2,cf3) − min(cf1,cf2,cf3)</code>. confidence = 1 − spread/nominal/MAX_ACCEPTABLE. If confidence &lt; 0.85 → DEGRADED, refuse game start.</li>
+  <li>For Juice Battle (0–500g on 40kg cell): nonlinearity is likely &lt;0.5g — small but worth verifying. The confidence score gives this verification automatically.</li>
+</ul>
+
+<h3>Concept 5 — The Mode-Aware Pipeline</h3>
+<div class="box box-insight">The pipeline has two fundamentally different operating modes. A single static filter cannot be optimal for both. The state machine switches between them. This is not adaptive filtering — it is a deliberate mode switch driven by physical reality.</div>
+<table>
+  <tr><th>Mode</th><th>State</th><th>Filter strategy</th><th>Why</th></tr>
+  <tr><td>Baseline tracking</td><td>WAITING_FOR_POUR</td><td>EMA with slow α (large N equivalent). Block avg for cal samples.</td><td>Jar sitting still. Maximise accuracy. Lag is acceptable.</td></tr>
+  <tr><td>Pour detection</td><td>POUR_IN_PROGRESS</td><td>EMA-based slope. Small M. Persistence counter.</td><td>Weight actively falling. Need fast response. Accept higher noise.</td></tr>
+  <tr><td>Settling guard</td><td>SETTLING</td><td>Spread monitor. Fixed N-sample wait.</td><td>Filter hasn't caught up yet. Premature baseline read = wrong delta.</td></tr>
+</table>
+
+<!-- ═══ CALIBRATION SYSTEM ═══ -->
+<h2 id="calibration">Calibration System Design</h2>
+
+<h3>What we inherited from previous projects (home-hub, gas-cylinder-monitor)</h3>
+<table>
+  <tr><th>Pattern</th><th>Status</th><th>Adaptation</th></tr>
+  <tr><td>Result struct: {value, quality, diagnosis}</td><td class="badge badge-done" style="display:inline">Carry forward</td><td>Add sigma_g to payload</td></tr>
+  <tr><td>Orchestrator owns zero logic</td><td class="badge badge-done" style="display:inline">Carry forward</td><td>Unchanged</td></tr>
+  <tr><td>Tare concept: capture raw_zero at empty platform</td><td class="badge badge-done" style="display:inline">Carry + harden</td><td>Add guard check, stability gate, σ reporting</td></tr>
+  <tr><td>Single-point cal formula: new_cal = cur × (displayed/actual)</td><td class="badge badge-next" style="display:inline">Upgrade</td><td>Replace with 3-point piecewise linear + confidence score</td></tr>
+  <tr><td>stable = 1/0 binary flag</td><td class="badge badge-next" style="display:inline">Upgrade</td><td>Replace with σ in grams + slope estimate</td></tr>
+  <tr><td>Passive tare learning across refill cycles (gas-cylinder)</td><td style="color:var(--faint)">Skip</td><td>Irrelevant for juice — jars are intentionally emptied and refilled</td></tr>
+  <tr><td>Post-calibration validation</td><td style="color:var(--green)">New</td><td>200ml pour test — first system where cal proves itself</td></tr>
+  <tr><td>Dual-node synchronised calibration</td><td style="color:var(--green)">New</td><td>Hub broadcasts to both nodes; compares cal_factors between jars</td></tr>
+  <tr><td>Noise floor quantification</td><td style="color:var(--green)">New (enabled by ADS1232)</td><td>σ in grams — HX711 was too noisy to make this meaningful</td></tr>
+</table>
+
+<h3>Complete Calibration Sequence</h3>
+<pre>1. TARE PHASE
+   - Guard: if weight > TARE_MAX_GRAMS → FAILED (something on platform)
+   - Capture 50 block-averaged samples → raw_zero
+   - Compute σ_tare from the 50-sample window
+   - Report: {raw_zero, sigma_tare_g, quality, diagnosis}
+
+2. NOISE CHARACTERISATION (σ_live)
+   - Sample 100 reads at rest WITH environment running (motor, music)
+   - Compute σ_live in grams
+   - Derive slope_threshold and persistence K from σ_live
+   - Report: {sigma_quiet_g, sigma_live_g, snr_estimate, quality}
+
+3. THREE-POINT CALIBRATION
+   - For each weight in [100g, 250g, 500g]:
+     a. Wait for STABLE (spread < σ_threshold)
+     b. Capture 50 block-averaged samples
+     c. Compute cal_factor_N = weight_g / (raw_avg - raw_zero)
+   - Compute residuals, confidence score
+   - Store raw_100, raw_250, raw_500 in NVS
+   - Report: {cf[3], confidence, residual_max_g, quality}
+
+4. POUR VALIDATION GATE (new — did not exist in previous projects)
+   - Operator pours exactly 200ml of water
+   - Node detects pour, measures delta_g
+   - Hub checks: |measured - 200| / 200 < ERROR_PCT_THRESHOLD (e.g. 5%)
+   - Pass → calibration locked. Fail → FAILED, reason reported, recalibrate.
+
+5. GAME_READY
+   - Both nodes must pass all 4 phases
+   - Hub compares cal_factors between Node A and Node B
+   - Large divergence → flag wiring or load cell problem
+   - Issue start_game(glass_volume_g) only after both nodes pass</pre>
+
+<!-- ═══ STATE MACHINE ═══ -->
+<h2 id="state-machine">Node State Machine — Complete Reference</h2>
+<p>One node. One jar. Ten states. This is the complete firmware state machine for an ESP32-C3 node.</p>
+
+<div class="state-list">
+  <div class="state st-init"><div class="state-name">⏸ IDLE</div><div class="state-detail">Boot state. EMA init. BLE advertising. Waiting for hub command. No cal data loaded. Exits: hub sends calibrate.</div></div>
+  <div class="state st-init"><div class="state-name">🔧 CALIBRATING</div><div class="state-detail">Runs 4-phase calibration sequence. Emits CAL_COMPLETE {confidence, sigma_g, residual_max_g, cal_pts}. Exits to GAME_READY on pass, IDLE on fail.</div></div>
+  <div class="state st-init"><div class="state-name">✓ GAME_READY</div><div class="state-detail">Cal confirmed. Captures fresh baseline. Measures σ_live. Derives thresholds. Emits READY {baseline_g, sigma_live_g, snr_ratio, threshold_g_per_s}. Exits: hub sends start_game(glass_volume_g).</div></div>
+  <div class="state st-meas"><div class="state-name">👁 WAITING_FOR_POUR ← HOME STATE</div><div class="state-detail">EMA running. Slope computed. Persistence counter active. Heartbeat every 2s: {weight_g, sigma_g, state, glass_count}. Watches positive delta (weight added = cheat). Exits: K consecutive samples below slope threshold.</div></div>
+  <div class="state st-pour"><div class="state-name">🍹 POUR_IN_PROGRESS</div><div class="state-detail">Pour confirmed. Duration tracked. Emits POUR_START {baseline_g, timestamp_ms}. Mid-pour cheat watch: slope reversal → CHEAT_ALERT immediately. Does NOT update baseline. Exits: K consecutive samples above threshold.</div></div>
+  <div class="state st-settl"><div class="state-name">⏳ SETTLING</div><div class="state-detail">Mandatory wait. N samples for EMA lag. Spread monitored — extends if spread > σ_threshold. Silent (no emits). Cannot be skipped. Exits: N elapsed AND spread &lt; σ_threshold.</div></div>
+  <div class="state st-meas"><div class="state-name">⚖ STABLE_SETTLED</div><div class="state-detail">delta_g = old_baseline − new_baseline (piecewise linear applied). Emits POUR_END {delta_g, new_baseline_g, duration_s}. Decision: δ≥glass→GLASS, 0&lt;δ&lt;glass→PARTIAL, δ≤0→CHEAT, δ&lt;noise→ignore.</div></div>
+  <div class="state st-ok"><div class="state-name">🥛 GLASS_COUNTED</div><div class="state-detail">δ + accumulated partial ≥ glass_volume_g. Emits GLASS_POURED {glass_num, delta_g, cumulative_g}. Accumulator reset. → WAITING_FOR_POUR. Hub: increment counter, run transparency check.</div></div>
+  <div class="state st-meas"><div class="state-name">〜 PARTIAL_POUR</div><div class="state-detail">0 &lt; δ &lt; glass_volume_g. partial_accumulator += delta_g. Emits PARTIAL_POUR {delta_g, accumulated_g, remaining_to_glass_g}. → WAITING_FOR_POUR (accumulator preserved).</div></div>
+  <div class="state st-bad"><div class="state-name">⚠ CHEAT_ALERT</div><div class="state-detail">Patterns: jar_lift (δ≈0 after pour), weight_added (δ&lt;0), mid_reversal (slope positive during pour). old_baseline restored — cheat gains zero volume. Emits CHEAT_ALERT {pattern, delta_g, baseline_restored_g}. → WAITING_FOR_POUR.</div></div>
+</div>
+
+<h4>BLE Payload Summary</h4>
+<pre>HEARTBEAT:    {type, weight_g, sigma_g, state, glass_count}          // every 2s
+POUR_START:   {type, baseline_g, timestamp_ms}                        // entering POUR_IN_PROGRESS
+POUR_END:     {type, delta_g, new_baseline_g, duration_s, pour_num}  // entering STABLE_SETTLED
+GLASS_POURED: {type, glass_num, delta_g, cumulative_g}               // GLASS_COUNTED
+PARTIAL_POUR: {type, delta_g, accumulated_g, remaining_to_glass_g}   // PARTIAL_POUR
+CHEAT_ALERT:  {type, pattern, delta_g, baseline_restored_g}          // CHEAT_ALERT
+CAL_COMPLETE: {type, confidence, sigma_g, residual_max_g, cal_pts}   // end of CALIBRATING</pre>
+
+<!-- ═══ GAME MECHANICS ═══ -->
+<h2 id="game-mechanics">Volume-Based Game Mechanics</h2>
+
+<div class="box box-insight">Volume-based is superior to time-based for three reasons: (1) natural game mechanic — fill glasses not fill time, (2) fairness — slow careful pourers not penalised, (3) self-proving transparency — glass count and jar weight must mathematically agree.</div>
+
+<h4>Core mechanics</h4>
+<pre>glass_volume_g  = set by operator before game (e.g. 200g ≈ 200ml for water/juice)
+glass_count     = number of complete glasses poured from this jar
+partial_accum   = grams carried forward from incomplete pours
+
+// After each settled pour:
+partial_accum += delta_g
+if partial_accum >= glass_volume_g:
+    glass_count += 1
+    partial_accum -= glass_volume_g  // carry leftover forward</pre>
+
+<h4>Transparency invariant (hub validates every heartbeat)</h4>
+<pre>expected_weight = start_weight - (glass_count × glass_volume_g) - partial_accum
+actual_weight   = current node weight_g
+discrepancy     = |expected_weight - actual_weight|
+if discrepancy > TOLERANCE_G:  # e.g. 10g
+    flag: calibration_drift or anomaly detected</pre>
+
+<h4>Cheat detection summary</h4>
+<table>
+  <tr><th>Cheat attempt</th><th>What the sensor sees</th><th>Detection</th></tr>
+  <tr><td>Lift jar, put back (no pour)</td><td>Weight drops, then returns to near original. delta ≈ 0.</td><td>STABLE_SETTLED: delta &lt; noise_floor after POUR event → jar_lift flag</td></tr>
+  <tr><td>Add water to opponent's jar</td><td>Weight increases after stability. delta &lt; 0.</td><td>STABLE_SETTLED: delta ≤ 0 → weight_added flag</td></tr>
+  <tr><td>Lift jar mid-pour</td><td>Slope goes positive during POUR_IN_PROGRESS.</td><td>Mid-pour slope reversal → CHEAT_ALERT immediately</td></tr>
+  <tr><td>Pour from external bottle</td><td>Jar weight unchanged. No delta detected.</td><td>No glass counted — you must pour FROM the jar</td></tr>
+</table>
+
+<!-- ═══ FILTER PHILOSOPHY ═══ -->
+<h2 id="filter-philosophy">Filter Philosophy</h2>
+
+<div class="box box-gold">
+  <strong>The single most important line from this entire design process:</strong><br><br>
+  "Good instrumentation is not about using many filters; it's about using the right filter for the error you're addressing."<br><br>
+  Stacking Median → MA → EMA → Kalman → Butterworth → Savitzky-Golay produces a WORSE result, not a better one. Each filter adds delay, phase shift, distortion, and tuning complexity. Add a filter only when you can name the specific error class it targets.
+</div>
+
+<h4>The aspired output (from external AI review — we match this with our result struct)</h4>
+<pre>Weight:      20.153 kg       ← value_g in result struct
+Confidence:  99.8%           ← confidence from calibration module  
+Noise:       0.8g RMS        ← sigma_g in result struct
+Motion:      None            ← quality=GOOD / DEGRADED (stability state)
+Calibration: Valid           ← GOOD/DEGRADED/FAILED from cal module</pre>
+
+<!-- ═══ ERROR WEAPONS TABLE ═══ -->
+<h2 id="error-weapons">Error Type → Best Weapon</h2>
+<table>
+  <tr><th>Error source</th><th>Best approach</th><th>In our system</th></tr>
+  <tr><td>Electrical noise (white)</td><td>EMA / block averaging</td><td>EMA in WAITING state. Block avg in CALIBRATING.</td></tr>
+  <tr><td>EMI spikes / bumps</td><td>Persistence check (K samples)</td><td>Persistence counter in WAITING_FOR_POUR</td></tr>
+  <tr><td>Systematic offset</td><td>Tare / zero calibration</td><td>Tare at game reset. Guard-checked tare.</td></tr>
+  <tr><td>Gain error</td><td>Calibration (minimum 1-point)</td><td>3-point piecewise (supersedes single-point)</td></tr>
+  <tr><td>Nonlinearity</td><td>Multi-point calibration</td><td>3-point piecewise linear + confidence score</td></tr>
+  <tr><td>Thermal drift (zero)</td><td>Re-tare regularly</td><td>Tare at each game round reset</td></tr>
+  <tr><td>Thermal drift (span)</td><td>Temperature compensation</td><td>CZL601 span drift = 0.014%FS/10°C. In 0-500g range ≈ negligible. Monitor confidence score for drift detection.</td></tr>
+  <tr><td>Creep</td><td>Mechanical design + wait time</td><td>Not a concern — jar weight is always changing. SETTLING state provides natural wait.</td></tr>
+  <tr><td>Vibration / mechanical</td><td>Low-pass (SETTLING state) + spread check</td><td>SETTLING: spread < σ_threshold before accepting baseline</td></tr>
+  <tr><td>50/60Hz mains</td><td>ADS1232 at 10 SPS (>100dB rejection built-in)</td><td>Hardware handles this. No software notch needed.</td></tr>
+  <tr><td>Power supply ripple</td><td>Hardware (LDO, decoupling) + separate AVDD/DVDD</td><td>AVDD=5V, DVDD=3.3V separate. Hardware concern only.</td></tr>
+  <tr><td>Digital switching noise (ESP32)</td><td>PCB layout, separate analog/digital ground returns</td><td>Hardware concern. Star grounding. Shielded cable.</td></tr>
+</table>
+
+<!-- ═══ RESULT STRUCT ═══ -->
+<h2 id="result-struct">Result Struct Contract</h2>
+<div class="box box-locked">This contract is immutable. All C++ modules return this struct. Orchestrator (node.ino) acts only on quality, never on raw value.</div>
+<pre>// Every module returns this struct
+struct WeightResult {
+    float   value_g;        // calibrated weight in grams
+    float   sigma_g;        // noise floor in grams (new — not in HX711 projects)
+    Quality quality;        // GOOD / DEGRADED / FAILED
+    char    diagnosis[64];  // human-readable reason if DEGRADED or FAILED
+};
+
+// Calibration result (extended)
+struct CalResult {
+    float   cal_pts[3];     // raw ADC at 100g, 250g, 500g
+    float   confidence;     // 0.0–1.0 residual-based confidence
+    float   residual_max_g; // max divergence between three cal_factors in grams
+    float   sigma_g;        // noise floor at calibration time
+    Quality quality;
+    char    diagnosis[64];
+};</pre>
+
+<!-- ═══ ROADMAP ═══ -->
+<h2 id="roadmap">Implementation Roadmap</h2>
+
+<div class="phase-row">
+  <div class="phase-num ph-done">0</div>
+  <div class="phase-content">
+    <div class="phase-title">Phase 0 — Scope &amp; Architecture <span class="badge badge-done">COMPLETE</span></div>
+    <div class="phase-sub">Hardware selected, wiring schematic, all architectural decisions locked, 5 core concepts designed, calibration system designed, state machine designed, volume-based game mechanics designed. S001 committed.</div>
+  </div>
+</div>
+
+<div class="phase-row">
+  <div class="phase-num ph-next">1</div>
+  <div class="phase-content">
+    <div class="phase-title">Phase 1 — ESP32-C3 Firmware <span class="badge badge-next">NEXT</span></div>
+    <div class="phase-sub">
+      <strong>Order matters. Do not skip steps.</strong><br>
+      1.1 Complete physical wiring (6 connections remain + multimeter polarity check on CZL601 green/white)<br>
+      1.2 <strong>noise.cpp</strong> — ADS1232 bit-bang read loop + σ measurement. THIS GOES FIRST.<br>
+      1.3 <strong>cal.cpp</strong> — 3-point piecewise linear, confidence score, NVS storage<br>
+      1.4 <strong>stability.cpp</strong> — EMA, slope estimation, persistence counter, spread check<br>
+      1.5 <strong>state_machine.cpp</strong> — complete 10-state machine<br>
+      1.6 <strong>ble.cpp</strong> — BLE advertising payloads (all 7 event types)<br>
+      1.7 <strong>node.ino</strong> — orchestrator only, wires modules, zero logic
+    </div>
+  </div>
+</div>
+
+<div class="phase-row">
+  <div class="phase-num ph-later">2</div>
+  <div class="phase-content">
+    <div class="phase-title">Phase 2 — Hub Python</div>
+    <div class="phase-sub">
+      ble_listener.py — receive BLE advertising from both nodes<br>
+      game_engine.py — glass counting, partial accumulator, transparency check<br>
+      cheat_detector.py — pattern matching on CHEAT_ALERT events<br>
+      event_bus.py — Socket.IO push to dashboard<br>
+      calibration_ui.py — operator CLI for calibration sequence
+    </div>
+  </div>
+</div>
+
+<div class="phase-row">
+  <div class="phase-num ph-later">3</div>
+  <div class="phase-content">
+    <div class="phase-title">Phase 3 — Dashboard</div>
+    <div class="phase-sub">Crowd-facing real-time display. Jar A vs Jar B. Glass counter. Weight remaining. Persona animations. Transparency numbers visible to users. Socket.IO push from hub.</div>
+  </div>
+</div>
+
+<div class="phase-row">
+  <div class="phase-num ph-later">4</div>
+  <div class="phase-content">
+    <div class="phase-title">Phase 4 — Calibration UX</div>
+    <div class="phase-sub">Operator-facing interface for running the 4-phase calibration sequence. Step-by-step prompts. Confidence score display. Re-calibration triggers.</div>
+  </div>
+</div>
+
+<div class="phase-row">
+  <div class="phase-num ph-later">5–8</div>
+  <div class="phase-content">
+    <div class="phase-title">Phases 5–8 — Integration, Multi-round, Field Testing</div>
+    <div class="phase-sub">Game start/stop/reset flow. Multi-round session management. Persona system. LED feedback. Audio cues. Field testing at actual market stall.</div>
+  </div>
+</div>
+
+<!-- ═══ DO NOT REBUILD ═══ -->
+<h2 id="do-not">What Not To Rebuild in Future Sessions</h2>
+<div class="box box-warn">
+  Do not re-discuss the calibration approach. Three-point piecewise linear is decided. No polynomial fitting. No Kalman for calibration. No single-point.
+</div>
+<div class="box box-warn">
+  Do not stack filters without a named reason. The "should we use every filter?" question was answered: NO. Every filter addition must name the specific error class it targets.
+</div>
+<div class="box box-warn">
+  Do not make the game time-based. Volume-based was chosen deliberately. The three reasons are documented in Game Mechanics section above.
+</div>
+<div class="box box-warn">
+  Do not use the Kalman filter for pour detection. It was discussed and rejected. Kalman tuned for slow state changes (gas cylinder context) is wrong for a fast dynamic pour event. EMA + persistence is the correct tool here.
+</div>
+<div class="box box-warn">
+  Do not attempt to build a "general-purpose precision weighing platform" with 10+ engines. That was the external AI's proposal. We are building a specific, purposeful system for Juice Battle. The 5 concepts are the complete design basis.
+</div>
+<div class="box box-warn">
+  Do not skip noise.cpp. σ_live MUST be measured first in the real environment. If you write cal.cpp before noise.cpp, every threshold in the system is a guess.
+</div>
+
+<!-- ═══ ARTIFACTS ═══ -->
+<h2 id="artifacts">Artifacts Created in This Session</h2>
+<table>
+  <tr><th>File</th><th>What it is</th></tr>
+  <tr><td>juice_battle_state_machine.html</td><td>Interactive 10-state machine explorer. Tap each state to see detail, transition triggers, BLE payloads, and which concept is at work. Download and open in any browser.</td></tr>
+  <tr><td>juice_battle_project_bible.html (this file)</td><td>Complete project context, all decisions, all designs, implementation roadmap, new chat prompt.</td></tr>
+  <tr><td>Inline visualizer widgets</td><td>σ and noise explainer (interactive slider), block vs moving average step response, EMA slope stability detector, nonlinearity calibration error comparison, averaging kills noise not bias. All generated in chat — not saved as files, but logic is documented above.</td></tr>
+  <tr><td>calibration_system_comparison.html</td><td>Old vs new calibration comparison — carry/upgrade/new/skip classification. Generated in this session, uploaded back by user for reference.</td></tr>
+</table>
+
+<!-- ═══ NEW CHAT PROMPT ═══ -->
+<h2 id="new-chat">New Chat Context Prompt</h2>
+<p>Copy and paste this at the start of any new Claude chat session to restore full project context instantly.</p>
+
+<div class="context-block">
+# JUICE BATTLE — PROJECT CONTEXT (paste at start of new chat)
+
+## What this is
+Juice Battle: a crowd-facing real-time juice pouring competition at market stalls. Two jars of juice compete. Visitors pour juice into glasses. Volume poured = score. Volume-based game (NOT time-based).
+
+## Hardware
+- Hub: Arduino UNO Q (AQ3), hostname AQ3. Debian Linux (MPU/Qualcomm Cortex-A53) + Zephyr/Arduino (MCU/STM32). Python on MPU, C++ on MCU. App Lab Docker.
+- Two ESP32-C3 SuperMini nodes (one per jar). C++ firmware. BLE advertising to hub. Two identical binaries differing only in NODE_ID (in config.h).
+- Sensor per node: CZL601 40kg single-point load cell + WCMCU ADS1232 24-bit ADC. Gain=128, 10 SPS. Bit-bang only (no library). delayMicroseconds(1) on every GPIO edge.
+- ADS1232 voltages: AVDD=5V, DVDD=3.3V. CLKIN→GND mandatory. ADS1232 gives ~17nV RMS noise at gain 128 / 10 SPS.
+- Project path: ~/ArduinoApps/juice_battle/ on AQ3. Git init'd, S001 committed.
+
+## Locked architectural decisions (DO NOT re-discuss)
+- Orchestrator law: main.py and node.ino own ZERO logic — they only wire modules.
+- Result struct: every C++ module returns {value_g, sigma_g, quality:GOOD/DEGRADED/FAILED, diagnosis}.
+- Calibration: 3-point piecewise linear (100g / 250g / 500g). No single-point. No polynomial. Confidence score from residual spread.
+- noise.cpp is written FIRST. σ_live measured in real environment before any threshold is set.
+- Cal data stored in ESP32 NVS. Survives power cycle.
+- Volume-based game: glass_volume_g set by operator. Score = glasses counted. Transparency: glasses × glass_vol_g must equal start_weight − current_weight.
+
+## The five concepts (complete design basis)
+1. σ = noise floor in grams. Sets ALL thresholds. Measure σ_live (in real environment WITH motor/music/crowd) before anything else.
+2. Stability detection: EMA-based slope + persistence counter (K samples) detects pour start. Spread check confirms settlement. State machine is the implementation.
+3. Averaging law: σ_avg = σ/√N. Kills random noise only. Cannot fix bias, gain error, nonlinearity, drift, or creep. EMA for runtime, block average for calibration.
+4. Nonlinearity: single-point cal assumes linearity and is wrong everywhere except one point. 3-point piecewise linear corrects this. Residual spread between 3 cal_factors IS the nonlinearity.
+5. Mode-aware pipeline: WAITING state uses heavy EMA (slow, accurate). POUR state uses fast slope detection. SETTLING is mandatory lag wait. Never use one filter for both modes.
+
+## Node state machine (10 states)
+IDLE → CALIBRATING → GAME_READY → WAITING_FOR_POUR (home) → POUR_IN_PROGRESS → SETTLING → STABLE_SETTLED → [GLASS_COUNTED | PARTIAL_POUR | CHEAT_ALERT] → WAITING_FOR_POUR (loop)
+
+Key rules:
+- SETTLING is mandatory — cannot skip. EMA lag means premature read = wrong delta.
+- delta_g = old_baseline − new_baseline (after SETTLING, piecewise linear applied).
+- Cheat patterns: jar_lift (delta≈0 after pour), weight_added (delta<0), mid_reversal (slope reverses positive during pour). In all cases: old_baseline restored, cheat gains zero volume.
+- Partial pours accumulate: partial_accum += delta_g. Glass counted when accum ≥ glass_volume_g.
+
+## BLE events (node → hub)
+HEARTBEAT, POUR_START, POUR_END, GLASS_POURED, PARTIAL_POUR, CHEAT_ALERT, CAL_COMPLETE
+
+## Filter philosophy (GOLD rule)
+"Good instrumentation is not about using many filters; it's about using the right filter for the error you're addressing."
+Each error has one best weapon. Do NOT stack filters without naming the specific error class each one addresses.
+
+## Current status
+- Phase 0 (Scope & Architecture): COMPLETE. All decisions locked.
+- Phase 1 (ESP32-C3 Firmware): NEXT. Start with physical wiring completion, then noise.cpp.
+- Wiring remaining: GND→SPEED, 5V→REFP, GPIO4→SCLK, GPIO5→DOUT, GPIO6→PDWN, GPIO7→A0. Multimeter polarity check on CZL601 green/white wires pending.
+
+## What NOT to rebuild
+- Do not re-discuss calibration approach (decided: 3-point piecewise linear)
+- Do not use Kalman for pour detection (wrong tool for fast dynamic events)
+- Do not stack filters without named reason
+- Do not make game time-based (volume-based decided)
+- Do not skip noise.cpp — σ_live MUST come first
+
+## Reference files
+- juice_battle_state_machine.html — interactive state machine explorer
+- juice_battle_project_bible.html — this full document
+- Reference project on AQ3: gas-cylinder-monitor (source of reusable patterns)
+</div>
+
+<div style="margin-top:40px;padding-top:20px;border-top:0.5px solid var(--border);font-size:11px;color:var(--faint)">
+  Juice Battle Project Bible · Generated from session S002 · Arduino UNO Q (AQ3) · Phase 0 complete · Phase 1 next
+</div>
+
+</main>
+</div>
+
+</body>
+</html>
