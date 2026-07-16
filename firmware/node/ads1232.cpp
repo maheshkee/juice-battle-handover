@@ -2,7 +2,7 @@
 // ADS1232 HAL — bit-bang implementation.
 // Protocol: DRDY/DOUT goes LOW when conversion ready.
 // Clock 24 bits out MSB first. Data valid during SCLK HIGH phase.
-// delayMicroseconds(1) required on every GPIO edge — ESP32-C3 at 160MHz is
+// delayMicroseconds(2) required on every GPIO edge — ESP32-C3 at 160MHz is
 // faster than ADS1232 minimum setup times without this delay.
 #include "ads1232.h"
 #include "config.h"
@@ -33,41 +33,40 @@ bool ads1232_is_ready(void) {
 }
 
 int32_t ads1232_read_raw(void) {
-    // Wait for DRDY to go LOW (conversion complete)
     uint32_t deadline = millis() + ADS_READY_TIMEOUT_MS;
     while (!ads1232_is_ready()) {
         if (millis() > deadline) {
-            return ADS1232_READ_ERROR;  // hardware not responding
+            return ADS1232_READ_ERROR;
         }
     }
 
     int32_t data = 0;
-
-    // Disable interrupts for the entire 24-bit read.
-    // A missed or extra edge corrupts the entire reading.
     noInterrupts();
 
     for (int i = 23; i >= 0; i--) {
-        // Rising edge: ADS1232 presents the next bit on DOUT
         digitalWrite(ADS_PIN_SCLK, HIGH);
-        delayMicroseconds(1);           // MANDATORY — setup time
-
-        // Sample DOUT while SCLK is HIGH
-        if (digitalRead(ADS_PIN_DOUT)) {
-            data |= (1 << i);
-        }
-
-        // Falling edge: ADS1232 advances to next bit
+        delayMicroseconds(2);
+        if (digitalRead(ADS_PIN_DOUT)) data |= (1 << i);
         digitalWrite(ADS_PIN_SCLK, LOW);
-        delayMicroseconds(1);           // MANDATORY — hold time
+        delayMicroseconds(2);
     }
+
+    // Settling pulse - allows DOUT to fully transition to HIGH before we return.
+    // Without this, the next call catches DOUT mid-transition and reads all-1s.
+    digitalWrite(ADS_PIN_SCLK, HIGH);
+    delayMicroseconds(2);
+    digitalWrite(ADS_PIN_SCLK, LOW);
+    delayMicroseconds(2);
 
     interrupts();
 
-    // ADS1232 output is 24-bit two's complement.
-    // Sign-extend bit 23 to fill the 32-bit int.
-    if (data & 0x800000) {
-        data |= 0xFF000000;
+    // Sign extend 24-bit two's complement to 32-bit
+    if (data & 0x800000) data |= 0xFF000000;
+
+    // Guard: all 24 bits HIGH means DOUT was transitioning when we clocked.
+    // Physically impossible for our load cell. Return as error.
+    if ((data & 0x00FFFFFF) == 0x00FFFFFF) {
+        return ADS1232_READ_ERROR;
     }
 
     return data;

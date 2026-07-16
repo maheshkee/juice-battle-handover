@@ -31,3 +31,13 @@
 #define NOISE_SAMPLE_COUNT_DEFAULT  100  // samples for σ measurement
 #define NOISE_SAMPLE_COUNT_MIN        2  // minimum valid sample count
 #define NOISE_MAX_ERROR_RATE       0.25f // if >25% of reads fail → FAILED
+
+// ── Measured noise floor (from S002 noise test, office + fan, empty platform) ──
+// σ_live = 6.23g. Update this after first deployment in real stall environment.
+// All stability thresholds below are derived from this measurement.
+#define MEASURED_SIGMA_LIVE_G            6.23f
+
+// Derived thresholds - recalculate if MEASURED_SIGMA_LIVE_G changes
+#define STABILITY_SPREAD_THRESHOLD_G    25.0f  // 4 × σ_live - stability gate
+#define STABILITY_SLOPE_THRESHOLD_GS    15.0f  // pour detection (g/s), ~3× slope noise
+#define STABILITY_PERSISTENCE_K             3  // consecutive samples before POURING declared
