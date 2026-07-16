@@ -7,6 +7,7 @@
 // estimate only. It will be superseded by the real cal model after cal.cpp runs.
 #pragma once
 #include <Arduino.h>
+#include "config.h"
 #include "types.h"
 
 struct NoiseResult {
