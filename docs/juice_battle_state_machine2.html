@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Juice Battle — Node State Machine</title>
+<style>
+  :root {
+    --bg: #F9F8F6; --surface: #FFFFFF; --surface2: #F1EFE9;
+    --border: rgba(0,0,0,0.1); --text: #1A1917; --muted: #6B6965;
+    --blue: #1862a8; --blue-bg: rgba(55,138,221,0.1); --blue-b: rgba(55,138,221,0.3);
+    --amber: #7a4800; --amber-bg: rgba(250,170,50,0.13); --amber-b: rgba(250,170,50,0.35);
+    --red: #8b2000; --red-bg: rgba(216,90,48,0.13); --red-b: rgba(216,90,48,0.35);
+    --gray: #555; --gray-bg: rgba(160,158,150,0.12); --gray-b: rgba(0,0,0,0.12);
+    --green: #0a5540; --green-bg: rgba(29,158,117,0.1); --green-b: rgba(29,158,117,0.3);
+    --danger: #7a1a1a; --danger-bg: rgba(163,45,45,0.1); --danger-b: rgba(163,45,45,0.3);
+    --accent: #378ADD;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1A1917; --surface: #242320; --surface2: #2E2C29;
+      --border: rgba(255,255,255,0.1); --text: #F0EDE8; --muted: #9B9791;
+      --blue: #7EB8F7; --blue-bg: rgba(55,138,221,0.15); --blue-b: rgba(55,138,221,0.35);
+      --amber: #F5C97A; --amber-bg: rgba(250,170,50,0.15); --amber-b: rgba(250,170,50,0.4);
+      --red: #F0967A; --red-bg: rgba(216,90,48,0.15); --red-b: rgba(216,90,48,0.4);
+      --gray: #9B9791; --gray-bg: rgba(160,158,150,0.15); --gray-b: rgba(255,255,255,0.12);
+      --green: #5DCAA5; --green-bg: rgba(29,158,117,0.15); --green-b: rgba(29,158,117,0.35);
+      --danger: #F09595; --danger-bg: rgba(163,45,45,0.15); --danger-b: rgba(163,45,45,0.35);
+    }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 20px; min-height: 100vh; }
+  h1 { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+  .sub { font-size: 12px; color: var(--muted); margin-bottom: 16px; }
+  #root { display: grid; grid-template-columns: 210px 1fr; gap: 14px; }
+  @media (max-width: 560px) { #root { grid-template-columns: 1fr; } }
+
+  /* State boxes */
+  .sb { border: 1.5px solid; border-radius: 9px; padding: 8px 13px; margin-bottom: 4px; cursor: pointer; font-size: 12px; font-weight: 500; display: flex; align-items: center; gap: 7px; transition: transform 0.12s, opacity 0.12s; user-select: none; }
+  .sb:hover { transform: translateX(3px); opacity: 0.78; }
+  .sb.on { box-shadow: 0 0 0 2.5px var(--accent); }
+  .ci { background: var(--blue-bg); color: var(--blue); border-color: var(--blue-b); }
+  .cw { background: var(--amber-bg); color: var(--amber); border-color: var(--amber-b); }
+  .cp { background: var(--red-bg); color: var(--red); border-color: var(--red-b); }
+  .cs { background: var(--gray-bg); color: var(--gray); border-color: var(--gray-b); }
+  .cg { background: var(--green-bg); color: var(--green); border-color: var(--green-b); }
+  .cd2 { background: var(--danger-bg); color: var(--danger); border-color: var(--danger-b); }
+
+  .ar { font-size: 10px; color: var(--muted); padding-left: 12px; margin: 2px 0; line-height: 1.5; }
+  .sep { border-top: 0.5px dashed var(--border); margin: 8px 0; padding-top: 6px; font-size: 10px; color: var(--muted); letter-spacing: 0.05em; }
+  .g3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 3px; margin-bottom: 4px; }
+  .g3 .sb { margin: 0; justify-content: center; padding: 6px 3px; font-size: 10px; }
+
+  /* Legend */
+  .legend { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+  .leg { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); }
+  .leg-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+
+  /* Detail panel */
+  .panel { background: var(--surface); border: 0.5px solid var(--border); border-radius: 12px; padding: 16px 18px; min-height: 300px; }
+  .hint { font-size: 12px; color: var(--muted); text-align: center; padding: 60px 20px; line-height: 1.6; }
+  .dtitle { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 12px; }
+  .dhead { font-size: 10px; font-weight: 600; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; margin: 10px 0 3px; }
+  .dbody { font-size: 11.5px; color: var(--text); line-height: 1.75; }
+  .dcode { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 10.5px; background: var(--surface2); border: 0.5px solid var(--border); padding: 6px 10px; border-radius: 6px; display: block; margin-top: 5px; line-height: 1.9; color: var(--text); white-space: pre-wrap; word-break: break-all; }
+  .dtag { font-size: 10px; background: var(--blue-bg); color: var(--blue); border-radius: 4px; padding: 1px 7px; font-weight: 500; display: inline-block; margin-bottom: 3px; }
+
+  /* Concept summary at bottom */
+  .csumm { margin-top: 20px; background: var(--surface); border: 0.5px solid var(--border); border-radius: 12px; padding: 14px 18px; }
+  .csumm h2 { font-size: 13px; font-weight: 600; margin-bottom: 10px; }
+  .crow { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; }
+  .ccard { background: var(--surface2); border-radius: 8px; padding: 10px 12px; }
+  .cnum { font-size: 11px; font-weight: 600; color: var(--accent); margin-bottom: 2px; }
+  .cname { font-size: 12px; font-weight: 500; color: var(--text); margin-bottom: 3px; }
+  .cwhere { font-size: 11px; color: var(--muted); line-height: 1.5; }
+</style>
+</head>
+<body>
+
+<h1>Juice Battle — ESP32-C3 Node State Machine</h1>
+<p class="sub">One node, one jar. Tap any state to explore what happens, what triggers the transition, and which concept is at work.</p>
+
+<div class="legend">
+  <div class="leg"><div class="leg-dot" style="background:var(--blue-bg);border:1px solid var(--blue-b)"></div>Initialisation</div>
+  <div class="leg"><div class="leg-dot" style="background:var(--amber-bg);border:1px solid var(--amber-b)"></div>Active measurement</div>
+  <div class="leg"><div class="leg-dot" style="background:var(--red-bg);border:1px solid var(--red-b)"></div>Pour in progress</div>
+  <div class="leg"><div class="leg-dot" style="background:var(--gray-bg);border:1px solid var(--gray-b)"></div>Settling / wait</div>
+  <div class="leg"><div class="leg-dot" style="background:var(--green-bg);border:1px solid var(--green-b)"></div>Count / validate</div>
+  <div class="leg"><div class="leg-dot" style="background:var(--danger-bg);border:1px solid var(--danger-b)"></div>Alert</div>
+</div>
+
+<div id="root">
+  <div>
+    <div class="sb ci" data-k="IDLE">⏸ IDLE</div>
+    <div class="ar">↓ hub: calibrate</div>
+    <div class="sb ci" data-k="CAL">🔧 CALIBRATING</div>
+    <div class="ar">↓ confidence ≥ 0.85 + validation</div>
+    <div class="sb ci" data-k="READY">✓ GAME_READY</div>
+    <div class="ar">↓ hub: start_game(glass_volume_g)</div>
+    <div class="sep">── game loop ──</div>
+    <div class="sb cw" data-k="WAIT">👁 WAITING_FOR_POUR</div>
+    <div class="ar">↓ <b>Path A</b>: slope &lt; −T, K samples</div>
+    <div class="ar" style="font-size:9px;color:var(--green);padding-left:6px">⤵ <b>Path B</b>: stable baseline jump → STABLE_SETTLED direct</div>
+    <div class="sb cp" data-k="POUR">🍹 POUR_IN_PROGRESS (Path A only)</div>
+    <div class="ar">↓ slope ≈ 0, K consecutive samples</div>
+    <div class="sb cs" data-k="SETT">⏳ SETTLING</div>
+    <div class="ar">↓ N samples elapsed + spread &lt; σ</div>
+    <div class="sb cw" data-k="STBL">⚖ STABLE_SETTLED</div>
+    <div class="ar" style="padding-left:0;text-align:center;font-size:9px">δ ≥ glass &nbsp;·&nbsp; 0 &lt; δ &lt; glass &nbsp;·&nbsp; δ ≤ 0</div>
+    <div class="g3">
+      <div class="sb cg" data-k="GLASS">🥛 Glass</div>
+      <div class="sb cw" data-k="PART">〜 Partial</div>
+      <div class="sb cd2" data-k="CHEAT">⚠ Cheat</div>
+    </div>
+    <div class="ar" style="text-align:center">↑ all loop → WAITING_FOR_POUR</div>
+  </div>
+
+  <div class="panel" id="panel">
+    <div class="hint">← tap any state on the left to explore it in detail</div>
+  </div>
+</div>
+
+<div class="csumm">
+  <h2>Where each concept lives in the pipeline</h2>
+  <div class="crow">
+    <div class="ccard">
+      <div class="cnum">Concept 1</div>
+      <div class="cname">σ and noise floor</div>
+      <div class="cwhere">GAME_READY: σ_live measured. Sets every threshold downstream. SETTLING: spread check uses σ. CALIBRATING: block avg gives σ_tare.</div>
+    </div>
+    <div class="ccard">
+      <div class="cnum">Concept 2</div>
+      <div class="cname">Stability detection</div>
+      <div class="cwhere">The state machine IS Concept 2. Slope + persistence = WAITING→POURING. Spread check = SETTLING→SETTLED.</div>
+    </div>
+    <div class="ccard">
+      <div class="cnum">Concept 3</div>
+      <div class="cname">Averaging + √N</div>
+      <div class="cwhere">CALIBRATING uses block avg (true √N, independent samples). Runtime uses EMA (low lag). Averaging fixes random noise — tare fixes offset.</div>
+    </div>
+    <div class="ccard">
+      <div class="cnum">Concept 4</div>
+      <div class="cname">Nonlinearity + multi-point cal</div>
+      <div class="cwhere">CALIBRATING builds the 3-point piecewise model + confidence score. STABLE_SETTLED applies it to every delta computation.</div>
+    </div>
+    <div class="ccard">
+      <div class="cnum">Concept 5</div>
+      <div class="cname">Mode-aware pipeline</div>
+      <div class="cwhere">The complete state machine. Concepts 1–4 are individual layers. Concept 5 is how they all plug into each other to produce glass counts from raw ADC counts.</div>
+    </div>
+  </div>
+  </div>
+</div>
+
+<div class="csumm" style="margin-top:12px">
+  <h2>Design Decisions locked in S002</h2>
+  <div class="crow">
+    <div class="ccard">
+      <div class="cnum">Display unit</div>
+      <div class="cname">Glass count only</div>
+      <div class="cwhere">Production dashboard shows 🥛🥛🥛 count. No grams. No ml. Eliminates density conversion (juice ≠ water) and crowd-facing flicker simultaneously.</div>
+    </div>
+    <div class="ccard">
+      <div class="cnum">glass_volume_g</div>
+      <div class="cname">Operator-set, never hardcoded</div>
+      <div class="cwhere">Operator fills one glass, weighs it, enters value at game start. Default 150g (150ml glass). Hub sends it to both nodes via start_game(glass_volume_g=X).</div>
+    </div>
+    <div class="ccard">
+      <div class="cnum">Dual detection</div>
+      <div class="cname">Path A + Path B</div>
+      <div class="cwhere">Path A: slope-based real-time detection. Path B: baseline-jump detection for tap-force-masked pours. Volume accuracy is identical. Only difference: Path A enables live animation, Path B does not.</div>
+    </div>
+    <div class="ccard">
+      <div class="cnum">Tap force</div>
+      <div class="cname">Push-down taps contaminate slope</div>
+      <div class="cwhere">Hand weight on push-down tap transfers vertically into load cell, masking the pour slope. Path B handles this. Hardware recommendation: use side-lever (horizontal pivot) taps to avoid contamination entirely.</div>
+    </div>
+    <div class="ccard">
+      <div class="cnum">Dev vs production</div>
+      <div class="cname">Flicker is diagnostic</div>
+      <div class="cwhere">Development mode: show raw EMA weight in grams — flicker proves sensor is alive. Production mode: show glass count only — crowd sees stable integer. Single dashboard flag switches modes.</div>
+    </div>
+    <div class="ccard">
+      <div class="cnum">Hardware</div>
+      <div class="cname">10L glass jar · 150ml glass</div>
+      <div class="cwhere">Jar tare weight unknown — measured during calibration. Load cell: CZL601 40kg — handles jar tare + full 10L juice (≈10kg) with headroom. σ_live confirmed: 6.23g (office, fan on).</div>
+    </div>
+  </div>
+</div>
+
+<script>
+var D = {
+IDLE: {
+  t:"⏸ IDLE",
+  w:"Node has booted. EMA initialised, BLE advertising as discoverable. No calibration loaded yet — or NVS calibration flagged as stale (e.g. too old, confidence was low, or operator triggered recalibration). Waits silently for a hub command.",
+  r:"Hub sends calibrate command over BLE",
+  e:"— nothing emitted —\nSilent until commanded.",
+  c:"Starting point for every session and every recalibration cycle."
+},
+CAL: {
+  t:"🔧 CALIBRATING",
+  w:"Three-phase sequence:\n\n1. TARE: stability guard checks spread < σ_threshold → 50 block-averaged samples → raw_zero + σ_tare reported\n\n2. THREE REFERENCE WEIGHTS (100g / 250g / 500g): operator places each, node detects STABLE, captures 50-sample block average, emits confirmation prompt to hub for next weight\n\n3. RESIDUAL CHECK: compute three independent cal_factors, check agreement → confidence score (0.0–1.0)\n\n4. POUR VALIDATION: operator pours 200ml test pour, node measures delta, verifies = 200g ± 5%\n\nAll four ADC reference points stored in ESP32 NVS — survive power-off.",
+  r:"Confidence ≥ 0.85 AND pour validation passes → GAME_READY\nFail → emit FAILED with diagnosis string → back to IDLE",
+  e:'{\n  type: "CAL_COMPLETE",\n  confidence: 0.97,\n  sigma_g: 1.8,\n  residual_max_g: 0.31,\n  cal_pts: [raw_100, raw_250, raw_500]\n}',
+  c:"Concept 1 (block avg gives true σ_tare) · Concept 3 (block avg = independent samples, true √N) · Concept 4 (3-point piecewise linear calibration)"
+},
+READY: {
+  t:"✓ GAME_READY",
+  w:"Calibration confirmed. Node does three things before signalling ready:\n\n1. Captures fresh tare baseline — jar placed on platform, waits for STABLE\n\n2. Measures σ_live in the real environment (motor, music, crowd noise) by sampling 100 reads at rest and computing standard deviation in grams\n\n3. Derives slope_threshold = f(σ_live) so SNR ≥ 2.5× for reliable pour detection. Sets persistence K accordingly.\n\nThen waits for hub to send glass_volume_g and the game start command.\n\nglass_volume_g is ALWAYS operator-set — never hardcoded. Operator physically fills one glass, weighs it on a kitchen scale, enters that number. Typical 150ml glass of juice ≈ 155–165g depending on juice density. Default 150g if operator omits it.",
+  r:"Hub sends start_game(glass_volume_g=150) → WAITING_FOR_POUR\nNote: 150g is the default for a 150ml glass. Operator overrides per event.",
+  e:'{\n  type: "READY",\n  baseline_g: 4200,\n  sigma_live_g: 6.23,\n  snr_ratio: 3.9,\n  threshold_g_per_s: 15,\n  persistence_K: 3\n}\n// baseline_g is high because jar is a 10L glass jar (heavy tare)',
+  c:"Concept 1: σ_live measured here sets EVERY threshold in the system. σ_live=6.23g confirmed in S002 office test."
+},
+WAIT: {
+  t:"👁 WAITING_FOR_POUR",
+  w:"Home state during the game. EMA running continuously. Two detection paths run in parallel:\n\nPATH A (slope detection): Slope computed every sample from EMA difference over M samples. Persistence counter increments while slope < −threshold, resets if slope recovers. Fires POUR_IN_PROGRESS after K consecutive samples.\n\nPATH B (baseline-jump detection): Continuously tracks whether a stable window (spread < σ_threshold for N samples) has appeared at a weight significantly lower than old_baseline. If new_stable_weight < old_baseline − MINIMUM_POUR_G without Path A ever firing → jump to STABLE_SETTLED directly. This handles tap-force contamination: when a visitor's hand on a push-down tap masks the pour slope, Path B still catches the result after they walk away.\n\nAlso watching: positive delta after confirmed stability → weight added to jar → CHEAT_ALERT.\n\nHeartbeat emitted every 2s.",
+  r:"Path A: persistence counter reaches K → POUR_IN_PROGRESS\nPath B: new stable baseline detected, significantly lower → STABLE_SETTLED (direct, no POUR_IN_PROGRESS)",
+  e:'{\n  type: "HEARTBEAT",\n  weight_g: 4155,\n  sigma_g: 6.23,\n  state: "WAITING",\n  glass_count: 2\n}  // every 2s',
+  c:"Concept 2: slope + persistence = Path A. Path B is baseline-jump detection — handles tap-force masking without any slope signal. Both paths produce identical STABLE_SETTLED outcomes."
+},
+POUR: {
+  t:"🍹 POUR_IN_PROGRESS (Path A only)",
+  w:"Pour confirmed via Path A slope detection — K consecutive samples all showed slope < −threshold. Node records pour start time. EMA continues smoothing.\n\nTAP FORCE NOTE: If the tap mechanism transfers the visitor's hand weight vertically into the jar (push-down style tap), the load cell reads the net of juice-leaving minus hand-pressing. The slope may be masked or inverted. If this happens, Path A detection fails — but Path B in WAITING_FOR_POUR catches the result after the visitor walks away. Side-lever taps (horizontal pivot) do not have this problem.\n\nMid-pour cheat detection: if slope strongly reverses positive during an active pour → CHEAT_ALERT immediately.\n\nNode does NOT count glasses here. Does NOT update baseline. Weight is still moving.",
+  r:"Slope returns above −threshold for K consecutive samples → SETTLING",
+  e:'{\n  type: "POUR_START",\n  baseline_g: 4200,\n  timestamp_ms: 14523,\n  detection_path: "A"\n}',
+  c:"Concept 2: state machine mode switch. Path A real-time detection enables 'pouring...' dashboard animation. Path B (baseline-jump) does not — but volume accuracy is identical in both paths."
+},
+SETT: {
+  t:"⏳ SETTLING",
+  w:"Mandatory waiting room. The EMA needs N samples to fully catch up after a step change — this is the settling lag from Concept 1. Reading the weight right now would give a systematically wrong delta because the filter is still transitioning.\n\nNode waits silently. Rolling spread monitored every sample — if spread stays > σ_threshold, extends the wait until readings genuinely quiet down. This handles the case where the load cell itself is still mechanically oscillating after the pour.\n\nThis state cannot be skipped. It is the primary reason pour volume accuracy is high.",
+  r:"N settling samples elapsed AND rolling spread < σ_threshold → STABLE_SETTLED",
+  e:"— nothing emitted —\nInternal wait state. Silent.",
+  c:"Concept 1 (the settling lag is literally why this state exists) · Concept 2 (spread check is the stability confirmation, same mechanism as WAITING_FOR_POUR but for a different purpose)"
+},
+STBL: {
+  t:"⚖ STABLE_SETTLED",
+  w:"New stable baseline confirmed. Arrived via Path A (through SETTLING) or Path B (direct from WAITING_FOR_POUR — baseline jumped without slope detection).\n\nNode computes:\n  delta_g = old_baseline_g − new_baseline_g\n  (piecewise linear calibration applied — Concept 4)\n\nDecision tree:\n  delta ≥ glass_volume_g  →  GLASS_COUNTED\n  0 < delta < glass_vol   →  PARTIAL_POUR (accumulate)\n  delta ≤ 0              →  CHEAT_ALERT (weight increased)\n  delta < noise_floor     →  noise artifact, ignore → WAITING\n\nNew baseline stored as old_baseline_g for next pour.\n\nDISPLAY: hub converts delta to glass count. No grams shown to crowd. No ml shown. Only: 🥛🥛🥛 (count increases). This eliminates flickering in production AND eliminates the density conversion problem entirely.",
+  r:"Branches immediately per decision tree above",
+  e:'{\n  type: "POUR_END",\n  delta_g: 158,\n  new_baseline_g: 4042,\n  duration_s: 2.8,\n  pour_num: 3,\n  detection_path: "A" | "B"\n}\n// delta_g=158 → partial (glass_volume_g=150, accum+158 may trigger glass)',
+  c:"Concept 4 (piecewise linear cal applied to delta) · Concept 3 (only settled stable readings used) · Path B: volume accuracy identical to Path A — just no real-time animation."
+},
+GLASS: {
+  t:"🥛 GLASS_COUNTED",
+  w:"Delta (this pour + any accumulated partial) ≥ glass_volume_g. Node emits GLASS_POURED event. Hub increments counter.\n\nDASHBOARD DISPLAY (production): shows glass count ONLY — 🥛🥛🥛. No grams. No ml. This is a deliberate design choice:\n  1. No density conversion needed (avoids grams≠ml for juice vs water)\n  2. No flickering — count only changes when a whole glass is confirmed\n  3. Crowd-friendly — 'Jar A: 3 glasses' is universally understood\n\nDASHBOARD DISPLAY (development mode): also show raw EMA weight in grams — this flicker is diagnostic information, proves the sensor is alive. Development flag only.\n\nTransparency self-check (hub runs every heartbeat):\n  glasses_counted × glass_vol_g must equal start_weight − current_weight\n  If they diverge > tolerance → calibration drift flag\n\nPartial accumulator reset to 0. → WAITING_FOR_POUR.",
+  r:"Immediately → WAITING_FOR_POUR",
+  e:'{\n  type: "GLASS_POURED",\n  glass_num: 3,\n  delta_g: 162,\n  cumulative_g: 471,\n  partial_used_g: 12,\n  glass_volume_g: 150\n}',
+  c:"Glass count is the ONLY production display unit. Eliminates density problem and flickering simultaneously. Transparency check still runs on grams internally."
+},
+PART: {
+  t:"〜 PARTIAL_POUR",
+  w:"Delta is positive but below glass_volume_g. Natural human behaviour — topping up a partially filled glass, cautious pour, slightly misjudged the glass size. No penalty for the participant.\n\n  partial_accumulator += delta_g\n\nOn the very next settled pour:\n  if partial_accumulator + new_delta ≥ glass_volume_g → GLASS_COUNTED\n\nConcrete example — glass_volume = 200g:\n  Pour 1: 130g → partial = 130g, remaining = 70g\n  Pour 2: 80g  → 130 + 80 = 210g → glass counted, 10g leftover in accumulator",
+  r:"→ WAITING_FOR_POUR (accumulator preserved across multiple pours)",
+  e:'{\n  type: "PARTIAL_POUR",\n  delta_g: 130,\n  accumulated_g: 130,\n  remaining_to_glass_g: 70\n}',
+  c:"Handles natural human variability. A direct consequence of volume-based design — time-based design cannot handle partial pours elegantly."
+},
+CHEAT: {
+  t:"⚠ CHEAT_ALERT",
+  w:"Suspicious pattern detected. Three distinct variants:\n\n1. JAR_LIFT: weight fell (POUR_IN_PROGRESS triggered) then returned to near original level — delta ≈ 0 after the pour event. Someone lifted the jar, held it up, put it back without actually pouring.\n\n2. WEIGHT_ADDED: delta < 0 after settling — the jar is heavier than before. Someone poured liquid into it from another source.\n\n3. MID_REVERSAL: slope strongly and rapidly reversed from negative to positive during an active pour — jar being lifted and placed back mid-pour.\n\nCritically: old_baseline is restored unchanged. The cheater gains exactly zero measured volume. No glass counted. Hub receives alert for operator notification.",
+  r:"After hub notification → WAITING_FOR_POUR (old_baseline_g unchanged)",
+  e:'{\n  type: "CHEAT_ALERT",\n  pattern: "jar_lift" | "weight_added" | "mid_reversal",\n  delta_g: 2,\n  baseline_restored_g: 812\n}',
+  c:"No special cheat-detection code was written. This emerges naturally from the state machine — the physics makes cheating detectable as a logical consequence."
+}
+};
+
+document.querySelectorAll('.sb').forEach(function(el){
+  el.addEventListener('click', function(){
+    document.querySelectorAll('.sb').forEach(function(b){ b.classList.remove('on'); });
+    el.classList.add('on');
+    var d = D[el.dataset.k];
+    if (!d) return;
+    var h = '<div class="dtitle">' + d.t + '</div>';
+    h += '<div class="dhead">What happens in this state</div>';
+    h += '<div class="dbody">' + d.w.replace(/\n/g,'<br>') + '</div>';
+    h += '<div class="dhead">Transition trigger</div>';
+    h += '<div class="dbody">' + d.r.replace(/\n/g,'<br>') + '</div>';
+    h += '<div class="dhead">BLE event emitted to hub</div>';
+    h += '<div class="dcode">' + d.e + '</div>';
+    h += '<div class="dhead">Concepts at work</div>';
+    h += '<div class="dbody"><span class="dtag">💡</span> ' + d.c + '</div>';
+    document.getElementById('panel').innerHTML = h;
+  });
+});
+</script>
+</body>
+</html>
