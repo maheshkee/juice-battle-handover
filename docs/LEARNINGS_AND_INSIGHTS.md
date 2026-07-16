@@ -115,3 +115,91 @@ by displaying only glass count (integer). Count only increments when a
 whole glass_volume_g delta is confirmed. No conversion. No flicker.
 Development mode still shows raw EMA weight — flicker there is diagnostic
 (proves sensor alive). Single flag in dashboard switches modes.
+
+---
+
+## Session S003 — Cal + Scale verified
+
+## L-007 - Signal polarity is invisible to noise measurement
+Date: 2026-07-16
+
+WHY: Noise is variance - it is symmetric around the mean. A reversed signal
+has the same variance as a correct signal. noise.cpp passed with σ=6.23g even
+with green/white wires swapped because Welford computes spread, not direction.
+Only calibration catches polarity errors because it checks whether a known weight
+makes the reading increase or decrease.
+
+Rule derived: Never assume noise test = full hardware validation.
+Noise GOOD confirms ADC is alive. It does not confirm signal direction.
+
+Verified: Hardware showed raw_500 ≈ raw_zero with weight on platform.
+Fixed by returning -raw_value in ads1232.cpp.
+
+## L-008 - Load cell nonlinearity physics
+Date: 2026-07-16
+
+WHY: cf_100 > cf_500 (lower sensitivity at low loads) because at small deflections,
+constant-magnitude effects (mounting friction, epoxy compliance, residual pre-stress)
+represent a larger fraction of total signal. At high loads, beam deflection dominates
+and these effects become negligible fractions. The CZL601 shows ~1.2% nonlinearity
+across 0-5000g range - real, measurable, correctable with piecewise model.
+
+Rule derived: Single-point calibration is wrong everywhere except the calibration point.
+Three-point piecewise linear corrects nonlinearity without polynomial complexity.
+
+Verified: cf_500=0.009317, cf_1000=0.009341, cf_5000=0.009333 - monotonic increase
+then slight drop, consistent across 3 independent runs.
+
+## L-009 - Confidence score tests internal consistency, not external truth
+Date: 2026-07-16
+
+WHY: Confidence measures agreement between three cal_factors. Any systematic error
+that shifts all three reference readings by the same amount (e.g. bad raw_zero from
+a hidden object under the platform during tare) will not appear in confidence -
+all three cal_factors shift identically and still agree perfectly. Confidence can
+be 0.99 while the model is systematically wrong everywhere.
+
+Rule derived: Confidence = necessary but not sufficient. Pour validation with a
+known weight is required as the external ground truth check. Confidence alone
+cannot detect bad raw_zero.
+
+Verified: Designed pour validation to use 5000g base load + 500g delta stone
+to test operating segment (1000-5000g) not empty-platform segment.
+
+## L-010 - Boot baseline must capture current platform state
+Date: 2026-07-16
+
+WHY: In production, the jar never leaves the platform. Power loss is a normal event.
+Requiring an empty platform for tare means the operator must remove a full 10L jar
+on every reboot - unacceptable. The correct design: capture whatever is currently
+on the platform as the new baseline. All deltas are measured from that point forward.
+The hub owns game state - the node just needs a reference point to measure changes from.
+
+Rule derived: Tare ≠ empty platform. Baseline = current platform state.
+These are only identical during initial installation.
+
+## L-011 - Noise must be measured under operating load
+Date: 2026-07-16
+
+WHY: Noise is a property of the signal chain under its actual operating conditions.
+The load cell beam under 3000g is deflected - the strain gauge is in its operating zone.
+Noise measured here is what stability.cpp will actually see during pour detection.
+Noise measured on an empty platform is a different mechanical state and gives
+thresholds that may be wrong when the jar is loaded.
+
+Rule derived: Measure σ_live after baseline is captured, with the current platform
+load in place. This is more accurate and requires no special setup condition.
+
+## L-012 - CAL_MAX_ACCEPTABLE_SPREAD must be derived from real hardware
+Date: 2026-07-16
+
+WHY: The threshold separating GOOD from DEGRADED confidence cannot be chosen
+theoretically. It depends on the specific load cell's nonlinearity. The CZL601
+showed ~1.2% natural nonlinearity (residual_max/cf_mean) across 3 runs.
+Setting CAL_MAX_ACCEPTABLE_SPREAD=0.05 (5% boundary) made confidence=0.763
+on a perfectly good calibration. Correct value derived from measurement: 0.08.
+
+Rule derived: Hardware thresholds must be derived from real measurements,
+not assumed from datasheets or intuition. Always measure first, threshold second.
+
+Verified: confidence=0.968 with CAL_MAX_ACCEPTABLE_SPREAD=0.08 on Run1.

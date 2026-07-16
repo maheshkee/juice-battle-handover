@@ -19,7 +19,7 @@ NoiseResult noise_measure(uint16_t n_samples) {
     NoiseResult result;
     result.sigma_raw = 0.0f;
     result.sigma_g   = 0.0f;
-    result.quality   = QUALITY_FAILED;
+    result.quality   = FAILED;
     snprintf(result.diagnosis, sizeof(result.diagnosis), "not run");
 
     // Guard: need at least 2 samples to compute variance
@@ -82,20 +82,20 @@ NoiseResult noise_measure(uint16_t n_samples) {
     // Thresholds from config.h, derived from pour detection SNR requirements.
     // See docs/LEARNINGS_AND_INSIGHTS.md for derivation.
     if (sigma_g < NOISE_SIGMA_G_GOOD) {
-        result.quality = QUALITY_GOOD;
+        result.quality = GOOD;
         snprintf(result.diagnosis, sizeof(result.diagnosis),
                  "good: sigma_raw=%.1f sigma_g=%.2fg n=%lu/%u",
                  sigma_raw, sigma_g, n_collected, n_samples);
 
     } else if (sigma_g < NOISE_SIGMA_G_DEGRADED) {
-        result.quality = QUALITY_DEGRADED;
+        result.quality = DEGRADED;
         snprintf(result.diagnosis, sizeof(result.diagnosis),
                  "noisy env: sigma_g=%.2fg (threshold=%.0fg) n=%lu"
                  " - increase N or improve mounting",
                  sigma_g, NOISE_SIGMA_G_GOOD, n_collected);
 
     } else {
-        result.quality = QUALITY_FAILED;
+        result.quality = FAILED;
         snprintf(result.diagnosis, sizeof(result.diagnosis),
                  "too noisy: sigma_g=%.2fg (max=%.0fg) n=%lu"
                  " - check load cell mounting and wiring",

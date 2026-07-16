@@ -4,7 +4,7 @@
 #pragma once
 
 enum Quality {
-    QUALITY_GOOD     = 0,
-    QUALITY_DEGRADED = 1,
-    QUALITY_FAILED   = 2
+    GOOD     = 0,
+    DEGRADED = 1,
+    FAILED   = 2
 };

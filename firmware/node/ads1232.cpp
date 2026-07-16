@@ -69,5 +69,6 @@ int32_t ads1232_read_raw(void) {
         return ADS1232_READ_ERROR;
     }
 
-    return data;
+    // TODO: swap green/white wires at ADS1232 INNA+/INNA- and remove negation
+    return -data;  // signal polarity inverted - green/white wires physically swapped
 }

@@ -13,7 +13,7 @@
 struct NoiseResult {
     float   sigma_raw;        // σ in raw ADC counts
     float   sigma_g;          // σ in grams (nominal estimate, pre-calibration)
-    Quality quality;          // QUALITY_GOOD / DEGRADED / FAILED
+    Quality quality;          // GOOD / DEGRADED / FAILED
     char    diagnosis[64];    // human-readable explanation
 };
 
