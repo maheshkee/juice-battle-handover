@@ -301,3 +301,55 @@ Juice Battle hub must implement the same atomic write pattern.
   2. fsync() to flush kernel buffer to disk
   3. os.rename('config.json.tmp', 'config.json')
   Never write directly to config.json.
+
+---
+
+## L-013 — EMA drift from slow liquid loss stays below slope_threshold
+**Date:** 2026-07-17
+
+**Observed:** EMA drifting 10–20 g/s over many minutes during Run 2 (sigma=6.54g,
+slope_threshold=32.7 g/s). Zero false POUR_IN_PROGRESS triggers.
+
+**Why:** Slow condensation or minor leak produces a gradual baseline drift.
+EMA tracks this drift slowly — each step is alpha × (tiny loss) ≈ 0.3 × ~0.01g = 0.003g.
+The resulting instantaneous slope stays well below threshold even over many minutes.
+
+**Confirmed:** Dynamic threshold formula fmaxf(15, 5×sigma) provides correct margin
+against slow environmental drift at any measured sigma value.
+A hardcoded 15 g/s threshold would also survive slow drift — the margin is substantial —
+but would fail at the sudden pour transition, as S005 demonstrated.
+
+---
+
+## L-014 — Jar lift produces slope=2900+ g/s; node cannot distinguish from pour by slope alone
+**Date:** 2026-07-17
+
+**Observed:** Jar removed from platform during Run 1 produced slope >2900 g/s.
+State machine entered POUR_IN_PROGRESS correctly. Reported delta_g = negative (mass leaving).
+
+**Why it matters:** A pour and a jar-lift are both fast negative-slope events.
+The node cannot distinguish them using slope alone. delta_g sign (negative = jar lift,
+positive = added liquid) is the only discriminating signal, but a fast pour also shows
+negative delta when liquid exits the jar into a glass.
+
+**Rule:** Hub must interpret delta sign in context: extreme magnitude (>2000g) most likely
+jar-lift or full removal, not a pour. Node's job is only to report the event accurately.
+Hub applies the domain knowledge.
+
+---
+
+## L-015 — Repo contamination risk when git add -A runs from wrong working directory
+**Date:** 2026-07-17
+
+**What happened (S006):** CLI ran `git add -A` from a parent directory instead of the
+project root. All sibling directories under ~/ArduinoApps/ were staged and committed
+into the juice_battle repo (S006 contamination commit, fixed by aa01bf7).
+
+**Root cause:** `git add -A` stages everything reachable from the current directory.
+If the shell is one level up, entire sibling projects get included.
+
+**Mitigation:**
+1. Always `cd` explicitly to the project root before any git operation in CLI prompts.
+2. Check `git status` output before committing — if unexpected paths appear, abort.
+3. Never use `git add -A` or `git add .` from a directory that is not the project root.
+4. Prefer `git add <explicit-file-list>` for safety.

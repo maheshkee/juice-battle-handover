@@ -20,7 +20,7 @@ Last updated: S005 close / S006 prep
 
 ## Firmware (Node — ESP32-C3)
 
-- [ ] **S006 Part A: Fix stability.cpp** — three critical fixes:
+- [x] **S006 Part A: Fix stability.cpp** — three critical fixes:
       1. Remove `#define STABILITY_SLOPE_THRESHOLD_GS 15.0f` from config.h
          Replace with runtime: `s_slope_threshold = fmaxf(15.0f, 5.0f * sigma_g)` in stability_init()
          Reason: sigma=8.44g → noise-floor slope=25 g/s which exceeded hardcoded 15 g/s threshold
@@ -29,12 +29,12 @@ Last updated: S005 close / S006 prep
       3. Min delta filter in juicebattle.ino: ignore settled events where delta_g < 3×sigma_g
          Kills noise events (4.9g, 3.2g, etc) automatically
 
-- [ ] **S006 Part B: comms.h/cpp** — BLE advertising layer
+- [x] **S006 Part B: comms.h/cpp** — BLE advertising layer
       Node broadcasts payload via BLE advertising (connectionless, one-way)
       Message types: HEARTBEAT, POUR_ACTIVE, POUR_SETTLED, CAL_COMPLETE, SIGMA_ALERT
       Payload: version(1) + msg_type(1) + node_id(1) + delta_g(4) + sigma_g(4) + seq(2) = 13 bytes
 
-- [ ] **S006 Part C: Wire comms into juicebattle.ino**
+- [x] **S006 Part C: Wire comms into juicebattle.ino**
       comms_init() after GAME_READY
       comms_send_heartbeat() on timer
       comms_send_pour_active() while state==POUR_IN_PROGRESS
@@ -100,7 +100,7 @@ Node should only own:
 - [x] S003 — Calibration verified (confidence=0.968, 4-point, NVS persistent)
 - [x] S004 — Boot redesign (scale_capture_baseline, noise under load, both boot paths verified)
 - [x] S005 — Stability state machine (4-state EMA machine, tested on hardware)
-- [ ] S006 — stability fixes + comms.h/cpp BLE layer
+- [x] S006 — stability fixes + comms.h/cpp BLE layer (hardware verified 2026-07-17)
 - [ ] S007 — Hub BLE subscriber + game.py skeleton
 - [ ] S008 — Dashboard + Socket.IO
 - [ ] S009 — Full two-node integration test

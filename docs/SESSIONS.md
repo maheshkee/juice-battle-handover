@@ -104,8 +104,27 @@ S006 — stability fixes + comms.h/cpp BLE advertising layer
 - NODE_ID added to config.h (= 0 for node A)
 
 ### Gate result
-CODE COMPLETE — compile + hardware verify pending (S006 Part E)
-NimBLE-Arduino 2.5.0 installed. Compile step deferred to next hardware session.
+FULL PASS — two hardware verification runs completed
+
+#### Run 1 (sigma=5.03g, slope_threshold=25.1 g/s)
+- WAITING: zero false triggers across hundreds of samples
+- Pour 1: -3326g (jar lifted + refilled — handled correctly)
+- Pour 2: 33g small pour (above min_pour_g=15.1g) — reported correctly
+- Pour 3: 92g — reported correctly
+- Pour 4: 3195g (jar lifted and refilled) — handled correctly
+- K_stop=8 counting confirmed in serial log
+- COMMS: msg=0x01 (heartbeat), 0x02 (pour-active), 0x03 (pour-settled) all firing
+- seq incrementing correctly
+
+#### Run 2 (sigma=6.54g, slope_threshold=32.7 g/s)
+- sigma elevated → dynamic threshold correctly scaled to 32.7 g/s
+- WAITING: zero false triggers during slow drift (EMA drifting 10–20 g/s over many minutes)
+- Pour 1: -3317g
+- Pour 2: 25.6g (above min=19.6g)
+- Pour 3: 191.9g (~220g removed — 13% error, within acceptable range for non-settling pour)
+- Pour 4: 65.2g (jar lifted mid-session — handled correctly)
+- Pour 5: 3159.5g (bowl removed entirely)
+- Post-pour WAITING returns to near-zero delta within 1-2 seconds
 
 ### Files changed
 - firmware/node/config.h (slope threshold comment, K_STOP=8, NODE_ID=0)
@@ -115,4 +134,4 @@ NimBLE-Arduino 2.5.0 installed. Compile step deferred to next hardware session.
 - firmware/node/juicebattle.ino (comms wired, min_delta guard, timers)
 
 ### Next
-S006 Part E: compile and hardware verify on device
+S007 — Hub BLE subscriber + game.py skeleton

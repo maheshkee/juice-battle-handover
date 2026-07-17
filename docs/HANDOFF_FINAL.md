@@ -1,11 +1,11 @@
 # HANDOFF_FINAL — Juice Battle
-# For: S006 Part E / S007 prep (next chat session)
-# Generated: 2026-07-17 end of S006
+# For: S007 prep (next chat session)
+# Generated: 2026-07-17 end of S006 hardware verify
 
 ---
 
 ## Current position (one line)
-S006 code complete — stability fixes + NimBLE comms layer written. Compile + hardware verify pending.
+S006 hardware verified — stability fixes + NimBLE comms layer complete and confirmed on device. S007 next: Hub BLE subscriber + game.py.
 
 ---
 
@@ -55,46 +55,54 @@ Current fix: ads1232.cpp returns -raw_value. TODO: swap wires in production buil
 | cal.h/cpp | DONE | 3-point piecewise cal, NVS persistent, confidence=0.968 |
 | scale.h/cpp | DONE | Baseline capture + live read + noise clamp |
 | stability.h/cpp | DONE | 4-state EMA machine, dynamic slope_threshold, K_stop=8 |
-| comms.h/cpp | DONE (unverified) | NimBLE 2.5.0, non-connectable BLE, 13-byte payload |
-| juicebattle.ino | DONE (unverified) | All modules wired. Comms integrated. |
+| comms.h/cpp | DONE | NimBLE 2.5.0, non-connectable BLE, 13-byte payload. Hardware verified. |
+| juicebattle.ino | DONE | All modules wired. Comms integrated. Hardware verified. |
 
-**UNVERIFIED**: comms.h/cpp and the updated juicebattle.ino have not been compiled or tested on hardware.
-S006 Part E (compile + upload + serial verify) is the first task for the next hardware session.
+**S006 hardware verification: PASSED (2 runs, 9 pours, zero false triggers, all BLE messages confirmed)**
 
 ---
 
-## S006 Part E — what to do at next hardware session
+## S007 — what to build at next session
 
+**Goal:** AQ3 hub passively scans for JB-0/JB-1 advertising packets,
+parses 13-byte manufacturer payload, prints parsed events to console.
+No game logic in S007 — just reliable receive-and-parse.
+
+### Architecture
+- Pure Python on MPU (Debian Linux on AQ3)
+- BlueZ via D-Bus (NOT App Lab Docker — run as systemd service or direct script)
+- Passive scan (never connect, never pair)
+- Filter by device name prefix "JB-" OR manufacturer data company ID 0xFFFF
+- On each packet: parse payload, print structured event
+
+### Hub files to create (S007)
 ```
-Step 1: Compile
-  arduino-cli compile --fqbn esp32:esp32:esp32c3 \
-    ~/ArduinoApps/juice_battle/firmware/node/juicebattle/
-  (juicebattle/ is a symlink directory created for arduino-cli. Already exists.)
-
-Step 2: Upload
-  arduino-cli upload --fqbn esp32:esp32:esp32c3 \
-    --port /dev/ttyUSB0 \
-    ~/ArduinoApps/juice_battle/firmware/node/juicebattle/
-
-Step 3: Serial monitor (115200 baud). Confirm:
-  [STAB] slope_threshold=XX.X g/s (sigma=X.XXg)   ← dynamic threshold active
-  [INIT] min_pour_g=XX.Xg (3 × sigma=X.XXg)        ← noise filter active
-  GAME_READY
-  [COMMS] init complete: node_id=0 name=JB-0 sigma=X.XX
-  [COMMS] tx msg=0x01 delta=0.0 sigma=X.XX seq=0    ← heartbeat
-  (heartbeats every 2s)
-
-Step 4: Place 500g weight. Confirm:
-  [COMMS] tx msg=0x02  (POUR_ACTIVE, every 200ms during pour)
-  [COMMS] tx msg=0x03  (POUR_SETTLED, one-shot)
-  [POUR] 499.Xg dispensed   ← NOT "Ignored noise event"
-
-Step 5: If compile errors in comms.cpp, check NimBLE 2.5.0 API:
-  - setConnectableMode(BLE_GAP_CONN_MODE_NON) ← non-connectable
-  - setPower(9) ← 9 dBm (not ESP_PWR_LVL_P9)
-  - setManufacturerData(buf, 13) directly on NimBLEAdvertising
-  - setName(name) directly on NimBLEAdvertising
+hub/
+├── ble_scanner.py    ← passive BLE scan, payload parse, event print
 ```
+game.py comes in S008 after scanner is verified.
+
+### Reference
+```
+cat ~/ArduinoApps/gas-cylinder-monitor/hub/python/ble_subscriber.py
+```
+Gas-cylinder ble_subscriber.py uses the same BlueZ/D-Bus passive scan pattern.
+Use as reference for device discovery and manufacturer data extraction.
+
+### Expected output from verified scanner
+```
+[JB-0] HEARTBEAT    delta=0.0g   sigma=5.03g  seq=42
+[JB-0] POUR_ACTIVE  delta=-127g  sigma=5.03g  seq=43
+[JB-0] POUR_SETTLED delta=-3326g sigma=5.03g  seq=44
+```
+
+### Session start checklist for S007
+1. Read this handoff fully
+2. `systemctl status bluetooth`
+3. `hcitool lescan --passive` — should see JB-0 advertising
+4. `cat ~/ArduinoApps/gas-cylinder-monitor/hub/python/ble_subscriber.py`
+5. Build `hub/ble_scanner.py`
+6. Verify parsed output matches expected format above
 
 ---
 
@@ -154,8 +162,10 @@ Best calibration (NVS persistent):
   confidence= 0.968   GOOD
 
 S003 noise floor: sigma_g = 2.40g – 4.82g  (office, fan on)
-S005 noise floor: sigma_g = 8.44g  (different session, higher ambient vibration)
-Dynamic slope_threshold at S005 sigma: fmaxf(15, 5×8.44) = 42.2 g/s
+S005 noise floor: sigma_g = 8.44g  (higher ambient vibration)
+S006 Run 1:       sigma_g = 5.03g  → slope_threshold = 25.1 g/s
+S006 Run 2:       sigma_g = 6.54g  → slope_threshold = 32.7 g/s
+Dynamic formula:  slope_threshold = fmaxf(15.0f, 5.0f × sigma_g)
 ```
 
 ---
@@ -169,7 +179,7 @@ Dynamic slope_threshold at S005 sigma: fmaxf(15, 5×8.44) = 42.2 g/s
 | S003 | DONE | Calibration verified (confidence=0.968, NVS persistent) |
 | S004 | DONE | Boot redesign (baseline capture, noise under load) |
 | S005 | DONE | Stability state machine (partial pass — threshold fix needed) |
-| S006 | CODE DONE | Stability fixes + comms BLE layer (compile/verify pending) |
+| S006 | DONE | Stability fixes + comms BLE layer (hardware verified 2026-07-17) |
 | S007 | PENDING | Hub BLE subscriber + game.py skeleton |
 | S008 | PENDING | Dashboard + Socket.IO |
 | S009 | PENDING | Full two-node integration test |
@@ -183,7 +193,7 @@ Dynamic slope_threshold at S005 sigma: fmaxf(15, 5×8.44) = 42.2 g/s
 ├── docs/
 │   ├── TODO.md                          ← active work list
 │   ├── SESSIONS.md                      ← session records (append only)
-│   ├── LEARNINGS_AND_INSIGHTS.md        ← L-001 through L-012
+│   ├── LEARNINGS_AND_INSIGHTS.md        ← L-001 through L-015
 │   ├── HANDOFF_FINAL.md                 ← this file
 │   ├── ARCHITECTURE.md
 │   ├── HARDWARE_MANIFEST.md
@@ -196,8 +206,28 @@ Dynamic slope_threshold at S005 sigma: fmaxf(15, 5×8.44) = 42.2 g/s
 │   ├── cal.h, cal.cpp
 │   ├── scale.h, scale.cpp
 │   ├── stability.h, stability.cpp
-│   ├── comms.h, comms.cpp       ← S006 new, unverified
+│   ├── comms.h, comms.cpp       ← S006, hardware verified
 │   ├── juicebattle.ino
 │   └── juicebattle/             ← symlink dir for arduino-cli (gitignored)
-└── hub/                         ← S007 onwards
+└── hub/
+    └── ble_scanner.py           ← S007 (to be built)
 ```
+
+---
+
+## SCP commands (laptop ↔ AQ3)
+
+```
+# Board → Laptop (pull firmware files)
+scp arduino@AQ3:/home/arduino/ArduinoApps/juice_battle/firmware/node/* C:\Users\mahes\Documents\Arduino\juicebattle\
+
+# Laptop → Board (push handoff doc)
+scp C:\Users\mahes\HANDOFF_FINAL.md arduino@AQ3:/home/arduino/ArduinoApps/juice_battle/docs\
+```
+
+---
+
+## Pending hardware
+
+- [ ] Swap CZL601 green/white wires physically (currently software-corrected in ads1232.cpp)
+- [ ] Second node: identical firmware, NODE_ID=1 in config.h only
