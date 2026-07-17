@@ -4,9 +4,20 @@
 #include "noise.h"
 #include "cal.h"
 #include "scale.h"
+#include "stability.h"
+#include "comms.h"
 
 // Orchestrator law: setup() and loop() wire modules only.
 // No math, no thresholds, no state decisions live here.
+
+// WHY globals: loop() needs g_cal and g_noise on every iteration.
+// setup() initialises them once; loop() reads them continuously.
+CalResult   g_cal;
+NoiseResult g_noise;
+float       g_min_pour_g = 0.0f;
+
+static unsigned long s_heartbeat_timer_ms   = 0;
+static unsigned long s_pour_active_timer_ms = 0;
 
 void setup() {
     Serial.begin(115200);
@@ -14,175 +25,121 @@ void setup() {
 
     Serial.println("=== Juice Battle Node ===");
 
-    // Step 1: initialise ADS1232 hardware
+    // STEP 1: Init ADS1232 hardware
     ads1232_init();
     Serial.println("[BOOT] ADS1232 initialised.");
 
-    // Step 2: measure noise floor - must pass before calibration
-    Serial.println("[NOISE] Measuring noise floor...");
-    NoiseResult noise = noise_measure(100);
-    Serial.printf("[NOISE] sigma_raw=%.2f  sigma_g=%.2fg  quality=%s\n",
-        noise.sigma_raw,
-        noise.sigma_g,
-        noise.quality == GOOD     ? "GOOD" :
-        noise.quality == DEGRADED ? "DEGRADED" : "FAILED");
-
-    if (noise.quality == FAILED) {
-        Serial.println("[NOISE] FAILED - halting. Fix hardware before calibration.");
-        while (true) delay(1000);
-    }
-
-    // One-time write - Run 1 calibration (best of three runs, S003)
-    // confidence=0.968, sigma_tare=2.54g, quality=GOOD
-    // Remove this block after first successful boot confirms values loaded.
-    {
-        CalResult best;
-        best.raw_zero     = 94690;
-        best.raw_500      = 148353;
-        best.raw_1000     = 201742;
-        best.raw_5000     = 630410;
-        best.confidence   = 0.968f;
-        best.sigma_tare_g = 2.54f;
-        best.quality      = GOOD;
-        snprintf(best.diagnosis, 64, "Run1 S003. confidence=0.97 sigma=2.54g");
-        cal_save_to_nvs(best);
-        Serial.println("[CAL] Run 1 best-cal written to NVS.");
-    }
-
-    // Step 3: attempt to load calibration from NVS
-    CalResult cal;
-    bool loaded = cal_load_from_nvs(cal);
-
+    // STEP 2: Load cal from NVS - hardware model, never changes between boots.
+    // If no NVS data: run cal_run(), save, halt for power cycle to verify.
+    // If NVS load fails quality check: halt with Serial message.
+    bool loaded = cal_load_from_nvs(g_cal);
     if (loaded) {
-        // Existing calibration found - print it and proceed
         Serial.println("[CAL] Loaded from NVS:");
-        Serial.printf("  raw_zero  = %d\n",   cal.raw_zero);
-        Serial.printf("  raw_500   = %d\n",   cal.raw_500);
-        Serial.printf("  raw_1000  = %d\n",   cal.raw_1000);
-        Serial.printf("  raw_5000  = %d\n",   cal.raw_5000);
-        Serial.printf("  confidence= %.3f\n", cal.confidence);
-        Serial.printf("  sigma_tare= %.2fg\n",cal.sigma_tare_g);
+        Serial.printf("  raw_zero  = %d\n",   g_cal.raw_zero);
+        Serial.printf("  raw_500   = %d\n",   g_cal.raw_500);
+        Serial.printf("  raw_1000  = %d\n",   g_cal.raw_1000);
+        Serial.printf("  raw_5000  = %d\n",   g_cal.raw_5000);
+        Serial.printf("  confidence= %.3f\n", g_cal.confidence);
         Serial.printf("  quality   = %s\n",
-            cal.quality == GOOD ? "GOOD" : "DEGRADED");
-        Serial.printf("  diagnosis = %s\n",   cal.diagnosis);
-
+            g_cal.quality == GOOD ? "GOOD" : "DEGRADED");
+        Serial.printf("  diagnosis = %s\n",   g_cal.diagnosis);
     } else {
-        // No stored calibration - run full sequence
         Serial.println("[CAL] No stored calibration found. Starting cal_run()...");
-        cal = cal_run();
+        g_cal = cal_run();
 
-        Serial.println("\n[CAL] Result:");
-        Serial.printf("  raw_zero  = %d\n",   cal.raw_zero);
-        Serial.printf("  raw_500   = %d\n",   cal.raw_500);
-        Serial.printf("  raw_1000  = %d\n",   cal.raw_1000);
-        Serial.printf("  raw_5000  = %d\n",   cal.raw_5000);
-        Serial.printf("  confidence= %.3f\n", cal.confidence);
-        Serial.printf("  sigma_tare= %.2fg\n",cal.sigma_tare_g);
-        Serial.printf("  quality   = %s\n",
-            cal.quality == GOOD     ? "GOOD" :
-            cal.quality == DEGRADED ? "DEGRADED" : "FAILED");
-        Serial.printf("  diagnosis = %s\n",   cal.diagnosis);
-
-        if (cal.quality == FAILED) {
+        if (g_cal.quality == FAILED) {
             Serial.println("[CAL] FAILED - halting. See diagnosis above.");
             while (true) delay(1000);
         }
 
-        // Run validation sweep before power cycle
-        // Tests model accuracy at intermediate points not used in calibration
-        cal_validate(cal);
-
+        cal_validate(g_cal);
         Serial.println("\n[CAL] Power cycle now to verify NVS persistence.");
-        Serial.println("[CAL] On reboot, should print 'Loaded from NVS' instead of starting cal_run().");
-        while (true) delay(1000); // halt - wait for power cycle
-    }
-
-    // Step 4: tare the scale
-    Serial.println("\n[SCALE] Capturing tare - ensure platform is empty...");
-    ScaleResult tare = scale_tare(cal);
-    if (tare.quality == FAILED) {
-        Serial.printf("[SCALE] Tare FAILED: %s\n", tare.diagnosis);
+        Serial.println("[CAL] On reboot, should print 'Loaded from NVS'.");
         while (true) delay(1000);
     }
-    Serial.printf("[SCALE] %s\n", tare.diagnosis);
-    float tare_g = tare.raw_grams;
 
-    // Step 5: guided scale loop - one object at a time
-    Serial.println("\n[SCALE] Interactive scale ready.");
-    Serial.println("[SCALE] Each round: place object  Enter  readings  remove  repeat.");
-    Serial.println("[SCALE] Send 'q' + Enter at any prompt to quit.\n");
+    // STEP 3: Capture baseline - whatever is on platform NOW becomes zero.
+    // WHY before noise: noise must be measured under operating load, not empty platform.
+    // Empty platform at install → baseline ~0g. Full jar after reboot → baseline ~3000g.
+    // Both are valid. No error condition exists here.
+    ScaleResult baseline_result = scale_capture_baseline(g_cal);
+    if (baseline_result.quality == FAILED) {
+        Serial.printf("[SCALE] Baseline FAILED: %s\n", baseline_result.diagnosis);
+        while (true) delay(1000);
+    }
+    Serial.print("[SCALE] Baseline captured: ");
+    Serial.print(scale_get_baseline_g(), 1);
+    Serial.println("g on platform");
 
-    int round = 1;
-    while (true) {
+    // STEP 4: Measure noise under current load.
+    // WHY after baseline: load cell noise changes with mechanical load.
+    // sigma measured here reflects actual game operating conditions.
+    Serial.println("[NOISE] Measuring noise under current load...");
+    g_noise = noise_measure(100);
+    Serial.printf("[NOISE] sigma_g=%.2fg  quality=%s\n",
+        g_noise.sigma_g,
+        g_noise.quality == GOOD     ? "GOOD" :
+        g_noise.quality == DEGRADED ? "DEGRADED" : "FAILED");
 
-        // Refresh tare before each object - catches any platform drift
-        ScaleResult fresh_tare = scale_tare(cal);
-        if (fresh_tare.quality != FAILED) {
-            tare_g = fresh_tare.raw_grams;
-        }
-
-        Serial.printf("--- Round %d ---\n", round);
-        Serial.println("Place object on platform, press Enter when ready...");
-
-        // Wait for Enter - check for 'q' to quit
-        while (!Serial.available()) delay(10);
-        String input = Serial.readStringUntil('\n');
-        input.trim();
-        if (input == "q" || input == "Q") {
-            Serial.println("[SCALE] Exiting scale test.");
-            break;
-        }
-
-        // 10 second settling countdown
-        for (int i = 10; i > 0; i--) {
-            Serial.printf("%d...", i);
-            delay(1000);
-        }
-        Serial.println(" reading now.\n");
-
-        // Take 10 readings over 5 seconds and print each
-        float sum = 0.0f;
-        int   count = 0;
-        for (int i = 0; i < 10; i++) {
-            ScaleResult r = scale_read(cal, tare_g);
-            scale_print(r);
-            if (r.quality == GOOD) {
-                sum += r.grams;
-                count++;
-            }
-            delay(500);
-        }
-
-        // Print average of the 10 readings
-        if (count > 0) {
-            Serial.printf("\n[SCALE] Average over %d readings: %.1fg\n", count, sum / count);
-        }
-
-        // Prompt removal
-        Serial.println("\nRemove object, press Enter...");
-        while (!Serial.available()) delay(10);
-        input = Serial.readStringUntil('\n');
-        input.trim();
-        if (input == "q" || input == "Q") {
-            Serial.println("[SCALE] Exiting scale test.");
-            break;
-        }
-
-        // 5 second settle after removal
-        for (int i = 5; i > 0; i--) {
-            Serial.printf("%d...", i);
-            delay(1000);
-        }
-        Serial.println(" done.\n");
-
-        round++;
+    if (g_noise.quality == FAILED) {
+        Serial.println("[NOISE] FAILED - sigma > 10g - hardware fault. Halting.");
+        while (true) delay(1000);
     }
 
-    Serial.println("\n[BOOT] Setup complete. loop() idle - stability.cpp next session.");
+    // STEP 5: Init stability engine with live sigma, then set baseline.
+    // stability_init() derives thresholds from measured noise floor.
+    // stability_reset() sets s_baseline_g = current absolute weight on platform.
+    stability_init(g_noise.sigma_g);
+    stability_reset(scale_get_baseline_g());
+    Serial.println("[STAB] Stability engine initialised.");
+
+    // STEP 6: Compute min pour threshold from live noise floor.
+    // Pours below 3×sigma_g are indistinguishable from noise — discard silently.
+    g_min_pour_g = 3.0f * g_noise.sigma_g;
+    Serial.printf("[INIT] min_pour_g=%.1fg (3 × sigma=%.2fg)\n",
+                  g_min_pour_g, g_noise.sigma_g);
+
+    // STEP 7: Print GAME_READY summary, then start BLE comms.
+    Serial.println("GAME_READY");
+    Serial.print("  Baseline: "); Serial.print(scale_get_baseline_g(), 1); Serial.println("g");
+    Serial.print("  Sigma   : "); Serial.print(g_noise.sigma_g, 2); Serial.println("g");
+
+    comms_init(NODE_ID, g_noise.sigma_g);
 }
 
 void loop() {
-    // Orchestrator law: loop owns zero logic until stability.cpp exists.
-    // Nothing here until next module is ready.
-    delay(1000);
+    ScaleResult     r  = scale_read(g_cal, g_noise.sigma_g);
+    StabilityResult sr = stability_update(r);
+
+    Serial.printf("[STAB] state=%d  ema=%7.1fg  slope=%5.1fg/s  delta=%7.1fg  %s\n",
+        sr.state, sr.ema_g, sr.slope_g_per_s, sr.delta_g, sr.diagnosis);
+
+    if (sr.state == STAB_WAITING) {
+        if (millis() - s_heartbeat_timer_ms >= COMMS_HEARTBEAT_INTERVAL_MS) {
+            s_heartbeat_timer_ms = millis();
+            comms_send_heartbeat(g_noise.sigma_g);
+        }
+    }
+
+    if (sr.state == STAB_POUR_IN_PROGRESS) {
+        if (millis() - s_pour_active_timer_ms >= COMMS_POUR_ACTIVE_INTERVAL_MS) {
+            s_pour_active_timer_ms = millis();
+            comms_send_pour_active(sr.delta_g, g_noise.sigma_g);
+        }
+    }
+
+    if (sr.state == STAB_STABLE_SETTLED) {
+        if (fabsf(sr.delta_g) < g_min_pour_g) {
+            // Delta is below noise floor — noise artifact, not a real pour.
+            Serial.printf("[POUR] Ignored noise event: %.1fg < min %.1fg\n",
+                          sr.delta_g, g_min_pour_g);
+            stability_reset(sr.ema_g);
+        } else {
+            comms_send_pour_settled(sr.delta_g, g_noise.sigma_g);
+            Serial.printf("[POUR] %.1fg dispensed\n", sr.delta_g);
+            stability_reset(sr.ema_g);
+        }
+    }
+
+    delay(100);
 }

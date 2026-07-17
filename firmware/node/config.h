@@ -39,8 +39,29 @@
 
 // Derived thresholds - recalculate if MEASURED_SIGMA_LIVE_G changes
 #define STABILITY_SPREAD_THRESHOLD_G    25.0f  // 4 × σ_live - stability gate
-#define STABILITY_SLOPE_THRESHOLD_GS    15.0f  // pour detection (g/s), ~3× slope noise
+
+// slope_threshold is runtime-computed in stability_init() from sigma_g.
+// Formula: fmaxf(15.0f, 5.0f * sigma_g)
+// WHY: noise-floor slope ≈ alpha × sigma / dt = 0.3 × sigma / 0.1 = 3 × sigma_g
+// Multiplier 5 gives 1.7× safety margin above noise floor.
+// sigma=3g → 15 g/s (normal). sigma=8g → 40 g/s (noisy environment).
+// Hardcoding 15 g/s failed because sigma=8.44g → noise-floor slope=25 g/s > 15.
+
 #define STABILITY_PERSISTENCE_K             3  // consecutive samples before POURING declared
+#define STABILITY_K_STOP                    8
+// WHY: 8 consecutive samples below slope_threshold before declaring pour done.
+// 8 × 100ms = 800ms confirmation window.
+// Prevents false settlement from a tap pause mid-pour (K=3 was too fast).
+
+// EMA smoothing factor. α=0.3 gives ~7 samples to converge (1/α).
+// Higher α = faster response but more noise. Lower α = smoother but slower.
+// At 10 SPS: α=0.3 → ~700ms lag. Acceptable for settle detection.
+#define STABILITY_EMA_ALPHA            0.3f
+
+// Samples to wait in SETTLING before accepting EMA as converged.
+// At α=0.3: EMA reaches 95% of final value in ~9 samples (~900ms).
+// 5 samples = conservative minimum; real convergence verified by slope drop.
+#define STABILITY_SETTLING_SAMPLES         5
 
 // ── Calibration reference weights (government-certified cast iron stones) ──────
 #define CAL_REF_1_G              500.0f
@@ -86,3 +107,18 @@
 
 // Validation expected weights - must match CAL_VAL_COUNT
 // Stored as float array - defined in cal.cpp
+
+// ── Scale baseline capture ────────────────────────────────────────────────────
+// Samples averaged during baseline capture. 20 × 100ms = 2s boot time.
+// sigma_avg = sigma / sqrt(20) ~ 4.5x noise reduction on baseline.
+#define SCALE_BASELINE_SAMPLES          20
+
+// Max spread (max-min) of baseline samples allowed before DEGRADED quality.
+// Normal spread ~ sigma_g (2-5g). >20g means something moved during capture.
+// DEGRADED does not halt - node continues with degraded baseline quality flag.
+#define SCALE_BASELINE_MAX_SPREAD_G     20.0f
+
+// ── Node identity ─────────────────────────────────────────────────────────────
+// The ONLY value that differs between two node binaries.
+// Node A (jar 0) = 0. Node B (jar 1) = 1.
+#define NODE_ID  0
