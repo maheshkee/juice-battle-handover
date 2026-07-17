@@ -203,3 +203,101 @@ Rule derived: Hardware thresholds must be derived from real measurements,
 not assumed from datasheets or intuition. Always measure first, threshold second.
 
 Verified: confidence=0.968 with CAL_MAX_ACCEPTABLE_SPREAD=0.08 on Run1.
+
+---
+
+## L-009 — Noise-floor slope scales with sigma, not with hardware
+**Date:** 2026-07-17
+
+**WHY from first principles:**
+EMA update equation: EMA_new = alpha × sample + (1-alpha) × EMA_old
+Change per step from pure noise: delta_EMA ≈ alpha × noise_sample
+With alpha=0.3, dt=0.1s: noise-floor slope = 0.3 × sigma / 0.1 = 3 × sigma_g
+
+When sigma=3g → noise-floor slope ≈ 9 g/s → threshold 15 g/s = 1.7× above noise ✓
+When sigma=8.44g → noise-floor slope ≈ 25 g/s → threshold 15 g/s = 0.6× noise ✗
+
+A hardcoded threshold that works at sigma=3g will fail at sigma=8.44g.
+The threshold is not a property of the hardware. It is a property of the current
+noise floor. Therefore it must be derived from the measured noise floor at boot.
+
+**Rule:** slope_threshold = fmaxf(15.0f, 5.0f × sigma_g)
+Multiplier 5 gives 1.7× safety margin above noise floor at any sigma value.
+
+**Verified:** Hardware test 2026-07-17. sigma=8.44g caused false triggers at
+threshold=15 g/s. Formula predicts correct threshold of 42 g/s for that session.
+
+---
+
+## L-010 — Physical constants vs measured constants: never confuse them
+**Date:** 2026-07-17
+
+**The rule:**
+Physical constants (glass_volume=150ml, K_stop=8, speed of light) → hardcode fine.
+Measured constants (sigma_g, baseline_g, slope_threshold) → compute at runtime, always.
+
+**Why it matters:**
+sigma_g changes between boots due to: load cell mechanical state after high-load/unload
+cycles, temperature change, platform seating shift. Any threshold derived from sigma_g
+must be recomputed from the current sigma measurement every boot.
+
+Hardcoding a threshold that depends on sigma is the same error as hardcoding a calibration
+factor without measuring it. The hardware is not the same every time you turn it on.
+
+**General principle:** if it depends on the physical state of your specific hardware in
+its specific environment at this moment — measure it, don't assume it.
+This is why boot runs 5 steps instead of 1. Every step measures something that could
+have changed since last time.
+
+---
+
+## L-011 — Hub = prefrontal cortex, node = amygdala
+**Date:** 2026-07-17
+
+**The model:**
+Amygdala (node): fast, reactive, stateless beyond its detection cycle.
+Senses the environment, detects change, fires an event. No reasoning.
+Does not ask "what does this mean?" Only asks "did something happen?"
+
+Prefrontal cortex (hub): slow, deliberate, contextual, persistent.
+Receives raw signals, applies knowledge, decides meaning, stores history.
+
+**Juice Battle mapping:**
+Node reports: delta_g (what changed), sigma_g (measurement quality), node_id.
+Node never knows: score, glass_volume, game state, player identity, history.
+
+Hub decides: does this delta cross the glass threshold?
+Hub accumulates: partial_accum += delta_g; when >= 150g → 1 glass counted.
+Hub owns: game state, score, history, dashboard, cheat detection.
+Hub survives reboots: node cannot know what happened before its last boot.
+
+**Consequence for fragmented pours:**
+A 150ml pour fragmented into 22+35+61+32g across 4 events is correct behaviour
+from the hub's perspective. Hub accumulates fragments. Total = 150g = 1 glass.
+The node did its job correctly by reporting each settled event accurately.
+
+**Architecture law derived from this:**
+Node complexity must migrate to hub over time. Any logic that does not require
+real-time sensing (accumulation, threshold decisions, game scoring, cheat detection)
+belongs on the hub. Node's only job is to be the best possible sensor.
+
+---
+
+## L-012 — Atomic config writes prevent state corruption on power loss
+**Date:** 2026-07-17
+
+**Observed in gas-cylinder-monitor hub (domain.py _atomic_write_config):**
+Write to config.json.tmp, then os.rename(tmp, config_path).
+rename() is atomic on Linux — either the old file survives or the new one does.
+A power cut during write cannot produce a half-written config.
+
+**Why this matters for Juice Battle hub:**
+Game score and session state persist in config.json on the hub.
+If power cuts during a write, a corrupted config means lost game state.
+Juice Battle hub must implement the same atomic write pattern.
+
+**Rule:** Every config write on the hub goes through:
+  1. Write complete new content to config.json.tmp
+  2. fsync() to flush kernel buffer to disk
+  3. os.rename('config.json.tmp', 'config.json')
+  Never write directly to config.json.

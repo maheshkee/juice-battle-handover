@@ -43,3 +43,34 @@ Bugs found and fixed:
 Gate result: PASSED
 Files built: types.h config.h ads1232.h ads1232.cpp noise.h noise.cpp
              cal.h cal.cpp scale.h scale.cpp juicebattle.ino
+
+---
+
+## S005 — Stability State Machine
+**Date:** 2026-07-17
+**Goal:** Implement and verify 4-state EMA stability machine on real hardware
+
+### Real hardware outputs
+| Measurement | Result | Error |
+|---|---|---|
+| Boot sigma | 8.44g | 3× higher than previous sessions |
+| Bowl (kitchen: 3090g) | 3086g | 0.13% |
+| 500g water | 499.4g | 0.12% |
+| Bowl removal | 3350.1g | — |
+| 150ml removal (fragmented) | 22+23+14+61+25+10 ≈ 158g | ~5% |
+
+### Gate result
+PARTIAL PASS — state machine correct, thresholds need sigma-adaptive fix
+
+### What was built
+- stability.h/cpp — 4-state machine (WAITING, POUR_IN_PROGRESS, SETTLING, STABLE_SETTLED)
+- config.h additions: STABILITY_EMA_ALPHA=0.3f, STABILITY_SETTLING_SAMPLES=5
+- juicebattle.ino updated — stability_init(), stability_reset(), stability_update()
+
+### Key finding
+sigma=8.44g → noise-floor slope=25 g/s > hardcoded threshold 15 g/s.
+K=3 persistence prevented complete failure but could not fully compensate.
+Fix: slope_threshold = fmaxf(15.0f, 5.0f × sigma_g) — derived at runtime.
+
+### Next
+S006 — stability fixes + comms.h/cpp BLE advertising layer
