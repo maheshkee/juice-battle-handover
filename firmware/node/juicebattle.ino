@@ -106,6 +106,9 @@ void setup() {
     Serial.print("  Sigma   : "); Serial.print(g_noise.sigma_g, 2); Serial.println("g");
 
     comms_init(g_noise.sigma_g);
+
+    pinMode(8, OUTPUT);
+    digitalWrite(8, HIGH);  // off at boot (active-low)
 }
 
 void loop() {
@@ -150,6 +153,17 @@ void loop() {
             (uint8_t)sr.state,
             (uint8_t)sr.quality
         );
+    }
+
+    // --- LED health indicator ---
+    if (sr.quality == FAILED) {
+        digitalWrite(8, HIGH);                                    // FAILED: off (dark = dead)
+    } else if (sr.quality == DEGRADED) {
+        digitalWrite(8, (millis() / 1000) % 2 == 0 ? LOW : HIGH); // slow blink 1s
+    } else if (sr.state == STAB_POUR_IN_PROGRESS) {
+        digitalWrite(8, (millis() / 200) % 2 == 0 ? LOW : HIGH);  // fast blink during pour
+    } else {
+        digitalWrite(8, LOW);                                     // GOOD + idle: steady on
     }
 
     delay(100);

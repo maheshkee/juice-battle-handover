@@ -5,6 +5,8 @@ import time
 import socket
 import threading
 import logging
+import subprocess
+import time as _time
 import dbus
 import dbus.mainloop.glib
 from gi.repository import GLib
@@ -35,6 +37,29 @@ _bus                       = None
 _active_connections: dict[str, str] = {}   # name → device_path
 _connecting_nodes:   set[str]       = set()
 _notify_subs:        dict[str, str] = {}   # char_path → node_name
+
+_node_last_seen: dict[int, float] = {}   # node_id -> epoch
+
+
+def _set_hub_led(node_id: int, quality: int) -> None:
+    """Drive RGB LED1 (node 0) or LED2 (node 1) based on ADC quality."""
+    # quality: 0=GOOD, 1=DEGRADED, 2=FAILED
+    if quality == 0:
+        r, g, b = 0, 1, 0    # green
+    elif quality == 1:
+        r, g, b = 1, 1, 0    # amber
+    else:
+        r, g, b = 1, 0, 0    # red
+
+    led_num = node_id + 1    # node 0 → LED1, node 1 → LED2
+    try:
+        from arduino.app_utils import Leds
+        if led_num == 1:
+            Leds.set_led1_color(r, g, b)
+        else:
+            Leds.set_led2_color(r, g, b)
+    except Exception as e:
+        logging.debug("LED update skipped: %s", e)
 
 
 def parse_jb_payload(data: bytes) -> dict | None:
@@ -110,6 +135,9 @@ def _on_notify(interface, changed, invalidated, path):
         if evt:
             last_packet_time = time.monotonic()
             emit_event(evt, clients, clients_lock)
+            if evt.get('msg') == 'DIAG':
+                _node_last_seen[evt['node']] = _time.time()
+                _set_hub_led(evt['node'], evt['quality'])
     except Exception as e:
         log.warning("Notify parse error from %s: %s", path, e)
 
