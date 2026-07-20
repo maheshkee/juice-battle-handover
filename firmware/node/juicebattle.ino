@@ -104,7 +104,7 @@ void setup() {
     Serial.print("  Baseline: "); Serial.print(scale_get_baseline_g(), 1); Serial.println("g");
     Serial.print("  Sigma   : "); Serial.print(g_noise.sigma_g, 2); Serial.println("g");
 
-    comms_init(NODE_ID, g_noise.sigma_g);
+    comms_init(g_noise.sigma_g);
 }
 
 void loop() {
@@ -117,14 +117,14 @@ void loop() {
     if (sr.state == STAB_WAITING) {
         if (millis() - s_heartbeat_timer_ms >= COMMS_HEARTBEAT_INTERVAL_MS) {
             s_heartbeat_timer_ms = millis();
-            comms_send_heartbeat(g_noise.sigma_g);
+            comms_send_heartbeat(0.0f);
         }
     }
 
     if (sr.state == STAB_POUR_IN_PROGRESS) {
         if (millis() - s_pour_active_timer_ms >= COMMS_POUR_ACTIVE_INTERVAL_MS) {
             s_pour_active_timer_ms = millis();
-            comms_send_pour_active(sr.delta_g, g_noise.sigma_g);
+            comms_send_pour_active(sr.delta_g);
         }
     }
 
@@ -135,7 +135,7 @@ void loop() {
                           sr.delta_g, g_min_pour_g);
             stability_reset(sr.ema_g);
         } else {
-            comms_send_pour_settled(sr.delta_g, g_noise.sigma_g);
+            comms_send_pour_settled(sr.delta_g);
             Serial.printf("[POUR] %.1fg dispensed\n", sr.delta_g);
             stability_reset(sr.ema_g);
         }

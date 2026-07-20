@@ -1,6 +1,12 @@
 #pragma once
 #include <Arduino.h>
 
+// ── Juice Battle GATT UUIDs ──────────────────────────────────────────────────
+// Hub ble_scanner.py searches for JB_CHAR_UUID to find the notify characteristic.
+// These must NOT be reused from gas-cylinder-monitor.
+#define JB_SERVICE_UUID  "7b4c0e00-9aab-11ed-a8fc-0242ac120002"
+#define JB_CHAR_UUID     "7b4c0f00-9aab-11ed-a8fc-0242ac120002"
+
 // ── Message types ─────────────────────────────────────────────────────────────
 // HEARTBEAT    — node alive, broadcast every COMMS_HEARTBEAT_INTERVAL_MS
 // POUR_ACTIVE  — node in POUR_IN_PROGRESS state, broadcast periodically
@@ -23,14 +29,13 @@
 // Byte  1:     msg_type (COMMS_MSG_*)
 // Byte  2:     node_id  (NODE_ID from config.h, 0 or 1)
 // Bytes 3–6:   delta_g  (float, little-endian via memcpy)
-// Bytes 7–10:  sigma_g  (float, little-endian via memcpy)
+// Bytes 7–10:  sigma_g  (float, little-endian via memcpy, stored at comms_init)
 // Bytes 11–12: seq_num  (uint16_t, little-endian, wraps naturally at 65535)
-// Total = 13 bytes. Fits inside BLE advertising payload alongside device name.
 // Use memcpy() for floats — never cast float* to byte*, alignment is undefined behaviour.
 
-void comms_init(uint8_t node_id, float sigma_g);
-void comms_send_heartbeat(float sigma_g);
-void comms_send_pour_active(float delta_g, float sigma_g);
-void comms_send_pour_settled(float delta_g, float sigma_g);
-void comms_send_cal_complete(float sigma_g);
-void comms_send_sigma_alert(float sigma_g);
+void comms_init(float sigma_g);
+void comms_send_heartbeat(float delta_g);
+void comms_send_pour_active(float delta_g);
+void comms_send_pour_settled(float delta_g);
+void comms_send_cal_complete();
+void comms_send_sigma_alert();

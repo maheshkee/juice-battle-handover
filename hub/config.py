@@ -2,8 +2,14 @@
 # All constants live here. No hardcoding in other modules.
 
 # BLE identity
-COMPANY_ID    = 0xFFFF
 DEVICE_PREFIX = "JB-"
+
+# GATT UUIDs — must match firmware comms.h JB_SERVICE_UUID / JB_CHAR_UUID
+JB_SERVICE_UUID = '7b4c0e00-9aab-11ed-a8fc-0242ac120002'
+JB_CHAR_UUID    = '7b4c0f00-9aab-11ed-a8fc-0242ac120002'
+
+# Legacy (advertising mode) — no longer used by ble_scanner.py
+COMPANY_ID    = 0xFFFF
 
 # Transport TCP server (scanner publishes here)
 TRANSPORT_HOST = "0.0.0.0"
