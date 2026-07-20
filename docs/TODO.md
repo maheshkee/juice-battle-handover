@@ -60,8 +60,9 @@ Last updated: S005 close / S006 prep
       when partial_accum >= glass_volume_g (150g) → count 1 glass, reset accum
       Hub accumulates fragments — node never sees glass_volume
 
-- [ ] **BLE subscriber on hub**
-      Scan for node advertisements, parse payload, call game.process_pour_event()
+- [x] **BLE subscriber on hub** (S007)
+      ble_scanner.py: passive BLE scan, parse 13-byte payload, publish NDJSON over TCP :7001
+      transport.py: Docker consumer, callback dispatch, auto-reconnect
 
 - [ ] **Socket.IO dashboard push**
       On every game event: push snapshot to browser (reuse gas-cylinder pattern)
@@ -101,7 +102,7 @@ Node should only own:
 - [x] S004 — Boot redesign (scale_capture_baseline, noise under load, both boot paths verified)
 - [x] S005 — Stability state machine (4-state EMA machine, tested on hardware)
 - [x] S006 — stability fixes + comms.h/cpp BLE layer (hardware verified 2026-07-17)
-- [ ] S007 — Hub BLE subscriber + game.py skeleton
+- [x] S007 — Hub transport layer: BLE scanner, TCP NDJSON, consumer
 - [ ] S008 — Dashboard + Socket.IO
 - [ ] S009 — Full two-node integration test
 

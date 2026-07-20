@@ -1,11 +1,11 @@
 # HANDOFF_FINAL — Juice Battle
-# For: S007 prep (next chat session)
-# Generated: 2026-07-17 end of S006 hardware verify
+# For: S008 prep (next chat session)
+# Generated: 2026-07-20 end of S007
 
 ---
 
 ## Current position (one line)
-S006 hardware verified — stability fixes + NimBLE comms layer complete and confirmed on device. S007 next: Hub BLE subscriber + game.py.
+S007 complete — transport layer built: BLE scanner systemd service, TCP NDJSON publisher, Docker consumer. S008 next: game.py skeleton.
 
 ---
 
@@ -25,7 +25,7 @@ Score displayed as glass COUNT only. A glass counts when hub accumulates >= 150g
 | Nodes | Two ESP32-C3 SuperMini — one per jar |
 | Load cell | CZL601 40kg single-point. 2mV/V sensitivity. |
 | ADC | WCMCU ADS1232 breakout. Gain=128 hardware-set. 10 SPS. |
-| Jar | 10L glass jar. Weight TBD (jar not yet available). |
+| Jar | 10L glass jar. |
 | Glass | 150ml per glass (operator-configurable at game start). |
 
 ---
@@ -58,66 +58,71 @@ Current fix: ads1232.cpp returns -raw_value. TODO: swap wires in production buil
 | comms.h/cpp | DONE | NimBLE 2.5.0, non-connectable BLE, 13-byte payload. Hardware verified. |
 | juicebattle.ino | DONE | All modules wired. Comms integrated. Hardware verified. |
 
-**S006 hardware verification: PASSED (2 runs, 9 pours, zero false triggers, all BLE messages confirmed)**
+---
+
+## Hub files — current state
+
+| File | Status | Notes |
+|---|---|---|
+| config.py | DONE | All constants: BLE identity, TCP ports, msg types, game params |
+| ble_scanner.py | DONE | GLib event-driven passive BLE scan, TCP NDJSON server on :7001, watchdog |
+| transport.py | DONE | Docker consumer: TCP connect, NDJSON read, callback dispatch, auto-reconnect |
+| juice-ble-scanner.service | DONE | systemd unit: Restart=always, User=arduino |
+| setup.sh | DONE | One-time setup: apt python3-dbus, systemd enable+start |
+| deploy.sh | DONE | Redeploy: systemctl restart |
+| game.py | PENDING | S008 |
+| dashboard.py | PENDING | S009 |
+| main.py | PENDING | S009 |
 
 ---
 
-## S007 — what to build at next session
+## S008 — what to build at next session
 
-**Goal:** AQ3 hub passively scans for JB-0/JB-1 advertising packets,
-parses 13-byte manufacturer payload, prints parsed events to console.
-No game logic in S007 — just reliable receive-and-parse.
+**Goal:** game.py — the hub brain. Transport delivers events; game.py decides scores.
 
 ### Architecture
-- Pure Python on MPU (Debian Linux on AQ3)
-- BlueZ via D-Bus (NOT App Lab Docker — run as systemd service or direct script)
-- Passive scan (never connect, never pair)
-- Filter by device name prefix "JB-" OR manufacturer data company ID 0xFFFF
-- On each packet: parse payload, print structured event
-
-### Hub files to create (S007)
 ```
-hub/
-├── ble_scanner.py    ← passive BLE scan, payload parse, event print
-```
-game.py comes in S008 after scanner is verified.
-
-### Reference
-```
-cat ~/ArduinoApps/gas-cylinder-monitor/hub/python/ble_subscriber.py
-```
-Gas-cylinder ble_subscriber.py uses the same BlueZ/D-Bus passive scan pattern.
-Use as reference for device discovery and manufacturer data extraction.
-
-### Expected output from verified scanner
-```
-[JB-0] HEARTBEAT    delta=0.0g   sigma=5.03g  seq=42
-[JB-0] POUR_ACTIVE  delta=-127g  sigma=5.03g  seq=43
-[JB-0] POUR_SETTLED delta=-3326g sigma=5.03g  seq=44
+transport.py → game.py
+                ├── process_pour_event(delta_g, sigma_g, node_id, hub_ts)
+                ├── partial_accum[node_id]   += delta_g
+                ├── if partial_accum >= GLASS_VOLUME_G: count += 1, reset accum
+                └── returns GameSnapshot
 ```
 
-### Session start checklist for S007
+### Hub state machine
+```
+WAITING_NODES → GAME_READY → GAME_RUNNING → GAME_PAUSED → GAME_OVER
+```
+- WAITING_NODES: waiting for both JB-0 and JB-1 to send a HEARTBEAT
+- GAME_READY: both nodes seen, waiting for operator to press start
+- GAME_RUNNING: accumulating pours, scoring
+- GAME_PAUSED: operator paused mid-game
+- GAME_OVER: operator ended game or time expired
+
+### game.py interface (exact)
+```python
+class GameEngine:
+    def process_pour_event(self, delta_g: float, sigma_g: float, node_id: int, hub_ts: str) -> GameSnapshot
+    def node_seen(self, node_id: int)          # called on HEARTBEAT
+    def start_game(self)                        # operator action
+    def pause_game(self)                        # operator action
+    def end_game(self)                          # operator action
+
+@dataclass
+class GameSnapshot:
+    state: str
+    scores: dict[int, int]                      # node_id → glass count
+    partial_g: dict[int, float]                 # node_id → partial accum grams
+    nodes_seen: set[int]
+    last_event_ts: str
+```
+
+### Session start checklist for S008
 1. Read this handoff fully
-2. `systemctl status bluetooth`
-3. `hcitool lescan --passive` — should see JB-0 advertising
-4. `cat ~/ArduinoApps/gas-cylinder-monitor/hub/python/ble_subscriber.py`
-5. Build `hub/ble_scanner.py`
-6. Verify parsed output matches expected format above
-
----
-
-## Boot sequence (locked)
-
-```
-1. ads1232_init()
-2. cal_load_from_nvs()       ← hardware model, never changes
-3. scale_capture_baseline()  ← whatever is on platform NOW
-4. noise_measure(100)        ← σ under actual operating load
-5. stability_init(sigma_g)   ← derives slope_threshold = fmaxf(15, 5×sigma)
-6. stability_reset(baseline) ← sets s_baseline_g
-7. g_min_pour_g = 3×sigma_g  ← noise artifact filter
-8. comms_init(NODE_ID, sigma_g) ← BLE starts, first heartbeat sent
-```
+2. `systemctl status jb-ble-scanner` — should be running
+3. `nc localhost 7001` — should see HEARTBEAT lines if node is on
+4. Build `hub/game.py` per interface above
+5. Wire game.py into a test harness (no UI yet)
 
 ---
 
@@ -140,18 +145,17 @@ Advertising: non-connectable, 100ms interval, +9 dBm TX power
 
 ## Key engineering rules (non-negotiable)
 
-1. Orchestrator law: juicebattle.ino owns ZERO logic — wires modules only
+1. Orchestrator law: juicebattle.ino and main.py own ZERO logic — wires modules only
 2. NODE_ID lives only in config.h — the single difference between two node binaries
 3. Never hardcode thresholds that depend on sigma_live
-4. Any constant that depends on measured physical state must be computed at runtime
-5. Hub = prefrontal cortex (accumulates, decides, scores). Node = amygdala (detects, reports).
-6. Every C++ module returns {value, quality (GOOD/DEGRADED/FAILED), diagnosis}
-7. delayMicroseconds(2) on every GPIO edge during bit-bang operations
-8. No String class in modules — char arrays and snprintf only
+4. Hub = prefrontal cortex (accumulates, decides, scores). Node = amygdala (detects, reports).
+5. Every C++ module returns {value, quality (GOOD/DEGRADED/FAILED), diagnosis}
+6. delayMicroseconds(2) on every GPIO edge during bit-bang operations
+7. No String class in modules — char arrays and snprintf only
 
 ---
 
-## Real measured values (S003, verified on hardware)
+## Real measured values (S003/S006, verified on hardware)
 
 ```
 Best calibration (NVS persistent):
@@ -161,10 +165,8 @@ Best calibration (NVS persistent):
   raw_5000  = 630410
   confidence= 0.968   GOOD
 
-S003 noise floor: sigma_g = 2.40g – 4.82g  (office, fan on)
-S005 noise floor: sigma_g = 8.44g  (higher ambient vibration)
-S006 Run 1:       sigma_g = 5.03g  → slope_threshold = 25.1 g/s
-S006 Run 2:       sigma_g = 6.54g  → slope_threshold = 32.7 g/s
+S006 Run 1:  sigma_g = 5.03g  → slope_threshold = 25.1 g/s
+S006 Run 2:  sigma_g = 6.54g  → slope_threshold = 32.7 g/s
 Dynamic formula:  slope_threshold = fmaxf(15.0f, 5.0f × sigma_g)
 ```
 
@@ -180,9 +182,10 @@ Dynamic formula:  slope_threshold = fmaxf(15.0f, 5.0f × sigma_g)
 | S004 | DONE | Boot redesign (baseline capture, noise under load) |
 | S005 | DONE | Stability state machine (partial pass — threshold fix needed) |
 | S006 | DONE | Stability fixes + comms BLE layer (hardware verified 2026-07-17) |
-| S007 | PENDING | Hub BLE subscriber + game.py skeleton |
-| S008 | PENDING | Dashboard + Socket.IO |
-| S009 | PENDING | Full two-node integration test |
+| S007 | DONE | Transport layer: BLE scanner service, TCP NDJSON, consumer |
+| S008 | PENDING | game.py skeleton: hub state machine, partial pour accumulation, glass counting |
+| S009 | PENDING | Dashboard + Socket.IO |
+| S010 | PENDING | Full two-node integration test |
 
 ---
 
@@ -191,14 +194,13 @@ Dynamic formula:  slope_threshold = fmaxf(15.0f, 5.0f × sigma_g)
 ```
 ~/ArduinoApps/juice_battle/
 ├── docs/
-│   ├── TODO.md                          ← active work list
-│   ├── SESSIONS.md                      ← session records (append only)
-│   ├── LEARNINGS_AND_INSIGHTS.md        ← L-001 through L-015
-│   ├── HANDOFF_FINAL.md                 ← this file
+│   ├── TODO.md
+│   ├── SESSIONS.md
+│   ├── LEARNINGS_AND_INSIGHTS.md
+│   ├── HANDOFF_FINAL.md                ← this file
 │   ├── ARCHITECTURE.md
 │   ├── HARDWARE_MANIFEST.md
-│   ├── INTERFACE_CONTRACTS.md
-│   └── juice_battle_project_bible.html
+│   └── INTERFACE_CONTRACTS.md
 ├── firmware/node/
 │   ├── types.h, config.h
 │   ├── ads1232.h, ads1232.cpp
@@ -206,11 +208,16 @@ Dynamic formula:  slope_threshold = fmaxf(15.0f, 5.0f × sigma_g)
 │   ├── cal.h, cal.cpp
 │   ├── scale.h, scale.cpp
 │   ├── stability.h, stability.cpp
-│   ├── comms.h, comms.cpp       ← S006, hardware verified
-│   ├── juicebattle.ino
-│   └── juicebattle/             ← symlink dir for arduino-cli (gitignored)
+│   ├── comms.h, comms.cpp              ← S006, hardware verified
+│   └── juicebattle.ino
 └── hub/
-    └── ble_scanner.py           ← S007 (to be built)
+    ├── config.py                        ← S007 DONE
+    ├── ble_scanner.py                   ← S007 DONE (systemd service)
+    ├── transport.py                     ← S007 DONE (Docker consumer)
+    ├── juice-ble-scanner.service        ← S007 DONE
+    ├── setup.sh                         ← S007 DONE
+    ├── deploy.sh                        ← S007 DONE
+    └── game.py                          ← S008 next
 ```
 
 ---

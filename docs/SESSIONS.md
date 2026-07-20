@@ -135,3 +135,44 @@ FULL PASS — two hardware verification runs completed
 
 ### Next
 S007 — Hub BLE subscriber + game.py skeleton
+
+---
+
+## S007 — Hub Transport Layer (BLE Scanner + TCP Publisher + Consumer)
+**Date:** 2026-07-20
+**Goal:** AQ3 hub passively scans JB-0/JB-1 BLE advertisements, parses 13-byte payload, publishes NDJSON over TCP :7001
+
+### Architecture delivered
+- `ble_scanner.py`: GLib event-driven passive BLE scanner, D-Bus/BlueZ, TCP NDJSON server, watchdog
+- `transport.py`: Docker-side TCP consumer with callback registration, auto-reconnect
+- `config.py`: all constants (BLE identity, TCP ports, message types, game params)
+- `juice-ble-scanner.service`: systemd unit (Restart=always, RestartSec=5, User=arduino)
+- `setup.sh`: one-time board setup (apt install python3-dbus, systemd enable+start)
+- `deploy.sh`: redeploy on code change (systemctl restart)
+
+### Key implementation notes
+- ManufacturerData values cast to `bytes()` before `struct.unpack` — dbus.Array is not bytes
+- `int(key) == COMPANY_ID` — dbus.UInt16 needs explicit int cast
+- DuplicateData=True in SetDiscoveryFilter — required to get every advertisement, not just first-seen
+- TCP server multi-client: threading.Thread accept loop + shared list with Lock
+- Dead clients removed silently on OSError — never crash scanner on client disconnect
+- Watchdog: GLib.timeout_add_seconds(10) checks `time.monotonic()`, exits for systemd restart on silence
+
+### BLE stack on AQ3
+- bluetooth.service: active (14h uptime at session start)
+- python3-gi (GLib): installed
+- python3-dbus: NOT installed at session start — setup.sh installs it
+
+### Gate result
+PENDING — node must be advertising; `bash hub/setup.sh` required before first run
+
+### Files created
+- hub/config.py
+- hub/ble_scanner.py
+- hub/transport.py
+- hub/juice-ble-scanner.service
+- hub/setup.sh
+- hub/deploy.sh
+
+### Next
+S008 — game.py skeleton: Hub state machine WAITING_NODES → GAME_READY → GAME_RUNNING → GAME_OVER, partial pour accumulation, glass counting

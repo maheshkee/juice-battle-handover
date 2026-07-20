@@ -1,23 +1,23 @@
 # CLAUDE.md — Juice Battle
-# Current position updated: S006 close / 2026-07-17
+# Current position updated: S007 close / 2026-07-20
 
 ## Current position
-Phase 1 — ESP32-C3 Firmware. S006 complete and hardware verified.
-Phase 2 — Hub (AQ3 Python). S007 next: Hub BLE subscriber + game.py skeleton.
+Phase 1 — ESP32-C3 Firmware. Complete and hardware verified (S006).
+Phase 2 — Hub (AQ3 Python). S007 complete. S008 next: game.py skeleton.
 
-## What was just completed (S006)
-- Dynamic slope threshold: fmaxf(15.0f, 5.0f × sigma_g) — eliminates false triggers at high sigma
-- K_stop=8: 800ms confirmation window before POUR→SETTLING — eliminates false settlement
-- min_delta filter: events < 3×sigma_g discarded as noise artifacts
-- comms.h/cpp: NimBLE 2.5.0, non-connectable BLE, 13-byte payload
-- juicebattle.ino: all modules wired, comms integrated
-- Hardware verified: 2 runs, 9 pours total, zero false triggers, all BLE messages firing correctly
-- New learnings: L-013 (EMA drift safe), L-014 (jar lift by slope alone), L-015 (git contamination)
+## What was just completed (S007)
+- config.py: all hub constants (BLE identity, TCP ports, message types, game params)
+- ble_scanner.py: GLib event-driven passive BLE scanner, TCP NDJSON server :7001, watchdog
+- transport.py: Docker-side TCP consumer, callback-based dispatch, auto-reconnect loop
+- juice-ble-scanner.service: systemd unit, Restart=always, User=arduino
+- setup.sh: one-time board setup (apt python3-dbus, systemd enable+start)
+- deploy.sh: redeploy on code change
+- Gate: PENDING — requires `bash hub/setup.sh` and node advertising to verify
 
-## What is next (S007)
-Hub BLE subscriber — scan for JB-0/JB-1 advertisements, parse 13-byte payload
-game.py skeleton — process_pour_event(delta_g, sigma_g, node_id, hub_ts)
+## What is next (S008)
+game.py — hub brain. process_pour_event(delta_g, sigma_g, node_id, hub_ts) → GameSnapshot
 Hub state machine: WAITING_NODES → GAME_READY → GAME_RUNNING → GAME_PAUSED → GAME_OVER
+Partial pour accumulation: partial_accum[node] += delta_g; count glass when >= 150g
 
 ## Locked rules (non-negotiable)
 - Never hardcode thresholds that depend on sigma_live

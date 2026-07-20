@@ -1,0 +1,18 @@
+[Unit]
+Description=Juice Battle BLE Scanner
+After=bluetooth.target network.target
+Requires=bluetooth.target
+
+[Service]
+Type=simple
+User=arduino
+WorkingDirectory=/home/arduino/ArduinoApps/juice_battle/hub
+ExecStart=/usr/bin/python3 /home/arduino/ArduinoApps/juice_battle/hub/ble_scanner.py
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=jb-ble-scanner
+
+[Install]
+WantedBy=multi-user.target
