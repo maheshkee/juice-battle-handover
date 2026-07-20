@@ -101,18 +101,20 @@ def parse_jb_payload(data: bytes) -> dict | None:
 
 _recent_seen: dict[tuple, float] = {}
 _DEDUP_WINDOW = 0.5  # seconds
+_dedup_lock   = threading.Lock()
 
 
 def _is_duplicate(key: tuple) -> bool:
-    # WHY: belt-and-suspenders guard even after fixing double-subscribe root cause
-    now = _time.time()
-    expired = [k for k, t in _recent_seen.items() if now - t > _DEDUP_WINDOW]
-    for k in expired:
-        del _recent_seen[k]
-    if key in _recent_seen:
-        return True
-    _recent_seen[key] = now
-    return False
+    # WHY: lock makes check+write atomic - GLib can fire callbacks from multiple threads
+    with _dedup_lock:
+        now = _time.time()
+        expired = [k for k, t in _recent_seen.items() if now - t > _DEDUP_WINDOW]
+        for k in expired:
+            del _recent_seen[k]
+        if key in _recent_seen:
+            return True
+        _recent_seen[key] = now
+        return False
 
 
 def emit_event(evt: dict, clients: list, clients_lock: threading.Lock) -> None:
@@ -279,6 +281,17 @@ def _properties_changed(interface, changed, invalidated, path):
             # Clean up stale char subscriptions for this node
             stale = [cp for cp, n in list(_notify_subs.items()) if n == name]
             for cp in stale:
+                try:
+                    _bus.remove_signal_receiver(
+                        _on_notify,
+                        dbus_interface=DBUS_PROP,
+                        signal_name='PropertiesChanged',
+                        path=cp,
+                        path_keyword='path'
+                    )
+                    log.info("Removed signal receiver for %s", cp)
+                except Exception as e:
+                    log.warning("Failed to remove signal receiver for %s: %s", cp, e)
                 del _notify_subs[cp]
             _reconnect_in(5000, path, name)
             break
