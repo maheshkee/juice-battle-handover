@@ -3,7 +3,7 @@ import os
 import time
 import sqlite3
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 # WHY: add hub/ to path so imports work when run from project root
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -28,7 +28,7 @@ def on_event(event):
     msg = event.get('msg')
     if msg == 'DIAG':
         storage.record_health(
-            ts=event.get('ts', datetime.utcnow().isoformat()),
+            ts=event.get('ts', datetime.now(timezone.utc).isoformat()),
             node_id=event.get('node', -1),
             msg='DIAG',
             current_g=event.get('current_g'),
@@ -40,7 +40,7 @@ def on_event(event):
               f"state={event.get('state')} quality={event.get('quality')}")
     elif msg == 'HEARTBEAT':
         storage.record_health(
-            ts=event.get('ts', datetime.utcnow().isoformat()),
+            ts=event.get('ts', datetime.now(timezone.utc).isoformat()),
             node_id=event.get('node', -1),
             msg='HEARTBEAT',
             sigma_g=event.get('sigma_g'),
@@ -49,7 +49,7 @@ def on_event(event):
     elif msg == 'POUR_SETTLED':
         storage.record_pour(
             session_id=session_id,
-            ts=event.get('ts', datetime.utcnow().isoformat()),
+            ts=event.get('ts', datetime.now(timezone.utc).isoformat()),
             node_id=event.get('node', -1),
             delta_g=event.get('delta_g', 0.0),
             sigma_g=event.get('sigma_g', 0.0),

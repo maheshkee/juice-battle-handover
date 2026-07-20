@@ -1,8 +1,8 @@
 import sqlite3
 import os
 import threading
-import datetime
 import logging
+from datetime import datetime, timezone
 
 log = logging.getLogger(__name__)
 
@@ -64,7 +64,7 @@ class Storage:
                 self._conn.commit()
         except sqlite3.Error as e:
             log.error("record_pour failed: %s", e)
-            self.record_error(datetime.datetime.utcnow().isoformat(), "record_pour", str(e))
+            self.record_error(datetime.now(timezone.utc).isoformat(), "record_pour", str(e))
 
     def record_health(self, ts: str, node_id: int, msg: str,
                       current_g=None, slope_gs=None,
@@ -81,7 +81,7 @@ class Storage:
                 self._conn.commit()
         except sqlite3.Error as e:
             log.error("record_health failed: %s", e)
-            self.record_error(datetime.datetime.utcnow().isoformat(), "record_health", str(e))
+            self.record_error(datetime.now(timezone.utc).isoformat(), "record_health", str(e))
 
     def record_error(self, ts: str, source: str, message: str) -> None:
         try:
@@ -98,7 +98,7 @@ class Storage:
     def open_session(self, node_count: int) -> int:
         try:
             with self._lock:
-                started_at = datetime.datetime.utcnow().isoformat()
+                started_at = datetime.now(timezone.utc).isoformat()
                 cur = self._conn.execute(
                     "INSERT INTO sessions (started_at, node_count) VALUES (?, ?)",
                     (started_at, node_count)
@@ -107,13 +107,13 @@ class Storage:
                 return cur.lastrowid
         except sqlite3.Error as e:
             log.error("open_session failed: %s", e)
-            self.record_error(datetime.datetime.utcnow().isoformat(), "open_session", str(e))
+            self.record_error(datetime.now(timezone.utc).isoformat(), "open_session", str(e))
             return -1
 
     def close_session(self, session_id: int) -> None:
         try:
             with self._lock:
-                ended_at = datetime.datetime.utcnow().isoformat()
+                ended_at = datetime.now(timezone.utc).isoformat()
                 self._conn.execute(
                     "UPDATE sessions SET ended_at = ? WHERE id = ?",
                     (ended_at, session_id)
@@ -121,4 +121,4 @@ class Storage:
                 self._conn.commit()
         except sqlite3.Error as e:
             log.error("close_session failed: %s", e)
-            self.record_error(datetime.datetime.utcnow().isoformat(), "close_session", str(e))
+            self.record_error(datetime.now(timezone.utc).isoformat(), "close_session", str(e))

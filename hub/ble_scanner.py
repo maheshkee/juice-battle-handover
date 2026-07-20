@@ -99,9 +99,32 @@ def parse_jb_payload(data: bytes) -> dict | None:
     }
 
 
+_recent_seen: dict[tuple, float] = {}
+_DEDUP_WINDOW = 0.5  # seconds
+
+
+def _is_duplicate(key: tuple) -> bool:
+    # WHY: belt-and-suspenders guard even after fixing double-subscribe root cause
+    now = _time.time()
+    expired = [k for k, t in _recent_seen.items() if now - t > _DEDUP_WINDOW]
+    for k in expired:
+        del _recent_seen[k]
+    if key in _recent_seen:
+        return True
+    _recent_seen[key] = now
+    return False
+
+
 def emit_event(evt: dict, clients: list, clients_lock: threading.Lock) -> None:
     # WHY: NDJSON - one JSON object per line, newline terminated
     # Any client can reconnect and immediately start reading valid lines
+    if evt['msg'] == 'DIAG':
+        key = (evt['node'], 'DIAG', round(evt['current_g'], 1), evt['state'])
+    else:
+        key = (evt['node'], evt['msg'], evt.get('seq'))
+    if _is_duplicate(key):
+        return
+
     line = json.dumps(evt) + '\n'
     encoded = line.encode('utf-8')
     if evt['msg'] == 'DIAG':
@@ -144,6 +167,11 @@ def _on_notify(interface, changed, invalidated, path):
 
 def _subscribe_notify(char_path: str, node_name: str) -> None:
     global last_packet_time
+    # WHY: guard prevents double StartNotify + double add_signal_receiver on reconnect
+    if char_path in _notify_subs:
+        log.info("Already subscribed to %s for %s - skipping", char_path, node_name)
+        _connecting_nodes.discard(node_name)
+        return
     try:
         char = dbus.Interface(_bus.get_object(BLUEZ, char_path), GATT_CHAR)
         char.StartNotify()
