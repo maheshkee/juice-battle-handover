@@ -9,7 +9,7 @@ import dbus
 import dbus.mainloop.glib
 from gi.repository import GLib
 from config import (DEVICE_PREFIX, TRANSPORT_HOST, TRANSPORT_PORT,
-                    WATCHDOG_TIMEOUT_S, MSG_NAMES, JB_CHAR_UUID)
+                    WATCHDOG_TIMEOUT_S, MSG_NAMES, JB_CHAR_UUID, MSG_DIAG)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -44,6 +44,22 @@ def parse_jb_payload(data: bytes) -> dict | None:
     version  = data[0]
     msg_type = data[1]
     node_id  = data[2]
+
+    if msg_type == MSG_DIAG:
+        # WHY: DIAG reuses bytes 3-12 differently — no seq_num, no sigma_g
+        current_g = struct.unpack_from('<f', data, 3)[0]
+        slope_gs  = struct.unpack_from('<f', data, 7)[0]
+        state     = data[11]
+        quality   = data[12]
+        return {
+            'msg':       'DIAG',
+            'node':      node_id,
+            'current_g': round(float(current_g), 2),
+            'slope_gs':  round(float(slope_gs), 3),
+            'state':     state,
+            'quality':   quality,
+        }
+
     # WHY: IEEE754 little-endian float - must be bytes(), not dbus.Array
     delta_g  = struct.unpack_from('<f', data, 3)[0]
     sigma_g  = struct.unpack_from('<f', data, 7)[0]
@@ -63,8 +79,12 @@ def emit_event(evt: dict, clients: list, clients_lock: threading.Lock) -> None:
     # Any client can reconnect and immediately start reading valid lines
     line = json.dumps(evt) + '\n'
     encoded = line.encode('utf-8')
-    log.info("[%s] node=%d delta=%.1fg sigma=%.3fg seq=%d",
-             evt['msg'], evt['node'], evt['delta_g'], evt['sigma_g'], evt['seq'])
+    if evt['msg'] == 'DIAG':
+        log.info("[DIAG] node=%d current=%.1fg slope=%.3fg/s state=%d quality=%d",
+                 evt['node'], evt['current_g'], evt['slope_gs'], evt['state'], evt['quality'])
+    else:
+        log.info("[%s] node=%d delta=%.1fg sigma=%.3fg seq=%d",
+                 evt['msg'], evt['node'], evt['delta_g'], evt['sigma_g'], evt['seq'])
     with clients_lock:
         dead = []
         for c in clients:

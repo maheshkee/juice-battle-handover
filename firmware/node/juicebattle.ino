@@ -18,6 +18,7 @@ float       g_min_pour_g = 0.0f;
 
 static unsigned long s_heartbeat_timer_ms   = 0;
 static unsigned long s_pour_active_timer_ms = 0;
+static unsigned long s_diag_timer_ms        = 0;
 
 void setup() {
     Serial.begin(115200);
@@ -139,6 +140,16 @@ void loop() {
             Serial.printf("[POUR] %.1fg dispensed\n", sr.delta_g);
             stability_reset(sr.ema_g);
         }
+    }
+
+    if (millis() - s_diag_timer_ms >= COMMS_DIAG_INTERVAL_MS) {
+        s_diag_timer_ms = millis();
+        comms_send_diag(
+            sr.ema_g,
+            sr.slope_g_per_s,
+            (uint8_t)sr.state,
+            (uint8_t)sr.quality
+        );
     }
 
     delay(100);

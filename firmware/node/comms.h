@@ -19,18 +19,26 @@
 #define COMMS_MSG_POUR_SETTLED  0x03
 #define COMMS_MSG_CAL_COMPLETE  0x04
 #define COMMS_MSG_SIGMA_ALERT   0x05
+#define COMMS_MSG_DIAG          0x06
 
 #define COMMS_PAYLOAD_VERSION         0x01
 #define COMMS_HEARTBEAT_INTERVAL_MS   2000
 #define COMMS_POUR_ACTIVE_INTERVAL_MS  200
+#define COMMS_DIAG_INTERVAL_MS        5000
 
 // ── Payload layout — 13 bytes total ──────────────────────────────────────────
-// Byte  0:     version  (COMMS_PAYLOAD_VERSION = 0x01)
-// Byte  1:     msg_type (COMMS_MSG_*)
-// Byte  2:     node_id  (NODE_ID from config.h, 0 or 1)
-// Bytes 3–6:   delta_g  (float, little-endian via memcpy)
-// Bytes 7–10:  sigma_g  (float, little-endian via memcpy, stored at comms_init)
-// Bytes 11–12: seq_num  (uint16_t, little-endian, wraps naturally at 65535)
+// Standard messages (0x01–0x05):
+//   Byte  0:     version  (COMMS_PAYLOAD_VERSION = 0x01)
+//   Byte  1:     msg_type (COMMS_MSG_*)
+//   Byte  2:     node_id  (NODE_ID from config.h, 0 or 1)
+//   Bytes 3–6:   delta_g  (float, little-endian via memcpy)
+//   Bytes 7–10:  sigma_g  (float, little-endian via memcpy, stored at comms_init)
+//   Bytes 11–12: seq_num  (uint16_t, little-endian, wraps naturally at 65535)
+// DIAG message (0x06):
+//   Bytes 3–6:   current_g  (float, ema_g — weight on platform right now)
+//   Bytes 7–10:  slope_gs   (float, slope_g_per_s — rate of weight change)
+//   Byte  11:    state      (uint8_t, StabilityState enum value)
+//   Byte  12:    quality    (uint8_t, Quality enum value)
 // Use memcpy() for floats — never cast float* to byte*, alignment is undefined behaviour.
 
 void comms_init(float sigma_g);
@@ -39,3 +47,4 @@ void comms_send_pour_active(float delta_g);
 void comms_send_pour_settled(float delta_g);
 void comms_send_cal_complete();
 void comms_send_sigma_alert();
+void comms_send_diag(float current_g, float slope_gs, uint8_t state, uint8_t quality);

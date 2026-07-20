@@ -85,3 +85,23 @@ void comms_send_cal_complete() {
 void comms_send_sigma_alert() {
     _send_payload(COMMS_MSG_SIGMA_ALERT, 0.0f);
 }
+
+void comms_send_diag(float current_g, float slope_gs, uint8_t state, uint8_t quality) {
+    if (s_char == nullptr) return;
+    if (NimBLEDevice::getServer()->getConnectedCount() == 0) return;
+
+    uint8_t buf[13];
+    buf[0] = COMMS_PAYLOAD_VERSION;
+    buf[1] = COMMS_MSG_DIAG;
+    buf[2] = (uint8_t)NODE_ID;
+    memcpy(buf + 3, &current_g, 4);
+    memcpy(buf + 7, &slope_gs,  4);
+    buf[11] = state;
+    buf[12] = quality;
+
+    s_char->setValue(buf, 13);
+    s_char->notify();
+
+    Serial.printf("[COMMS] tx DIAG current=%.1f slope=%.3f state=%u quality=%u\n",
+                  current_g, slope_gs, (unsigned)state, (unsigned)quality);
+}
