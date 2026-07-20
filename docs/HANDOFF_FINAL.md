@@ -5,7 +5,7 @@
 ---
 
 ## Current position (one line)
-S007 complete — transport layer built: BLE scanner systemd service, TCP NDJSON publisher, Docker consumer. S008 next: game.py skeleton.
+S007 complete — GATT transport verified: hub connects to JB-0, HEARTBEAT flowing. S008 next: MSG_DIAG diagnostic message + storage.py SQLite layer.
 
 ---
 
@@ -55,8 +55,8 @@ Current fix: ads1232.cpp returns -raw_value. TODO: swap wires in production buil
 | cal.h/cpp | DONE | 3-point piecewise cal, NVS persistent, confidence=0.968 |
 | scale.h/cpp | DONE | Baseline capture + live read + noise clamp |
 | stability.h/cpp | DONE | 4-state EMA machine, dynamic slope_threshold, K_stop=8 |
-| comms.h/cpp | DONE | NimBLE 2.5.0, non-connectable BLE, 13-byte payload. Hardware verified. |
-| juicebattle.ino | DONE | All modules wired. Comms integrated. Hardware verified. |
+| comms.h/cpp | DONE | NimBLE 2.5.0, GATT peripheral, NOTIFY char, 13-byte payload. Hardware verified S007. |
+| juicebattle.ino | DONE | All modules wired. GATT comms integrated. Hardware verified S007. |
 
 ---
 
@@ -65,64 +65,163 @@ Current fix: ads1232.cpp returns -raw_value. TODO: swap wires in production buil
 | File | Status | Notes |
 |---|---|---|
 | config.py | DONE | All constants: BLE identity, TCP ports, msg types, game params |
-| ble_scanner.py | DONE | GLib event-driven passive BLE scan, TCP NDJSON server on :7001, watchdog |
+| ble_scanner.py | DONE | GLib GATT central, connects JB-*/NOTIFY, TCP NDJSON server :7001, watchdog |
 | transport.py | DONE | Docker consumer: TCP connect, NDJSON read, callback dispatch, auto-reconnect |
 | juice-ble-scanner.service | DONE | systemd unit: Restart=always, User=arduino |
 | setup.sh | DONE | One-time setup: apt python3-dbus, systemd enable+start |
 | deploy.sh | DONE | Redeploy: systemctl restart |
-| game.py | PENDING | S008 |
-| dashboard.py | PENDING | S009 |
-| main.py | PENDING | S009 |
+| README.md | DONE | Operational runbook: monitoring, troubleshooting |
+| storage.py | PENDING | S008 |
+| game.py | PENDING | S009 |
+| dashboard.py | PENDING | S010 |
+| main.py | PENDING | S010 |
 
 ---
 
 ## S008 — what to build at next session
 
-**Goal:** game.py — the hub brain. Transport delivers events; game.py decides scores.
+### Goal
+Two independent deliverables. Build in order — verify each before starting the next.
 
-### Architecture
-```
-transport.py → game.py
-                ├── process_pour_event(delta_g, sigma_g, node_id, hub_ts)
-                ├── partial_accum[node_id]   += delta_g
-                ├── if partial_accum >= GLASS_VOLUME_G: count += 1, reset accum
-                └── returns GameSnapshot
+---
+
+### Deliverable 1: MSG_DIAG firmware diagnostic message
+
+**Surgical addition to comms.h/cpp + juicebattle.ino. Do NOT touch other modules.**
+
+Add `MSG_DIAG = 0x06` — fires every 5s from `STAB_WAITING` state.
+Purpose: continuous node health telemetry to hub storage layer.
+
+#### Payload extension (comms.h)
+```c
+#define COMMS_MSG_DIAG              0x06
+#define COMMS_DIAG_INTERVAL_MS      5000
+
+// MSG_DIAG payload — 13 bytes, same layout as all other messages:
+// Byte 0:     version  = 0x01
+// Byte 1:     msg_type = 0x06
+// Byte 2:     node_id
+// Bytes 3-6:  current_g   (float) — EMA weight on platform right now
+// Bytes 7-10: sigma_g     (float) — stored at comms_init, static
+// Bytes 11-12: seq_num    (uint16_t)
+// NOTE: delta_g field (bytes 3-6) repurposed as current_g for DIAG only
+// slope_g_per_s and error_flags fit by reuse of same 13-byte layout
 ```
 
-### Hub state machine
+Add to `comms.h`:
+```c
+void comms_send_diag(float current_g);
 ```
-WAITING_NODES → GAME_READY → GAME_RUNNING → GAME_PAUSED → GAME_OVER
-```
-- WAITING_NODES: waiting for both JB-0 and JB-1 to send a HEARTBEAT
-- GAME_READY: both nodes seen, waiting for operator to press start
-- GAME_RUNNING: accumulating pours, scoring
-- GAME_PAUSED: operator paused mid-game
-- GAME_OVER: operator ended game or time expired
 
-### game.py interface (exact)
+Add to `comms.cpp`:
+```c
+void comms_send_diag(float current_g) {
+    _send_payload(COMMS_MSG_DIAG, current_g);
+}
+```
+
+Add to `juicebattle.ino` in the `STAB_WAITING` block:
+```c
+static unsigned long s_diag_timer_ms = 0;
+// inside if (sr.state == STAB_WAITING):
+if (millis() - s_diag_timer_ms >= COMMS_DIAG_INTERVAL_MS) {
+    s_diag_timer_ms = millis();
+    comms_send_diag(sr.ema_g);
+}
+```
+
+Add to `hub/config.py`:
 ```python
-class GameEngine:
-    def process_pour_event(self, delta_g: float, sigma_g: float, node_id: int, hub_ts: str) -> GameSnapshot
-    def node_seen(self, node_id: int)          # called on HEARTBEAT
-    def start_game(self)                        # operator action
-    def pause_game(self)                        # operator action
-    def end_game(self)                          # operator action
-
-@dataclass
-class GameSnapshot:
-    state: str
-    scores: dict[int, int]                      # node_id → glass count
-    partial_g: dict[int, float]                 # node_id → partial accum grams
-    nodes_seen: set[int]
-    last_event_ts: str
+MSG_DIAG = 0x06
+# MSG_NAMES dict: add MSG_DIAG: "DIAG"
 ```
+
+**Verify**: journalctl shows `[DIAG] node=0` line every 5s in WAITING state.
+
+---
+
+### Deliverable 2: storage.py — SQLite persistence layer
+
+**New file: `hub/storage.py`. No changes to existing hub files.**
+
+#### Database: `hub/data/jb.db` (SQLite)
+
+```sql
+CREATE TABLE sessions (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    started_at  TEXT NOT NULL,
+    ended_at    TEXT,
+    node_count  INTEGER DEFAULT 0
+);
+
+CREATE TABLE pour_events (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id  INTEGER REFERENCES sessions(id),
+    ts          TEXT NOT NULL,
+    node_id     INTEGER NOT NULL,
+    delta_g     REAL NOT NULL,
+    sigma_g     REAL NOT NULL,
+    seq         INTEGER NOT NULL
+);
+
+CREATE TABLE node_health (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    ts          TEXT NOT NULL,
+    node_id     INTEGER NOT NULL,
+    msg         TEXT NOT NULL,
+    current_g   REAL,
+    sigma_g     REAL,
+    seq         INTEGER NOT NULL
+);
+
+CREATE TABLE error_log (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    ts          TEXT NOT NULL,
+    source      TEXT NOT NULL,
+    message     TEXT NOT NULL
+);
+```
+
+#### storage.py interface (exact)
+```python
+class Storage:
+    def __init__(self, db_path: str = "hub/data/jb.db"):
+        ...  # CREATE TABLE IF NOT EXISTS on init
+
+    def record_pour(self, session_id: int, ts: str, node_id: int,
+                    delta_g: float, sigma_g: float, seq: int) -> None: ...
+
+    def record_health(self, ts: str, node_id: int, msg: str,
+                      current_g: float, sigma_g: float, seq: int) -> None: ...
+
+    def record_error(self, ts: str, source: str, message: str) -> None: ...
+
+    def open_session(self, node_count: int) -> int: ...  # returns session_id
+
+    def close_session(self, session_id: int) -> None: ...
+```
+
+#### Wire transport.py callbacks → storage (test harness only, not game.py)
+Create `hub/storage_test.py` — a standalone script that:
+1. Instantiates `Transport` and `Storage`
+2. Registers `on_event` callback that routes POUR_SETTLED → `record_pour`, DIAG/HEARTBEAT → `record_health`
+3. Runs for 30s and prints row counts
+
+**Verify**: After 30s, `sqlite3 hub/data/jb.db "SELECT COUNT(*) FROM node_health;"` shows non-zero.
+
+---
+
+### Volume mount prep (app.yaml)
+No code change needed yet. Just note: when App Lab Docker config is created, `hub/data/` must be volume-mounted so `jb.db` persists across container restarts.
+
+---
 
 ### Session start checklist for S008
 1. Read this handoff fully
-2. `systemctl status jb-ble-scanner` — should be running
-3. `nc localhost 7001` — should see HEARTBEAT lines if node is on
-4. Build `hub/game.py` per interface above
-5. Wire game.py into a test harness (no UI yet)
+2. `systemctl status juice-ble-scanner` — should show active
+3. `journalctl -u juice-ble-scanner -n 20` — should show HEARTBEAT every 2s
+4. `nc localhost 7001` — should see `{"msg":"HEARTBEAT",...}` lines
+5. Build MSG_DIAG (Deliverable 1), verify in journal, then proceed to storage.py
 
 ---
 
@@ -130,15 +229,15 @@ class GameSnapshot:
 
 ```
 Byte  0:     version  = 0x01
-Byte  1:     msg_type (0x01=HB, 0x02=ACTIVE, 0x03=SETTLED, 0x04=CAL, 0x05=SIGMA)
+Byte  1:     msg_type (0x01=HB, 0x02=ACTIVE, 0x03=SETTLED, 0x04=CAL, 0x05=SIGMA, 0x06=DIAG)
 Byte  2:     node_id  (0 or 1)
-Bytes 3–6:   delta_g  (float, little-endian)
-Bytes 7–10:  sigma_g  (float, little-endian)
+Bytes 3–6:   delta_g  (float, little-endian) — for DIAG: repurposed as current_g
+Bytes 7–10:  sigma_g  (float, little-endian, stored at comms_init)
 Bytes 11–12: seq_num  (uint16_t, little-endian)
 
 Device name: "JB-0" or "JB-1"
-Company ID: 0xFFFF (prototype/testing)
-Advertising: non-connectable, 100ms interval, +9 dBm TX power
+Transport: GATT peripheral, NOTIFY characteristic
+UUID: 7b4c0f00-9aab-11ed-a8fc-0242ac120002
 ```
 
 ---
@@ -167,6 +266,7 @@ Best calibration (NVS persistent):
 
 S006 Run 1:  sigma_g = 5.03g  → slope_threshold = 25.1 g/s
 S006 Run 2:  sigma_g = 6.54g  → slope_threshold = 32.7 g/s
+S007:        sigma_g = 4.0g   (confirmed in HEARTBEAT stream)
 Dynamic formula:  slope_threshold = fmaxf(15.0f, 5.0f × sigma_g)
 ```
 
@@ -182,10 +282,11 @@ Dynamic formula:  slope_threshold = fmaxf(15.0f, 5.0f × sigma_g)
 | S004 | DONE | Boot redesign (baseline capture, noise under load) |
 | S005 | DONE | Stability state machine (partial pass — threshold fix needed) |
 | S006 | DONE | Stability fixes + comms BLE layer (hardware verified 2026-07-17) |
-| S007 | DONE | Transport layer: BLE scanner service, TCP NDJSON, consumer |
-| S008 | PENDING | game.py skeleton: hub state machine, partial pour accumulation, glass counting |
-| S009 | PENDING | Dashboard + Socket.IO |
-| S010 | PENDING | Full two-node integration test |
+| S007 | DONE | GATT transport: scanner service, TCP NDJSON, HEARTBEAT verified 2026-07-20 |
+| S008 | PENDING | MSG_DIAG firmware message + storage.py SQLite layer |
+| S009 | PENDING | game.py: hub state machine, partial pour accumulation, glass counting |
+| S010 | PENDING | Dashboard + Socket.IO |
+| S011 | PENDING | Full two-node integration test |
 
 ---
 
@@ -208,16 +309,19 @@ Dynamic formula:  slope_threshold = fmaxf(15.0f, 5.0f × sigma_g)
 │   ├── cal.h, cal.cpp
 │   ├── scale.h, scale.cpp
 │   ├── stability.h, stability.cpp
-│   ├── comms.h, comms.cpp              ← S006, hardware verified
+│   ├── comms.h, comms.cpp              ← S007, GATT verified
 │   └── juicebattle.ino
 └── hub/
     ├── config.py                        ← S007 DONE
-    ├── ble_scanner.py                   ← S007 DONE (systemd service)
+    ├── ble_scanner.py                   ← S007 DONE (systemd GATT central)
     ├── transport.py                     ← S007 DONE (Docker consumer)
     ├── juice-ble-scanner.service        ← S007 DONE
     ├── setup.sh                         ← S007 DONE
     ├── deploy.sh                        ← S007 DONE
-    └── game.py                          ← S008 next
+    ├── README.md                        ← S007 DONE
+    ├── data/                            ← S008: jb.db lives here
+    ├── storage.py                       ← S008 next
+    └── game.py                          ← S009 next
 ```
 
 ---
