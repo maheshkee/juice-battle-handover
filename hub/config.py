@@ -45,3 +45,14 @@ MSG_NAMES = {
 # Game parameters
 GLASS_VOLUME_G = 150.0
 MIN_DELTA_G    = 10.0
+
+# --- Pour event thresholds (game.py) ---
+# POUR_SIGMA_K: dimensionless multiplier - how many sigma_g = minimum real pour (3-sigma rule)
+# POUR_MIN_G: fault-mode floor - fires only when sigma_g < 1.67g (node malfunction).
+#   10.0 = POUR_SIGMA_K * min_observed_sigma (3.0 * 3.4g, S006-S008).
+#   Fault mode should be stricter than normal, not permissive.
+# POUR_WINDOW_S: events within this window accumulate (same glass, split settle);
+#                gap > window = new visitor, discard stale partial
+POUR_SIGMA_K  = 3.0
+POUR_MIN_G    = 10.0
+POUR_WINDOW_S = 8.0
