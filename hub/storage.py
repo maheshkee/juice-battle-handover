@@ -1,6 +1,7 @@
 import sqlite3
 import os
 import threading
+import time
 import logging
 from datetime import datetime, timezone
 
@@ -47,6 +48,19 @@ class Storage:
                 source      TEXT NOT NULL,
                 message     TEXT NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS overflow_events (
+                id             INTEGER PRIMARY KEY AUTOINCREMENT,
+                ts             REAL    NOT NULL,
+                node_id        INTEGER NOT NULL,
+                seq            INTEGER,
+                reason         TEXT    NOT NULL,
+                grams          REAL    NOT NULL,
+                window_open_ts REAL
+            );
+            CREATE INDEX IF NOT EXISTS ix_overflow_node_ts
+                ON overflow_events(node_id, ts);
+            CREATE INDEX IF NOT EXISTS ix_overflow_reason
+                ON overflow_events(reason);
         """)
         self._conn.commit()
         log.info("Storage ready at %s", db_path)
@@ -65,6 +79,29 @@ class Storage:
         except sqlite3.Error as e:
             log.error("record_pour failed: %s", e)
             self.record_error(datetime.now(timezone.utc).isoformat(), "record_pour", str(e))
+
+    def log_overflow(self, node_id: int, seq, reason: str,
+                     grams: float, window_open_ts=None) -> None:
+        VALID = {
+            'ANOMALY_DELTA', 'ANOMALY_CLR', 'DISTURBANCE_CLR',
+            'ABANDONED_WINDOW', 'ABANDONED_BOUNDARY', 'RESIDUE'
+        }
+        if reason not in VALID:
+            raise ValueError(f"Unknown overflow reason: {reason}")
+        if grams <= 0:
+            return
+        try:
+            with self._lock:
+                self._conn.execute(
+                    "INSERT INTO overflow_events "
+                    "(ts, node_id, seq, reason, grams, window_open_ts) "
+                    "VALUES (?, ?, ?, ?, ?, ?)",
+                    (time.time(), node_id, seq, reason, grams, window_open_ts)
+                )
+                self._conn.commit()
+        except sqlite3.Error as e:
+            log.error("log_overflow failed: %s", e)
+            self.record_error(datetime.now(timezone.utc).isoformat(), "log_overflow", str(e))
 
     def record_health(self, ts: str, node_id: int, msg: str,
                       current_g=None, slope_gs=None,

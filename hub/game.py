@@ -35,12 +35,13 @@ class Game:
         self._session_id = None
 
         # Per-node state (keyed by node_id: 0 or 1)
-        self._partial_g      = {0: 0.0,  1: 0.0}   # accumulated grams in current window
-        self._glass_count    = {0: 0,    1: 0}
-        self._last_seq       = {0: -1,   1: -1}     # dedup guard
-        self._last_settled_t = {0: None, 1: None}   # time.monotonic() of last event
-        self._bounce_until   = {0: 0.0,  1: 0.0}   # wall time: suppress after disturbance
-        self._settling_until = {0: 0.0,  1: 0.0}   # wall time: suppress after anomaly
+        self._partial_g        = {0: 0.0,  1: 0.0}   # accumulated grams in current window
+        self._partial_open_ts  = {0: None, 1: None}  # wall time: when current window opened
+        self._glass_count      = {0: 0,    1: 0}
+        self._last_seq         = {0: -1,   1: -1}    # dedup guard
+        self._last_settled_t   = {0: None, 1: None}  # time.monotonic() of last event
+        self._bounce_until     = {0: 0.0,  1: 0.0}  # wall time: suppress after disturbance
+        self._settling_until   = {0: 0.0,  1: 0.0}  # wall time: suppress after anomaly
 
     def start(self, node_count: int = 1) -> None:
         """Open a storage session and begin accepting pour events."""
@@ -49,12 +50,13 @@ class Game:
                 log.warning("Game.start() called while already running - ignored")
                 return
             self._session_id = self._storage.open_session(node_count)
-            self._partial_g      = {0: 0.0,  1: 0.0}
-            self._glass_count    = {0: 0,    1: 0}
-            self._last_seq       = {0: -1,   1: -1}
-            self._last_settled_t = {0: None, 1: None}
-            self._bounce_until   = {0: 0.0,  1: 0.0}
-            self._settling_until = {0: 0.0,  1: 0.0}
+            self._partial_g        = {0: 0.0,  1: 0.0}
+            self._partial_open_ts  = {0: None, 1: None}
+            self._glass_count      = {0: 0,    1: 0}
+            self._last_seq         = {0: -1,   1: -1}
+            self._last_settled_t   = {0: None, 1: None}
+            self._bounce_until     = {0: 0.0,  1: 0.0}
+            self._settling_until   = {0: 0.0,  1: 0.0}
             self._running = True
             log.info("Game started - session_id=%s node_count=%d",
                      self._session_id, node_count)
@@ -124,7 +126,11 @@ class Game:
                                     "clearing partial=%.1fg bounce suppressed %.0fs",
                                     node_id, delta_g, self._partial_g[node_id],
                                     config.BOUNCE_SETTLE_S)
+                        self._storage.log_overflow(
+                            node_id, seq, 'DISTURBANCE_CLR',
+                            self._partial_g[node_id], self._partial_open_ts[node_id])
                         self._partial_g[node_id] = 0.0
+                        self._partial_open_ts[node_id] = None
                 else:
                     log.info("POUR_SETTLED: node=%d delta=%.1fg below threshold=%.1fg "
                              "(sigma=%.2fg) - noise, ignored", node_id, delta_g, threshold, sigma_g)
@@ -136,16 +142,26 @@ class Game:
                             "jar removed? NOT scored",
                             node_id, delta_g, config.GLASS_VOLUME_G * config.POUR_MAX_G_FRAC)
                 self._settling_until[node_id] = time.time() + config.ANOMALY_SETTLE_S
+                self._storage.log_overflow(
+                    node_id, seq, 'ANOMALY_DELTA',
+                    delta_g, None)
+                if self._partial_g[node_id] > 0:
+                    self._storage.log_overflow(
+                        node_id, seq, 'ANOMALY_CLR',
+                        self._partial_g[node_id], self._partial_open_ts[node_id])
                 self._partial_g[node_id] = 0.0
+                self._partial_open_ts[node_id] = None
                 return
 
             # --- Pour window: same pour or new visitor? ---
             # BLE loss fallback: if POUR_ACTIVE was missed, boundary fires here.
             now = time.monotonic()
-            self._boundary_check(node_id, now)
+            self._boundary_check(node_id, now, seq)
             self._last_settled_t[node_id] = now
 
             # --- Accumulate and count ---
+            if self._partial_g[node_id] == 0:
+                self._partial_open_ts[node_id] = now_wall
             self._partial_g[node_id] += delta_g
             new_glasses = 0
             while self._partial_g[node_id] >= config.GLASS_VOLUME_G:
@@ -154,7 +170,12 @@ class Game:
                 new_glasses += 1
             # Per-person semantics: overshoot residue dies immediately at glass-fire.
             if new_glasses > 0:
+                if self._partial_g[node_id] > 0:
+                    self._storage.log_overflow(
+                        node_id, seq, 'RESIDUE',
+                        self._partial_g[node_id], self._partial_open_ts[node_id])
                 self._partial_g[node_id] = 0.0
+                self._partial_open_ts[node_id] = None
 
             # --- Persist to storage ---
             ts = datetime.now(timezone.utc).isoformat()
@@ -191,10 +212,14 @@ class Game:
                     log.info("POUR_ACTIVE: node=%d new pour after %.0fs - "
                              "discarding partial=%.1fg",
                              node_id, now - self._last_settled_t[node_id], partial)
+                    self._storage.log_overflow(
+                        node_id, None, 'ABANDONED_BOUNDARY',
+                        partial, self._partial_open_ts[node_id])
                     self._partial_g[node_id] = 0.0
+                    self._partial_open_ts[node_id] = None
             self._last_settled_t[node_id] = now
 
-    def _boundary_check(self, node_id: int, now: float) -> None:
+    def _boundary_check(self, node_id: int, now: float, seq=None) -> None:
         """Called under self._lock. On window expiry, preserve or discard stale partial."""
         if self._last_settled_t[node_id] is None:
             return
@@ -206,7 +231,11 @@ class Game:
             return
         log.info("POUR_SETTLED: node=%d window expired - discarding partial=%.1fg",
                  node_id, partial)
+        self._storage.log_overflow(
+            node_id, seq, 'ABANDONED_WINDOW',
+            partial, self._partial_open_ts[node_id])
         self._partial_g[node_id] = 0.0
+        self._partial_open_ts[node_id] = None
 
     def get_state(self) -> dict:
         """
