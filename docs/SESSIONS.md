@@ -170,3 +170,59 @@ TCP :7001 stream confirmed working. transport.py consumer confirmed.
 
 ### Git commits
 c6ab0ea S007: GATT transport verified - hub connects to JB-0, HEARTBEAT flowing
+
+---
+
+## S010 - 2026-07-21
+
+### Scope
+Live crowd scoreboard: dashboard.py + main.py, end-to-end pipeline from BLE node
+through SQLite to browser display.
+
+### Completed
+- hub/dashboard.py: Flask + Flask-SocketIO threading mode, 500ms push loop,
+  emits glass_count + partial_g to all connected browsers
+- hub/main.py: orchestrator, wires transport callbacks to game + storage,
+  zero game logic in orchestrator
+- hub/juice-battle.service: systemd unit, boot-enabled, PYTHONUNBUFFERED=1
+- hub/setup.sh: deps install, socket.io.js download, both services enabled on boot
+- hub/deploy.sh: restart + log tail for code-change redeployment
+- hub/static/socket.io.js: Socket.IO v4.6.1 served locally (no CDN at stall)
+- config.py additions: DASHBOARD_PORT=5000, DB_PATH (pathlib-derived)
+
+### Hardware verification
+4-pour experiment, DB events 18–26 audited:
+- Pour bodies: 194.1 / 172.7 / 171.3 / 171.2 / 162.9g
+- Tap-leak fragments: 34.7 / 18.7 / 32.0 / 22.5g (window-expired, correctly discarded)
+- Final state: 5 glasses + 12.9g partial
+- Dashboard displayed: 5 / +13g — exact match
+- sigma_live = 5.6g this session. Every counter change traced to a DB event.
+
+### Gate
+PASSED — grams conserved, DB ledger complete, browser scoreboard live.
+
+### Bugs fixed
+- /socket.io/socket.io.js is the WS protocol endpoint, not a file; HTTP 400.
+  Fixed by serving socket.io.js 4.6.1 from hub/static/ at /static/socket.io.js.
+- Python print() block-buffered under systemd; [GAME] logs were invisible.
+  Fixed with Environment=PYTHONUNBUFFERED=1 in service unit.
+- config.DB_PATH missing; main.py crashed on start. Fixed.
+
+### Next
+S011 — second node (JB-1) flash + two-jar game, accumulator restore from DB on
+startup, concurrent-pour edge cases.
+
+---
+
+## S011 | 2026-07-22 | Pour-boundary semantics redesign + production bug fixes
+  - Diagnosed boss-demo missing glass (POUR_WINDOW_S=8.0 too short, 10.44s gap killed 91.5g partial)
+  - Fixed invisible game.py logs (logging.basicConfig missing from main.py)
+  - Extended POUR_WINDOW_S 8.0→20.0
+  - Designed and implemented pour-boundary robustness: residue kill at glass-fire,
+    POUR_ACTIVE unconditional discard, disturbance detection + bounce suppression,
+    ANOMALY ceiling (jar removal), post-anomaly settling window
+  - Deleted preserve rule (was causing false glasses from stale partial carry-over)
+  - Wired POUR_ACTIVE to game.on_pour_active in main.py
+  - Acceptance: 4 glasses counted correctly, disturbance cleared, bounce suppressed,
+    no false glasses on adversarial pours
+  - Deferred: overflow bucket (S012a), JB-1 bring-up (S012b)

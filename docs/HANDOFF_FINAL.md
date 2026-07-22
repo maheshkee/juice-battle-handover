@@ -1,344 +1,140 @@
-# HANDOFF_FINAL — Juice Battle
-# For: S008 prep (next chat session)
-# Generated: 2026-07-20 end of S007
+# HANDOFF - Juice Battle
+**Last session:** S011 - 2026-07-22  
+**Board:** AQ3 (arduino@AQ3), project at ~/ArduinoApps/juice_battle/  
+**Git:** gratiantechnologies/project13, 15 commits ahead of origin/main
 
 ---
 
-## Current position (one line)
-S007 complete — GATT transport verified: hub connects to JB-0, HEARTBEAT flowing. S008 next: MSG_DIAG diagnostic message + storage.py SQLite layer.
+## Current state - STABLE ✓
 
----
+Single-node system (JB-0 only) fully operational. Pour-boundary semantics
+redesigned and adversarially tested. Ready for S012a (overflow bucket) then
+S012b (JB-1 bring-up) then S013 (integration).
 
-## What Juice Battle is
+### Services
+- juice-ble-scanner.service: active, boot-enabled, HEARTBEAT flowing from JB-0
+- juice-battle.service: active, boot-enabled, [game] logs visible in journalctl
+- Dashboard: http://AQ3:5000, Socket.IO push every 500ms
 
-Crowd-facing real-time juice pouring competition at market stalls.
-Two glass jars of juice compete. Visitors pour into glasses. Volume poured = score.
-Score displayed as glass COUNT only. A glass counts when hub accumulates >= 150g from one node.
+### Hub modules (hub/)
+- config.py - all constants, see table below
+- game.py - pour state machine, fully redesigned S011
+- transport.py - TCP consumer, 5s reconnect, msg_filter dispatch
+- ble_scanner.py - BLE GATT scanner, publishes all message types to TCP :7001
+- storage.py - SQLite pour_events (schema unchanged)
+- dashboard.py - Flask + Socket.IO
+- main.py - orchestrator, zero logic, wires: POUR_SETTLED + POUR_ACTIVE → game
 
----
+### Config constants (hub/config.py)
 
-## Hardware
-
-| Component | Detail |
-|---|---|
-| Hub | Arduino UNO Q, hostname AQ3, Debian Linux (MPU) + Zephyr (MCU) |
-| Nodes | Two ESP32-C3 SuperMini — one per jar |
-| Load cell | CZL601 40kg single-point. 2mV/V sensitivity. |
-| ADC | WCMCU ADS1232 breakout. Gain=128 hardware-set. 10 SPS. |
-| Jar | 10L glass jar. |
-| Glass | 150ml per glass (operator-configurable at game start). |
-
----
-
-## Wiring locked (ESP32-C3 → ADS1232)
-
-| Signal | GPIO | ADS1232 Pin | Note |
-|---|---|---|---|
-| SCLK | GPIO4 | SCLK | Clock output |
-| DOUT | GPIO5 | DOUT/DRDY | Data + ready signal |
-| PDWN | GPIO6 | PDWN | Power down (HIGH=active) |
-| A0 | GPIO7 | A0 | Channel select (LOW=ch1) |
-
-POLARITY BUG: green/white CZL601 wires are physically swapped.
-Current fix: ads1232.cpp returns -raw_value. TODO: swap wires in production build.
-
----
-
-## Firmware files — current state
-
-| File | Status | Notes |
+| Constant | Value | Derivation |
 |---|---|---|
-| types.h | DONE | Quality enum: GOOD/DEGRADED/FAILED |
-| config.h | DONE | NODE_ID=0, STABILITY_K_STOP=8, slope threshold comment |
-| ads1232.h/cpp | DONE | Bit-bang, polarity fix (-raw_value) |
-| noise.h/cpp | DONE | Welford algorithm, 100 samples |
-| cal.h/cpp | DONE | 3-point piecewise cal, NVS persistent, confidence=0.968 |
-| scale.h/cpp | DONE | Baseline capture + live read + noise clamp |
-| stability.h/cpp | DONE | 4-state EMA machine, dynamic slope_threshold, K_stop=8 |
-| comms.h/cpp | DONE | NimBLE 2.5.0, GATT peripheral, NOTIFY char, 13-byte payload. Hardware verified S007. |
-| juicebattle.ino | DONE | All modules wired. GATT comms integrated. Hardware verified S007. |
+| GLASS_VOLUME_G | 150.0 | product spec |
+| POUR_SIGMA_K | 3.0 | 3-sigma noise gate |
+| POUR_MIN_G | 10.0 | fault-mode floor |
+| POUR_WINDOW_S | 20.0 | empirical (max observed gap 18.7s) |
+| POUR_MAX_G_FRAC | 3.0 | jar-removal ceiling (×GLASS_VOLUME_G = 450g) |
+| BOUNCE_SETTLE_S | 5.0 | disturbance rebound suppression window |
+| ANOMALY_SETTLE_S | 30.0 | post jar-removal settling suppression |
+
+POUR_PRESERVE_FRAC deleted - preserve rule caused false glasses, removed permanently.
 
 ---
 
-## Hub files — current state
+## game.py state machine - current rules (in order of execution)
 
-| File | Status | Notes |
-|---|---|---|
-| config.py | DONE | All constants: BLE identity, TCP ports, msg types, game params |
-| ble_scanner.py | DONE | GLib GATT central, connects JB-*/NOTIFY, TCP NDJSON server :7001, watchdog |
-| transport.py | DONE | Docker consumer: TCP connect, NDJSON read, callback dispatch, auto-reconnect |
-| juice-ble-scanner.service | DONE | systemd unit: Restart=always, User=arduino |
-| setup.sh | DONE | One-time setup: apt python3-dbus, systemd enable+start |
-| deploy.sh | DONE | Redeploy: systemctl restart |
-| README.md | DONE | Operational runbook: monitoring, troubleshooting |
-| storage.py | PENDING | S008 |
-| game.py | PENDING | S009 |
-| dashboard.py | PENDING | S010 |
-| main.py | PENDING | S010 |
+For each POUR_SETTLED event:
+1. Dedup: reject if (node_id, seq) already seen
+2. Bounce suppression: reject if now < bounce_until
+3. Post-anomaly suppression: reject if now < settling_until
+4. Disturbance: if delta < -(GLASS_VOLUME_G × POUR_MAX_G_FRAC):
+   - clear partial, set bounce_until, log DISTURBANCE, return
+5. ANOMALY ceiling: if delta > GLASS_VOLUME_G × POUR_MAX_G_FRAC:
+   - log ANOMALY, set settling_until, zero partial, return
+6. Sign filter: reject delta = 0
+7. Noise filter: reject delta < max(POUR_MIN_G, POUR_SIGMA_K × sigma_g)
+8. Window check (_boundary_check): if gap > POUR_WINDOW_S and partial > 0:
+   - discard partial unconditionally, log "window expired"
+9. Accumulate: partial += delta
+10. Count: while partial >= GLASS_VOLUME_G: glasses++, partial -= GLASS_VOLUME_G
+11. Residue kill: if new_glasses > 0: partial = 0.0
+12. DB write, dashboard push
 
----
-
-## S008 — what to build at next session
-
-### Goal
-Two independent deliverables. Build in order — verify each before starting the next.
-
----
-
-### Deliverable 1: MSG_DIAG firmware diagnostic message
-
-**Surgical addition to comms.h/cpp + juicebattle.ino. Do NOT touch other modules.**
-
-Add `MSG_DIAG = 0x06` — fires every 5s from `STAB_WAITING` state.
-Purpose: continuous node health telemetry to hub storage layer.
-
-#### Payload extension (comms.h)
-```c
-#define COMMS_MSG_DIAG              0x06
-#define COMMS_DIAG_INTERVAL_MS      5000
-
-// MSG_DIAG payload — 13 bytes, same layout as all other messages:
-// Byte 0:     version  = 0x01
-// Byte 1:     msg_type = 0x06
-// Byte 2:     node_id
-// Bytes 3-6:  current_g   (float) — EMA weight on platform right now
-// Bytes 7-10: sigma_g     (float) — stored at comms_init, static
-// Bytes 11-12: seq_num    (uint16_t)
-// NOTE: delta_g field (bytes 3-6) repurposed as current_g for DIAG only
-// slope_g_per_s and error_flags fit by reuse of same 13-byte layout
-```
-
-Add to `comms.h`:
-```c
-void comms_send_diag(float current_g);
-```
-
-Add to `comms.cpp`:
-```c
-void comms_send_diag(float current_g) {
-    _send_payload(COMMS_MSG_DIAG, current_g);
-}
-```
-
-Add to `juicebattle.ino` in the `STAB_WAITING` block:
-```c
-static unsigned long s_diag_timer_ms = 0;
-// inside if (sr.state == STAB_WAITING):
-if (millis() - s_diag_timer_ms >= COMMS_DIAG_INTERVAL_MS) {
-    s_diag_timer_ms = millis();
-    comms_send_diag(sr.ema_g);
-}
-```
-
-Add to `hub/config.py`:
-```python
-MSG_DIAG = 0x06
-# MSG_NAMES dict: add MSG_DIAG: "DIAG"
-```
-
-**Verify**: journalctl shows `[DIAG] node=0` line every 5s in WAITING state.
+For POUR_ACTIVE:
+- If gap > POUR_WINDOW_S and partial > 0: discard partial unconditionally
+- Always refresh last_ts
 
 ---
 
-### Deliverable 2: storage.py — SQLite persistence layer
+## Key design decisions locked
 
-**New file: `hub/storage.py`. No changes to existing hub files.**
+**Per-person semantics:** glass count = servings to people, not cumulative volume.
+A person pours, sees their glass counted. GLASS_VOLUME_G is the threshold per pour.
 
-#### Database: `hub/data/jb.db` (SQLite)
+**Residue kill at glass-fire:** overshoot (e.g. 10g after 160g pour) belongs to
+the visitor who just completed. Zeroed immediately. Cannot bleed into next visitor.
 
-```sql
-CREATE TABLE sessions (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    started_at  TEXT NOT NULL,
-    ended_at    TEXT,
-    node_count  INTEGER DEFAULT 0
-);
+**POUR_ACTIVE = boundary detector:** fires only when slope detector sees real flow.
+Slow drips never trigger it. POUR_ACTIVE after silence = new visitor starting.
+Always discards stale partial. No size test.
 
-CREATE TABLE pour_events (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    session_id  INTEGER REFERENCES sessions(id),
-    ts          TEXT NOT NULL,
-    node_id     INTEGER NOT NULL,
-    delta_g     REAL NOT NULL,
-    sigma_g     REAL NOT NULL,
-    seq         INTEGER NOT NULL
-);
+**No preserve rule:** partial = 50g at expiry is indistinguishable from abandoned
+pour. False glass risk > missed glass risk. Unconditional discard.
 
-CREATE TABLE node_health (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    ts          TEXT NOT NULL,
-    node_id     INTEGER NOT NULL,
-    msg         TEXT NOT NULL,
-    current_g   REAL,
-    sigma_g     REAL,
-    seq         INTEGER NOT NULL
-);
+**Disturbance symmetry:** large negative delta clears partial AND suppresses rebound.
+Bounce window = BOUNCE_SETTLE_S. Protects against hand slam, object placement.
 
-CREATE TABLE error_log (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    ts          TEXT NOT NULL,
-    source      TEXT NOT NULL,
-    message     TEXT NOT NULL
-);
-```
+**Jar removal defense:** delta > 450g → ANOMALY, not scored. Post-anomaly settling
+window prevents oscillation artifacts from accumulating.
 
-#### storage.py interface (exact)
-```python
-class Storage:
-    def __init__(self, db_path: str = "hub/data/jb.db"):
-        ...  # CREATE TABLE IF NOT EXISTS on init
-
-    def record_pour(self, session_id: int, ts: str, node_id: int,
-                    delta_g: float, sigma_g: float, seq: int) -> None: ...
-
-    def record_health(self, ts: str, node_id: int, msg: str,
-                      current_g: float, sigma_g: float, seq: int) -> None: ...
-
-    def record_error(self, ts: str, source: str, message: str) -> None: ...
-
-    def open_session(self, node_count: int) -> int: ...  # returns session_id
-
-    def close_session(self, session_id: int) -> None: ...
-```
-
-#### Wire transport.py callbacks → storage (test harness only, not game.py)
-Create `hub/storage_test.py` — a standalone script that:
-1. Instantiates `Transport` and `Storage`
-2. Registers `on_event` callback that routes POUR_SETTLED → `record_pour`, DIAG/HEARTBEAT → `record_health`
-3. Runs for 30s and prints row counts
-
-**Verify**: After 30s, `sqlite3 hub/data/jb.db "SELECT COUNT(*) FROM node_health;"` shows non-zero.
+**Conservation of mass (deferred to S012a):**
+total_juice = (glasses × GLASS_VOLUME_G) + overflow_g
+Overflow bucket routes: RESIDUE, ABANDONED, DISTURBANCE, ANOMALY events.
+Storage.py schema change required.
 
 ---
 
-### Volume mount prep (app.yaml)
-No code change needed yet. Just note: when App Lab Docker config is created, `hub/data/` must be volume-mounted so `jb.db` persists across container restarts.
+## Next sessions
+
+### S012a - Overflow bucket (prerequisite: schema change)
+- Add overflow_events table to storage.py
+- Route discarded/anomaly grams from game.py to storage.log_overflow()
+- Verify mass conservation: sum(pour_events.delta_g) = glasses×150 + overflow
+- No UI change needed, logs only
+
+### S012b - JB-1 bring-up
+- Multimeter polarity check: CZL601 green/white on ADS1232 INNA+/INNA-
+- If reversed: software fix is -raw_value in firmware (do NOT physically swap yet)
+- NODE_ID=1 in config.h ONLY - identical binary otherwise
+- Three-point calibration: 0g (tare), 100g, 250g, 500g reference weights
+- Verify sigma_g stable, POUR_SETTLED events flowing to TCP :7001 with node=1
+- Do not touch JB-0 config
+
+### S013 - Integration (requires S012a + S012b complete)
+- hub: node_count=2 in main.py game_inst.start()
+- Verify dashboard renders both jars, no cross-talk
+- Concurrent pour test: both nodes simultaneously
+- Edge cases: simultaneous glass-fire both nodes, one node BLE dropout
 
 ---
 
-### Session start checklist for S008
-1. Read this handoff fully
-2. `systemctl status juice-ble-scanner` — should show active
-3. `journalctl -u juice-ble-scanner -n 20` — should show HEARTBEAT every 2s
-4. `nc localhost 7001` — should see `{"msg":"HEARTBEAT",...}` lines
-5. Build MSG_DIAG (Deliverable 1), verify in journal, then proceed to storage.py
+## Known gaps (open)
+- Accumulator restore from DB on restart (service restart = visible counter reset)
+- Transport reconnect: events lost during 5s TCP backoff
+- LID_WEIGHT_G config tag (deferred analytics sugar - measure physical lid first)
 
 ---
 
-## BLE payload layout (13 bytes)
+## Hardware state
+- JB-0: NODE_ID=0, flashed, calibrated, sigma_g~6.84g, on platform, HEARTBEAT flowing
+- JB-1: NOT YET FLASHED. Needs polarity check before power-on.
+- AQ3: SSH arduino@AQ3, Debian Linux, Docker not in use for this project
 
-```
-Byte  0:     version  = 0x01
-Byte  1:     msg_type (0x01=HB, 0x02=ACTIVE, 0x03=SETTLED, 0x04=CAL, 0x05=SIGMA, 0x06=DIAG)
-Byte  2:     node_id  (0 or 1)
-Bytes 3–6:   delta_g  (float, little-endian) — for DIAG: repurposed as current_g
-Bytes 7–10:  sigma_g  (float, little-endian, stored at comms_init)
-Bytes 11–12: seq_num  (uint16_t, little-endian)
-
-Device name: "JB-0" or "JB-1"
-Transport: GATT peripheral, NOTIFY characteristic
-UUID: 7b4c0f00-9aab-11ed-a8fc-0242ac120002
-```
-
----
-
-## Key engineering rules (non-negotiable)
-
-1. Orchestrator law: juicebattle.ino and main.py own ZERO logic — wires modules only
-2. NODE_ID lives only in config.h — the single difference between two node binaries
-3. Never hardcode thresholds that depend on sigma_live
-4. Hub = prefrontal cortex (accumulates, decides, scores). Node = amygdala (detects, reports).
-5. Every C++ module returns {value, quality (GOOD/DEGRADED/FAILED), diagnosis}
-6. delayMicroseconds(2) on every GPIO edge during bit-bang operations
-7. No String class in modules — char arrays and snprintf only
-
----
-
-## Real measured values (S003/S006, verified on hardware)
-
-```
-Best calibration (NVS persistent):
-  raw_zero  = 94690
-  raw_500   = 148353
-  raw_1000  = 201742
-  raw_5000  = 630410
-  confidence= 0.968   GOOD
-
-S006 Run 1:  sigma_g = 5.03g  → slope_threshold = 25.1 g/s
-S006 Run 2:  sigma_g = 6.54g  → slope_threshold = 32.7 g/s
-S007:        sigma_g = 4.0g   (confirmed in HEARTBEAT stream)
-Dynamic formula:  slope_threshold = fmaxf(15.0f, 5.0f × sigma_g)
-```
-
----
-
-## Session records
-
-| Session | Status | Description |
-|---|---|---|
-| S001 | DONE | Bootstrap, directory structure |
-| S002 | DONE | Hardware wiring complete |
-| S003 | DONE | Calibration verified (confidence=0.968, NVS persistent) |
-| S004 | DONE | Boot redesign (baseline capture, noise under load) |
-| S005 | DONE | Stability state machine (partial pass — threshold fix needed) |
-| S006 | DONE | Stability fixes + comms BLE layer (hardware verified 2026-07-17) |
-| S007 | DONE | GATT transport: scanner service, TCP NDJSON, HEARTBEAT verified 2026-07-20 |
-| S008 | PENDING | MSG_DIAG firmware message + storage.py SQLite layer |
-| S009 | PENDING | game.py: hub state machine, partial pour accumulation, glass counting |
-| S010 | PENDING | Dashboard + Socket.IO |
-| S011 | PENDING | Full two-node integration test |
-
----
-
-## Project folder structure
-
-```
-~/ArduinoApps/juice_battle/
-├── docs/
-│   ├── TODO.md
-│   ├── SESSIONS.md
-│   ├── LEARNINGS_AND_INSIGHTS.md
-│   ├── HANDOFF_FINAL.md                ← this file
-│   ├── ARCHITECTURE.md
-│   ├── HARDWARE_MANIFEST.md
-│   └── INTERFACE_CONTRACTS.md
-├── firmware/node/
-│   ├── types.h, config.h
-│   ├── ads1232.h, ads1232.cpp
-│   ├── noise.h, noise.cpp
-│   ├── cal.h, cal.cpp
-│   ├── scale.h, scale.cpp
-│   ├── stability.h, stability.cpp
-│   ├── comms.h, comms.cpp              ← S007, GATT verified
-│   └── juicebattle.ino
-└── hub/
-    ├── config.py                        ← S007 DONE
-    ├── ble_scanner.py                   ← S007 DONE (systemd GATT central)
-    ├── transport.py                     ← S007 DONE (Docker consumer)
-    ├── juice-ble-scanner.service        ← S007 DONE
-    ├── setup.sh                         ← S007 DONE
-    ├── deploy.sh                        ← S007 DONE
-    ├── README.md                        ← S007 DONE
-    ├── data/                            ← S008: jb.db lives here
-    ├── storage.py                       ← S008 next
-    └── game.py                          ← S009 next
-```
-
----
-
-## SCP commands (laptop ↔ AQ3)
-
-```
-# Board → Laptop (pull firmware files)
-scp arduino@AQ3:/home/arduino/ArduinoApps/juice_battle/firmware/node/* C:\Users\mahes\Documents\Arduino\juicebattle\
-
-# Laptop → Board (push handoff doc)
-scp C:\Users\mahes\HANDOFF_FINAL.md arduino@AQ3:/home/arduino/ArduinoApps/juice_battle/docs\
-```
-
----
-
-## Pending hardware
-
-- [ ] Swap CZL601 green/white wires physically (currently software-corrected in ads1232.cpp)
-- [ ] Second node: identical firmware, NODE_ID=1 in config.h only
+## Engineering rules (non-negotiable)
+- Never hardcode thresholds depending on sigma_live
+- NODE_ID only in config.h
+- Orchestrator law: main.py owns zero logic
+- Git: always cd to project root before git operations
+- JCTL headers: 1.8V ONLY
+- DB is source of truth, RAM accumulator is cache
+- Logging visibility verified before any experiment

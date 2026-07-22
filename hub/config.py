@@ -1,6 +1,12 @@
 # Juice Battle Hub Configuration
 # All constants live here. No hardcoding in other modules.
 
+import pathlib
+
+# Absolute path derived from config.py's own location - works regardless
+# of which directory python3 is launched from.
+DB_PATH = str(pathlib.Path(__file__).parent / 'data' / 'jb.db')
+
 # BLE identity
 DEVICE_PREFIX = "JB-"
 
@@ -55,4 +61,21 @@ MIN_DELTA_G    = 10.0
 #                gap > window = new visitor, discard stale partial
 POUR_SIGMA_K  = 3.0
 POUR_MIN_G    = 10.0
-POUR_WINDOW_S = 8.0
+POUR_WINDOW_S = 20.0   # was 8.0 - extended for multi-settlement pours (max observed gap: 13.95s)
+
+# POUR_PRESERVE_FRAC: on window expiry, partial >= GLASS_VOLUME_G * this fraction
+#   is a pour-in-progress (main body landed, drip pending) - PRESERVE it.
+#   Below = overshoot residue from a completed glass - discard is correct.
+#   Derived from glass size, not hardcoded: residues observed 12.9-21.9g,
+#   destroyed in-progress pour was 91.5g (boss demo). 1/3 glass = 50g separates cleanly.
+POUR_PRESERVE_FRAC = 1/3
+
+# POUR_MAX_G_FRAC: single settled delta > this many glasses is physically not a pour
+#   (jar lifted off platform = ~5000g positive delta = 33 false glasses).
+#   Log as anomaly, do not score.
+POUR_MAX_G_FRAC = 3.0
+
+BOUNCE_SETTLE_S  = 5.0    # suppress all events after large negative disturbance
+ANOMALY_SETTLE_S = 30.0   # suppress all events after jar-removal anomaly
+
+DASHBOARD_PORT = 5000

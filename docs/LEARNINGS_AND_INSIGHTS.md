@@ -353,3 +353,120 @@ If the shell is one level up, entire sibling projects get included.
 2. Check `git status` output before committing — if unexpected paths appear, abort.
 3. Never use `git add -A` or `git add .` from a directory that is not the project root.
 4. Prefer `git add <explicit-file-list>` for safety.
+
+---
+
+## L-016 — Flask-SocketIO /socket.io/ path is a protocol endpoint, not a static file server
+**Date:** 2026-07-21
+
+**What happened (S010):** Browser requested `/socket.io/socket.io.js` — the path
+Flask-SocketIO mounts for Engine.IO handshakes. Serving a JS file there creates
+a malformed handshake = HTTP 400. Client JS must be served from a separate static path.
+
+**Protocol pairing rule:** flask-socketio 5.x requires Socket.IO JS client 4.x.
+Download the matching client JS and serve it from a static route (e.g. `/static/`).
+Never rely on CDN at a stall — download during setup, serve locally.
+
+---
+
+## L-017 — Python print() is block-buffered when stdout is not a TTY
+**Date:** 2026-07-21
+
+**What happened (S010):** Under systemd, `[GAME]` log lines never appeared in
+`journalctl` while Werkzeug lines (stderr, line-buffered) appeared immediately.
+Looked like game logic was not running; it was running but output was buffered.
+
+**Rule:** Add `Environment=PYTHONUNBUFFERED=1` to every Python systemd service unit.
+Logging visibility is a precondition for any hardware experiment. A service whose
+logs cannot be seen is unfalsifiable.
+
+---
+
+## L-018 — Tap-pour fragmentation signature
+**Date:** 2026-07-21
+
+**What happened (S010):** Every tap press-and-release emits two distinct scale events:
+a small fragment (18–35g, the press-leak) and a main body (160–195g), settling
+15–56s apart. With POUR_WINDOW_S=8.0 every inter-fragment gap exceeded the window,
+so ~226g was correctly-by-design discarded across the 4-pour experiment.
+
+**Open design question for S011:** Fragment size itself may be the discriminator —
+leak fragments are consistently small; a size threshold may be more robust than time
+alone. Window tension: too short splits one visitor's pour, too long merges two visitors.
+
+---
+
+## L-019 — RAM accumulator is a cache, DB is the truth
+**Date:** 2026-07-21
+
+**What happened (S010):** game.start() zeroes glass_count and partial_g. A service
+restart mid-game wipes the RAM state while pour_events history survives in SQLite.
+
+**Rule for S011:** On startup, rebuild accumulator from
+`SELECT SUM(delta_g) FROM pour_events WHERE session_id = current_session`
+so a service restart is invisible to the crowd scoreboard.
+
+---
+
+## L-020 — Transport reconnect gap can drop events
+**Date:** 2026-07-21
+
+**Observation:** ble_scanner.py pushes NDJSON into TCP :7001. During the 5s reconnect
+backoff in transport.py, any POUR_SETTLED emitted by the scanner has no listener and
+is silently lost.
+
+**Mitigation direction:** Sequence numbers already exist in HEARTBEAT payloads.
+Extend replay-from-seq to POUR_SETTLED on reconnect so the hub can request missed
+events rather than discarding them.
+
+---
+
+## S011
+
+### POUR_ACTIVE semantics: boundary detector, not keep-alive
+POUR_ACTIVE fires when the slope detector sees real flow - only genuine pours
+trigger it. A slow drip never reaches slope threshold. Therefore POUR_ACTIVE
+after gap > window = definitionally a new visitor's first flow event.
+Treating it as a keep-alive (original mistake) caused new visitor's POUR_ACTIVE
+to resurrect previous visitor's stale partial. Rule: POUR_ACTIVE always discards
+stale partial unconditionally. No size test.
+
+### Preserve rule causes the exact bug it was meant to prevent
+A partial = 50g at window expiry could be either "main body landed, drip pending"
+OR "person poured 80g and walked away." No observable signal distinguishes them.
+Preserving it causes false glasses when next visitor pours less than 150g.
+The only correct rule: delete partial at every boundary. The one-glass worst-case
+from discarding a real in-progress pour is recoverable; false glasses at a stall
+are not. Preserve rule deleted permanently.
+
+### Residue must die at glass-fire, not at window expiry
+Overshoot residue (e.g. 10g after 160g pour) belongs to the visitor who just
+completed. Deferring discard to window-expiry allowed residue to compound across
+visitors. Fix: if new_glasses > 0: partial = 0.0 immediately.
+
+### Disturbance symmetry: negative spike clears partial AND suppresses rebound
+A platform disturbance (hand slam, object placed) produces a large negative delta
+followed by a symmetric positive rebound 1-3 seconds later. Sign rule kills the
+negative. Rebound is positive, above noise gate, below anomaly ceiling → false
+accumulation. Fix: large negative delta (below -(GLASS_VOLUME_G × POUR_MAX_G_FRAC))
+clears partial AND sets bounce_until = now + BOUNCE_SETTLE_S. All events arriving
+before bounce_until are suppressed regardless of sign or magnitude.
+
+### Post-anomaly settling window required after jar removal
+ANOMALY (delta > 450g) correctly refuses to score jar lift. But platform
+oscillates for several seconds after jar is returned - settling artifacts
+accumulate as juice. Fix: ANOMALY sets settling_until = now + ANOMALY_SETTLE_S
+and zeros partial. All events before settling_until suppressed.
+
+### Two-terminal discipline: watch logs AND dashboard simultaneously
+Logs tell you what the algorithm decided. Dashboard tells you what the crowd sees.
+Running both simultaneously during adversarial testing caught false glasses that
+the logs alone would have required more arithmetic to detect.
+
+### Conservation of mass - the auditable invariant
+total_juice_dispensed = (glass_count × GLASS_VOLUME_G) + overflow_g
+Every gram that passes the noise gate must land somewhere in the ledger.
+Currently residues and abandoned partials are silently discarded - not auditable.
+Overflow bucket (S012a) implements this invariant with tagged routing:
+RESIDUE, ABANDONED, ANOMALY, DISTURBANCE. Enables mass-conservation spot-check
+against physical jar weight at any moment.

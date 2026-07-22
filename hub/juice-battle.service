@@ -1,0 +1,19 @@
+[Unit]
+Description=Juice Battle Main App
+Documentation=file:///home/arduino/ArduinoApps/juice_battle/docs/HANDOFF_FINAL.md
+After=network.target juice-ble-scanner.service
+
+[Service]
+Type=simple
+User=arduino
+WorkingDirectory=/home/arduino/ArduinoApps/juice_battle
+ExecStart=/usr/bin/python3 hub/main.py
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=jb-main
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target

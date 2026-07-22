@@ -39,6 +39,8 @@ class Game:
         self._glass_count    = {0: 0,    1: 0}
         self._last_seq       = {0: -1,   1: -1}     # dedup guard
         self._last_settled_t = {0: None, 1: None}   # time.monotonic() of last event
+        self._bounce_until   = {0: 0.0,  1: 0.0}   # wall time: suppress after disturbance
+        self._settling_until = {0: 0.0,  1: 0.0}   # wall time: suppress after anomaly
 
     def start(self, node_count: int = 1) -> None:
         """Open a storage session and begin accepting pour events."""
@@ -51,6 +53,8 @@ class Game:
             self._glass_count    = {0: 0,    1: 0}
             self._last_seq       = {0: -1,   1: -1}
             self._last_settled_t = {0: None, 1: None}
+            self._bounce_until   = {0: 0.0,  1: 0.0}
+            self._settling_until = {0: 0.0,  1: 0.0}
             self._running = True
             log.info("Game started - session_id=%s node_count=%d",
                      self._session_id, node_count)
@@ -97,27 +101,48 @@ class Game:
                 return
             self._last_seq[node_id] = seq
 
+            # --- Suppression gates: post-disturbance bounce and post-anomaly settling ---
+            now_wall = time.time()
+            if now_wall < self._bounce_until[node_id]:
+                log.info("POUR_SETTLED: node=%d delta=%.1fg bounce-suppressed", node_id, delta_g)
+                return
+            if now_wall < self._settling_until[node_id]:
+                log.info("POUR_SETTLED: node=%d delta=%.1fg post-anomaly settling suppressed",
+                         node_id, delta_g)
+                return
+
             # --- Noise floor filter using live sigma_g from this event ---
             # sigma_g is measured at node boot under real operating conditions.
             # 3-sigma rule: anything below 3*sigma is statistically indistinguishable
             # from noise. POUR_MIN_G is an absolute floor for sigma_g=0 edge case.
             threshold = max(config.POUR_MIN_G, config.POUR_SIGMA_K * sigma_g)
             if delta_g < threshold:
-                log.info("POUR_SETTLED: node=%d delta=%.1fg below threshold=%.1fg "
-                         "(sigma=%.2fg) - noise, ignored", node_id, delta_g, threshold)
+                if delta_g < -threshold:
+                    self._bounce_until[node_id] = time.time() + config.BOUNCE_SETTLE_S
+                    if self._partial_g[node_id] > 0:
+                        log.warning("DISTURBANCE: node=%d large neg delta=%.1fg "
+                                    "clearing partial=%.1fg bounce suppressed %.0fs",
+                                    node_id, delta_g, self._partial_g[node_id],
+                                    config.BOUNCE_SETTLE_S)
+                        self._partial_g[node_id] = 0.0
+                else:
+                    log.info("POUR_SETTLED: node=%d delta=%.1fg below threshold=%.1fg "
+                             "(sigma=%.2fg) - noise, ignored", node_id, delta_g, threshold, sigma_g)
+                return
+
+            # --- Plausibility ceiling: jar lift produces delta >> any real pour ---
+            if delta_g > config.GLASS_VOLUME_G * config.POUR_MAX_G_FRAC:
+                log.warning("ANOMALY: node=%d delta=%.1fg exceeds %.0fg ceiling - "
+                            "jar removed? NOT scored",
+                            node_id, delta_g, config.GLASS_VOLUME_G * config.POUR_MAX_G_FRAC)
+                self._settling_until[node_id] = time.time() + config.ANOMALY_SETTLE_S
+                self._partial_g[node_id] = 0.0
                 return
 
             # --- Pour window: same pour or new visitor? ---
-            # If gap since last settled event > POUR_WINDOW_S, this is a new visitor.
-            # Discard any stale partial_g left from the previous pour before accumulating.
+            # BLE loss fallback: if POUR_ACTIVE was missed, boundary fires here.
             now = time.monotonic()
-            if (self._last_settled_t[node_id] is not None and
-                    now - self._last_settled_t[node_id] > config.POUR_WINDOW_S):
-                if self._partial_g[node_id] > 0:
-                    log.info("POUR_SETTLED: node=%d window expired - "
-                             "discarding stale partial=%.1fg",
-                             node_id, self._partial_g[node_id])
-                self._partial_g[node_id] = 0.0
+            self._boundary_check(node_id, now)
             self._last_settled_t[node_id] = now
 
             # --- Accumulate and count ---
@@ -127,6 +152,9 @@ class Game:
                 self._glass_count[node_id] += 1
                 self._partial_g[node_id]   -= config.GLASS_VOLUME_G
                 new_glasses += 1
+            # Per-person semantics: overshoot residue dies immediately at glass-fire.
+            if new_glasses > 0:
+                self._partial_g[node_id] = 0.0
 
             # --- Persist to storage ---
             ts = datetime.now(timezone.utc).isoformat()
@@ -143,6 +171,42 @@ class Game:
                      "total=%d partial=%.1fg seq=%d",
                      node_id, delta_g, new_glasses,
                      self._glass_count[node_id], self._partial_g[node_id], seq)
+
+    def on_pour_active(self, evt: dict) -> None:
+        """POUR_ACTIVE = juice flowing right now (firmware slope detector).
+        WHY: POUR_ACTIVE only fires when the slope detector sees real flow - slow drips
+        never trigger it. A POUR_ACTIVE after gap > window is always a new visitor,
+        never a drip continuation, so partial is unconditionally discarded."""
+        node_id = evt.get('node', -1)
+        if node_id not in (0, 1):
+            return
+        with self._lock:
+            if not self._running:
+                return
+            now = time.monotonic()
+            if (self._last_settled_t[node_id] is not None and
+                    now - self._last_settled_t[node_id] > config.POUR_WINDOW_S):
+                partial = self._partial_g[node_id]
+                if partial > 0:
+                    log.info("POUR_ACTIVE: node=%d new pour after %.0fs - "
+                             "discarding partial=%.1fg",
+                             node_id, now - self._last_settled_t[node_id], partial)
+                    self._partial_g[node_id] = 0.0
+            self._last_settled_t[node_id] = now
+
+    def _boundary_check(self, node_id: int, now: float) -> None:
+        """Called under self._lock. On window expiry, preserve or discard stale partial."""
+        if self._last_settled_t[node_id] is None:
+            return
+        gap = now - self._last_settled_t[node_id]
+        if gap <= config.POUR_WINDOW_S:
+            return
+        partial = self._partial_g[node_id]
+        if partial == 0.0:
+            return
+        log.info("POUR_SETTLED: node=%d window expired - discarding partial=%.1fg",
+                 node_id, partial)
+        self._partial_g[node_id] = 0.0
 
     def get_state(self) -> dict:
         """

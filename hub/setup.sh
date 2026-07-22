@@ -1,34 +1,56 @@
-#!/usr/bin/env bash
-# Juice Battle - one-time board setup
-# Run once: bash hub/setup.sh
-# Safe to re-run.
+#!/bin/bash
+# setup.sh - one-time setup for Juice Battle on a new board
+# Run once after cloning the repo onto a fresh Arduino UNO Q.
 set -e
 
-echo "=== Juice Battle: one-time hub setup ==="
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+HUB_DIR="$SCRIPT_DIR/hub"
+DATA_DIR="$HUB_DIR/data"
 
-echo "[1/4] Installing system BLE/D-Bus packages..."
-sudo apt-get update -qq
-sudo apt-get install -y python3-dbus python3-gi gir1.2-glib-2.0
+echo "=== Juice Battle Setup ==="
+echo "    Project root: $SCRIPT_DIR"
+echo ""
 
-echo "[2/4] Installing systemd service..."
-sudo cp hub/juice-ble-scanner.service /etc/systemd/system/
+# ── 1. Python dependencies ─────────────────────────────────────────────────
+echo "[1/5] Installing Python dependencies..."
+pip install flask flask-socketio --break-system-packages
+
+# ── 2. Data directory ──────────────────────────────────────────────────────
+echo "[2/5] Creating data directory..."
+mkdir -p "$DATA_DIR"
+# ── 2b. Socket.IO JS client (served locally - offline-safe) ────────────────
+echo "      Downloading socket.io.js (v4.6.1)..."
+mkdir -p "$HUB_DIR/static"
+curl -L -o "$HUB_DIR/static/socket.io.js" \
+    "https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.6.1/socket.io.min.js"
+echo "      socket.io.js: $(du -sh "$HUB_DIR/static/socket.io.js" | cut -f1)"
+
+# ── 3. Systemd service files ───────────────────────────────────────────────
+echo "[3/5] Installing systemd services..."
+sudo cp "$HUB_DIR/juice-ble-scanner.service" /etc/systemd/system/
+sudo cp "$HUB_DIR/juice-battle.service"      /etc/systemd/system/
+
+# ── 4. Enable on boot ──────────────────────────────────────────────────────
+echo "[4/5] Enabling services (will auto-start on every boot)..."
 sudo systemctl daemon-reload
-sudo systemctl enable juice-ble-scanner
+sudo systemctl enable juice-ble-scanner.service
+sudo systemctl enable juice-battle.service
 
-echo "[3/4] Starting BLE scanner service..."
-sudo systemctl start juice-ble-scanner
-sleep 2
-sudo systemctl status juice-ble-scanner --no-pager | head -10
-
-echo "[4/4] Verifying TCP port..."
-sleep 2
-if nc -z localhost 7001 2>/dev/null; then
-    echo "OK - TCP :7001 is open"
-else
-    echo "WARN - TCP :7001 not yet open (may need node advertising)"
-fi
+# ── 5. Start now ───────────────────────────────────────────────────────────
+echo "[5/5] Starting services..."
+sudo systemctl start juice-ble-scanner.service
+echo "      Waiting 4s for BLE scanner to acquire GATT connection..."
+sleep 4
+sudo systemctl start juice-battle.service
 
 echo ""
 echo "=== Setup complete ==="
-echo "Monitor logs: journalctl -u jb-ble-scanner -f"
-echo "Verify stream: nc localhost 7001"
+echo ""
+echo "  Scoreboard:           http://$(hostname).local:5000"
+echo "  BLE scanner status:   systemctl status juice-ble-scanner"
+echo "  Main app status:      systemctl status juice-battle"
+echo "  Main app logs:        journalctl -u juice-battle -f"
+echo ""
+echo "  Boot behaviour:       ENABLED (both services start automatically)"
+echo "  To disable boot:      sudo systemctl disable juice-battle juice-ble-scanner"
+echo ""

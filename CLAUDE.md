@@ -1,27 +1,24 @@
 # CLAUDE.md — Juice Battle
-# Current position updated: S007 close / 2026-07-20
+# Current position updated: S010 close / 2026-07-21
 
 ## Current position
 Phase 1 — ESP32-C3 Firmware. Complete and hardware verified (S006/S007).
-Phase 2 — Hub (AQ3 Python). S007 complete and hardware verified. S008 next.
+Phase 2 — Hub (AQ3 Python). S010 complete and hardware verified. S011 next.
 
-## What was just completed (S007)
-- config.py: all hub constants (BLE identity, TCP ports, message types, game params)
-- ble_scanner.py: GATT central, connects JB-*/NOTIFY, TCP NDJSON server :7001, watchdog
-- transport.py: Docker-side TCP consumer, callback-based dispatch, auto-reconnect loop
-- juice-ble-scanner.service: systemd unit, Restart=always, User=arduino
-- setup.sh: one-time board setup (apt python3-dbus, systemd enable+start)
-- deploy.sh: redeploy on code change
-- hub/README.md: operational runbook
-- comms.h/cpp rewritten: GATT peripheral (NimBLE), NOTIFY char, 13-byte binary payload
-- Gate: PASSED — HEARTBEAT confirmed in journal, node=0, sigma=4.0g, seq incrementing
+## What was just completed (S010)
+- hub/dashboard.py: Flask + Flask-SocketIO threading mode, 500ms push loop
+- hub/main.py: orchestrator, wires transport → game + storage, zero logic
+- hub/juice-battle.service: systemd unit, boot-enabled, PYTHONUNBUFFERED=1
+- hub/setup.sh: socket.io.js download added, both services boot-enabled
+- hub/static/socket.io.js: Socket.IO v4.6.1 served locally (no CDN)
+- config.py: DASHBOARD_PORT=5000, DB_PATH added
+- Gate: PASSED — 4-pour experiment, DB events 18–26 audited, 5 glasses +13g exact match
 
-## What is next (S008)
-Two deliverables — build in order:
-1. MSG_DIAG=0x06 firmware message: surgical addition to comms.h/cpp + juicebattle.ino
-   fires every 5s from STAB_WAITING, carries current_g (ema_g) in delta_g field
-2. storage.py: SQLite jb.db, 4 tables (pour_events, node_health, error_log, sessions)
-   + storage_test.py harness to verify writes via transport.py callbacks
+## What is next (S011)
+- Second node (JB-1): flash firmware, assign NODE_ID=1
+- Two-jar game: concurrent-pour edge cases, per-node scoring
+- Accumulator restore from DB on startup (see L-019)
+- Replay-from-seq on transport reconnect (see L-020)
 
 ## Locked rules (non-negotiable)
 - Never hardcode thresholds that depend on sigma_live

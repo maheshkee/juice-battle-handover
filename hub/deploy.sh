@@ -1,20 +1,20 @@
-#!/usr/bin/env bash
-# Juice Battle - deploy / restart
-# Run after any code change: bash hub/deploy.sh
+#!/bin/bash
+# deploy.sh - redeploy Juice Battle after code changes to hub/ Python files.
+# Does NOT touch the BLE scanner service - BLE connection stays live.
+# Does NOT touch firmware - use Arduino IDE for .ino changes.
 set -e
 
-echo "=== Juice Battle: deploy ==="
+echo "=== Juice Battle Redeploy ==="
 
-echo "[1/2] Restarting BLE scanner service..."
-sudo systemctl restart juice-ble-scanner
+echo "[1/2] Restarting main app (game + dashboard)..."
+sudo systemctl restart juice-battle.service
+
+echo "[2/2] Waiting for startup..."
 sleep 2
-sudo systemctl status juice-ble-scanner --no-pager | head -6
-
-echo "[2/2] Restarting App Lab app..."
-# arduino-applab restart juice_battle  # uncomment when App Lab app exists
-echo "(App Lab restart skipped - no app yet in S007)"
 
 echo ""
-echo "=== Deploy complete ==="
-echo "Monitor scanner: journalctl -u jb-ble-scanner -f"
-echo "Debug stream:    nc localhost 7001"
+systemctl status juice-battle.service --no-pager -l
+
+echo ""
+echo "=== Tailing logs - Ctrl+C to exit ==="
+journalctl -u juice-battle.service -f
