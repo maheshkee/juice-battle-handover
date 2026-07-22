@@ -226,3 +226,32 @@ startup, concurrent-pour edge cases.
   - Acceptance: 4 glasses counted correctly, disturbance cleared, bounce suppressed,
     no false glasses on adversarial pours
   - Deferred: overflow bucket (S012a), JB-1 bring-up (S012b)
+
+---
+
+## S012a - 2026-07-22 - Overflow bucket
+
+**Goal:** Conservation-of-mass infrastructure.
+**Outcome:** Complete. Conservation verified. glasses_implied=2.0 exact.
+
+### Delivered
+- overflow_events table: 7 columns, 2 indexes
+- log_overflow() in storage.py: validates reason, guards grams > 0
+- 6 call sites in game.py: ANOMALY_DELTA, ANOMALY_CLR,
+  DISTURBANCE_CLR, ABANDONED_WINDOW, ABANDONED_BOUNDARY, RESIDUE
+- partial_open_ts tracking: new game state field, set at step 9,
+  cleared with every overflow log call
+- Conservation verified: 1166.04g accumulated =
+  300.0g scored + 866.04g overflow (2.0000 glasses exact)
+- Commit: 5704c1b
+
+### Bugs found (deferred)
+- D10: pour_events.ts NULL - log_pour() never writes ts field
+- D11: Conservation query uses hardcoded UTC cutoff - fragile
+
+### Taxonomy locked
+- ANOMALY_DELTA: sensor artifact (jar removed) - diagnostic only,
+  excluded from conservation equation
+- ANOMALY_CLR, DISTURBANCE_CLR, ABANDONED_WINDOW,
+  ABANDONED_BOUNDARY, RESIDUE: real visitor juice - all in
+  conservation equation
