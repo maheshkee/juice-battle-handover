@@ -63,13 +63,6 @@ POUR_SIGMA_K  = 3.0
 POUR_MIN_G    = 10.0
 POUR_WINDOW_S = 20.0   # was 8.0 - extended for multi-settlement pours (max observed gap: 13.95s)
 
-# POUR_PRESERVE_FRAC: on window expiry, partial >= GLASS_VOLUME_G * this fraction
-#   is a pour-in-progress (main body landed, drip pending) - PRESERVE it.
-#   Below = overshoot residue from a completed glass - discard is correct.
-#   Derived from glass size, not hardcoded: residues observed 12.9-21.9g,
-#   destroyed in-progress pour was 91.5g (boss demo). 1/3 glass = 50g separates cleanly.
-POUR_PRESERVE_FRAC = 1/3
-
 # POUR_MAX_G_FRAC: single settled delta > this many glasses is physically not a pour
 #   (jar lifted off platform = ~5000g positive delta = 33 false glasses).
 #   Log as anomaly, do not score.

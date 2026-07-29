@@ -110,6 +110,26 @@ body {
     align-self: center;
     flex-shrink: 0;
 }
+.badge {
+    font-size: 0.8vw;
+    letter-spacing: 0.18em;
+    font-weight: 700;
+    padding: 0.3vh 0.8vw;
+    border-radius: 4px;
+    min-height: 2.5vh;
+    margin-bottom: 0.8vh;
+}
+.badge-hidden { opacity: 0; }
+.badge-anomaly { background: #c62828; color: #ffcdd2; }
+.badge-bounce  { background: #e65100; color: #ffe0b2; }
+@keyframes anomaly-pulse {
+    0%, 100% { border-color: #c62828; }
+    50%       { border-color: #ef5350; }
+}
+.jar-anomaly { background: #1a0000 !important;
+               animation: anomaly-pulse 1.5s ease-in-out infinite; }
+.jar-bounce  { border-color: #e65100 !important;
+               background: #1a1000 !important; }
 .status {
     font-size: 0.9vw;
     opacity: 0.18;
@@ -125,6 +145,7 @@ body {
 
 <div class="scoreboard">
   <div class="jar jar-0">
+    <div class="badge badge-hidden" id="badge-0">&nbsp;</div>
     <div class="jar-name">Jar 0</div>
     <div class="glass-count" id="count-0">0</div>
     <div class="glass-label">GLASSES</div>
@@ -139,6 +160,7 @@ body {
   <div class="vs">VS</div>
 
   <div class="jar jar-1">
+    <div class="badge badge-hidden" id="badge-1">&nbsp;</div>
     <div class="jar-name">Jar 1</div>
     <div class="glass-count" id="count-1">0</div>
     <div class="glass-label">GLASSES</div>
@@ -188,6 +210,26 @@ socket.on('state', (data) => {
     el('partial-1').style.width = pct1 + '%';
     el('partial-label-0').textContent = p0 > 1 ? '+' + p0.toFixed(0) + 'g' : String.fromCharCode(160);
     el('partial-label-1').textContent = p1 > 1 ? '+' + p1.toFixed(0) + 'g' : String.fromCharCode(160);
+
+    [0, 1].forEach(function(n) {
+        var status = (data.node_status && data.node_status[String(n)]) || 'ok';
+        var jar   = document.querySelector('.jar-' + n);
+        var badge = el('badge-' + n);
+        jar.classList.remove('jar-anomaly', 'jar-bounce');
+        badge.className = 'badge';
+        if (status === 'anomaly') {
+            jar.classList.add('jar-anomaly');
+            badge.classList.add('badge-anomaly');
+            badge.textContent = 'JAR ABSENT';
+        } else if (status === 'bounce') {
+            jar.classList.add('jar-bounce');
+            badge.classList.add('badge-bounce');
+            badge.textContent = 'DISTURBANCE';
+        } else {
+            badge.classList.add('badge-hidden');
+            badge.textContent = ' ';
+        }
+    });
 });
 </script>
 
@@ -227,11 +269,11 @@ class Dashboard:
         while True:
             state = self._game.get_state()
             payload = {
-                'glass_count':   state['glass_count'],
-                'partial_g':     state['partial_g'],
-                'running':       state['running'],
-                # inject glass volume so browser can compute partial_g percentage
+                'glass_count':    state['glass_count'],
+                'partial_g':      state['partial_g'],
+                'running':        state['running'],
                 'glass_volume_g': config.GLASS_VOLUME_G,
+                'node_status':    state['node_status'],
             }
             self._sio.emit('state', payload)
             time.sleep(0.5)

@@ -240,12 +240,21 @@ class Game:
     def get_state(self) -> dict:
         """
         Thread-safe snapshot. Safe to call from dashboard thread at any time.
-        partial_g: grams accumulated so far in the current pour window.
+        node_status: 'ok' | 'bounce' | 'anomaly' per node.
         """
         with self._lock:
+            now = time.time()
             return {
                 "session_id":  self._session_id,
                 "glass_count": dict(self._glass_count),
                 "partial_g":   dict(self._partial_g),
                 "running":     self._running,
+                "node_status": {
+                    node_id: (
+                        'anomaly' if now < self._settling_until[node_id] else
+                        'bounce'  if now < self._bounce_until[node_id]   else
+                        'ok'
+                    )
+                    for node_id in (0, 1)
+                },
             }

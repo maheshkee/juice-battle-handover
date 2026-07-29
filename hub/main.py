@@ -37,7 +37,7 @@ def main():
     transport.on_event(game_inst.on_pour_active,  msg_filter='POUR_ACTIVE')
 
     # start in dependency order
-    game_inst.start(node_count=1)   # single jar - S010 test
+    game_inst.start(node_count=2)   # dual node - S013
     transport.start()               # begins TCP connection to ble_scanner service
     dashboard.start()               # blocks - runs Flask-SocketIO server
 

@@ -121,4 +121,4 @@
 // ── Node identity ─────────────────────────────────────────────────────────────
 // The ONLY value that differs between two node binaries.
 // Node A (jar 0) = 0. Node B (jar 1) = 1.
-#define NODE_ID  0
+#define NODE_ID  1
