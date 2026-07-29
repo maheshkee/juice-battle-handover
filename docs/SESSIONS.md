@@ -269,4 +269,42 @@ startup, concurrent-pour edge cases.
   - TCP verified: node_id=0 and node_id=1 HEARTBEAT interleaved, no cross-talk
   - Service health: juice-battle.service 16h uptime, PID stable, no restarts
   - game.py gracefully ignored node_id=1 events (expected — node_count=1 still)
+
+---
+
+## S013 - 2026-07-29 - Dual-node integration
+
+**Goal:** Enable dual-node hub, fix D10/D11, add jar-absent UI indicator,
+verify concurrent pours.
+
+### Delivered
+- D10 (pour_events.ts NULL): CLOSED — phantom bug. record_pour() always
+  wrote ts correctly. log_pour() doesn't exist.
+- D11 (conservation query): CLOSED — phantom bug. Query never built.
+  Ad-hoc SQL verified session-scoped. D11 is a future feature, not a fix.
+- node_count=2 in main.py. game.py was already fully dual-node —
+  all state was per-node dicts from S012a. Zero game.py changes needed.
+- POUR_PRESERVE_FRAC deleted from config.py (dead constant since S011).
+- D04: node_status ('ok'/'bounce'/'anomaly') added to get_state(),
+  dashboard payload, HTML_TEMPLATE. Red pulse + JAR ABSENT badge on
+  ANOMALY. Amber border + DISTURBANCE badge on bounce.
+  Verified physically: JB-0 lift → JAR 0 red, JAR 1 untouched. ✓
+  JB-1 lift → JAR 1 red, JAR 0 untouched. ✓ Auto-recovery after 30s. ✓
+- Concurrent pour test: JB-0=5 glasses, JB-1=4 glasses.
+  Conservation exact:
+    node=0: 1075.5g = 5×150g + 210.9g residue + 114.6g abandoned ✓
+    node=1:  898.4g = 4×150g + 125.5g residue + 172.8g abandoned ✓ (0.1g rounding)
+- Commit: e077b64
+
+### Key learnings
+- game.py was already dual-node. node_count=1 was sessions metadata only.
+- Handoff bug entries can be stale. Always verify against actual code first.
+- Browser caches HTML_TEMPLATE. Hard refresh required after any change.
+- Boot sequence critical: jars on platforms BEFORE node power-on.
+  Mid-session jar placement = ANOMALY (tare does not include jar weight).
+- Best sigma readings to date: JB-0=3.15g, JB-1=3.92g (jars present at tare).
+- BLE dropout edge case: deferred to S014.
+
+### Deferred
+- BLE dropout mid-game → S014
   - JB-0 unaffected throughout
