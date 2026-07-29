@@ -470,3 +470,18 @@ Currently residues and abandoned partials are silently discarded - not auditable
 Overflow bucket (S012a) implements this invariant with tagged routing:
 RESIDUE, ABANDONED, ANOMALY, DISTURBANCE. Enables mass-conservation spot-check
 against physical jar weight at any moment.
+
+## Session S012b — JB-1 hardware bring-up
+
+- cal.cpp silent diagnosis bug: every failure path writes result.diagnosis but
+  never Serial.prints it. "See diagnosis above" prints nothing above.
+  The diagnosis only surfaces if juicebattle.ino prints it. New backlog item D12.
+- Polarity is not assumed from wiring diagram. Must be verified empirically.
+  Identical wiring diagram ≠ identical physical assembly. Physical cell orientation
+  or wire swap during build can reverse polarity. Stage 4 empirical test is mandatory.
+- sigma_tare at calibration ≠ operating sigma. Cold cell immediately after flash
+  shows higher noise. Boot sigma after settling is the authoritative figure.
+  JB-1: sigma_tare=10.50g → boot sigma=5.43g after power cycle.
+- NVS separation is hardware-guaranteed. Each ESP32 has its own flash.
+  Same namespace string on two chips = completely independent storage.
+  No software separation needed, no shared-storage risk.

@@ -255,3 +255,18 @@ startup, concurrent-pour edge cases.
 - ANOMALY_CLR, DISTURBANCE_CLR, ABANDONED_WINDOW,
   ABANDONED_BOUNDARY, RESIDUE: real visitor juice - all in
   conservation equation
+
+---
+
+## S012b - 2026-07-29 - JB-1 hardware bring-up
+  - Wire inspection: multimeter confirmed load cell healthy (400Ω/350Ω bridge intact)
+  - Firmware: NODE_ID=1 in config.h (symlink target), no other changes
+  - Polarity: initial flash failed cal (negative span). Wire swap at ADS1232
+    (green↔white) fixed it. Firmware -raw_value negation retained.
+  - Calibration: DEGRADED (confidence=0.823) but validation 4/4 PASS, all <3% error
+  - NVS persistence: verified across power cycle, all 4 raw values exact
+  - Operating sigma: 5.43g GOOD (sigma_tare=10.50g at cal time — cold cell artifact)
+  - TCP verified: node_id=0 and node_id=1 HEARTBEAT interleaved, no cross-talk
+  - Service health: juice-battle.service 16h uptime, PID stable, no restarts
+  - game.py gracefully ignored node_id=1 events (expected — node_count=1 still)
+  - JB-0 unaffected throughout

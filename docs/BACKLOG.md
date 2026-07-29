@@ -92,5 +92,13 @@ join.
 **Target:** S013
 **Note:** Depends on D10.
 
+## D12 - cal.cpp: failure paths never Serial.print diagnosis before returning
+**Why deferred:** Every early return in cal_run() sets result.diagnosis but never
+Serial.prints it. "See diagnosis above" message is misleading — nothing is printed above.
+The diagnosis only surfaces if juicebattle.ino explicitly prints result.diagnosis.
+**Fix:** Add Serial.println(result.diagnosis) before every early return in cal_run().
+**Priority:** Low — cosmetic/debug UX only, does not affect runtime behaviour.
+**Target:** S015-S016
+
 ---
-*Last updated: S012a - 2026-07-22*
+*Last updated: S012b - 2026-07-29*
