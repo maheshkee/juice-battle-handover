@@ -7,6 +7,7 @@ import threading
 import logging
 import subprocess
 import time as _time
+from collections import deque
 import dbus
 import dbus.mainloop.glib
 from gi.repository import GLib
@@ -30,6 +31,10 @@ GATT_CHAR    = 'org.bluez.GattCharacteristic1'
 last_packet_time = time.monotonic()
 clients: list              = []
 clients_lock               = threading.Lock()
+# WHY: ring buffer holds last 200 events so a reconnecting TCP client
+# (juice-battle restart) receives buffered events immediately on connect —
+# no gap in scoring data during the reconnect window.
+_event_buffer: deque = deque(maxlen=200)
 loop: GLib.MainLoop | None = None
 _bus                       = None
 
@@ -129,6 +134,7 @@ def emit_event(evt: dict, clients: list, clients_lock: threading.Lock) -> None:
 
     line = json.dumps(evt) + '\n'
     encoded = line.encode('utf-8')
+    _event_buffer.append(encoded)  # WHY: buffer for reconnecting clients
     if evt['msg'] == 'DIAG':
         log.info("[DIAG] node=%d current=%.1fg slope=%.3fg/s state=%d quality=%d",
                  evt['node'], evt['current_g'], evt['slope_gs'], evt['state'], evt['quality'])
@@ -355,8 +361,21 @@ def _tcp_accept_loop(server_sock: socket.socket) -> None:
         try:
             conn, addr = server_sock.accept()
             log.info("TCP client connected: %s", addr)
-            with clients_lock:
-                clients.append(conn)
+            # WHY: flush ring buffer to new client BEFORE adding to clients list.
+            # Snapshot under GIL (deque.append is atomic), send buffered events
+            # in order, then join live stream. No events duplicated, no gap.
+            buffer_snapshot = list(_event_buffer)
+            for line in buffer_snapshot:
+                try:
+                    conn.sendall(line)
+                except Exception:
+                    break  # client died during flush — skip, don't add to clients
+            else:
+                # WHY: only add to clients if flush completed without error.
+                # If flush failed, client is dead — don't add a broken socket.
+                with clients_lock:
+                    clients.append(conn)
+                log.info("Flushed %d buffered events to new client", len(buffer_snapshot))
         except OSError:
             break
 
