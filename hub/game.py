@@ -42,6 +42,7 @@ class Game:
         self._last_settled_t   = {0: None, 1: None}  # time.monotonic() of last event
         self._bounce_until     = {0: 0.0,  1: 0.0}  # wall time: suppress after disturbance
         self._settling_until   = {0: 0.0,  1: 0.0}  # wall time: suppress after anomaly
+        self._node_status      = {0: 'connected', 1: 'connected'}  # BLE connectivity
 
     def start(self, node_count: int = 1) -> None:
         """Open a storage session and begin accepting pour events."""
@@ -94,6 +95,24 @@ class Game:
             self._partial_g[node_id]       = 0.0
             self._partial_open_ts[node_id] = None
             log.info("reset_node: node=%d glass_count reset to 0", node_id)
+
+    def on_node_disconnected(self, evt: dict) -> None:
+        node_id = evt.get('node', -1)
+        if node_id not in (0, 1):
+            return
+        with self._lock:
+            self._node_status[node_id] = 'disconnected'
+        log.info("NODE_DISCONNECTED: node=%d", node_id)
+
+    def on_node_connected(self, evt: dict) -> None:
+        node_id = evt.get('node', -1)
+        if node_id not in (0, 1):
+            return
+        with self._lock:
+            self._node_status[node_id] = 'connected'
+            self._partial_g[node_id]       = 0.0
+            self._partial_open_ts[node_id] = None
+        log.info("NODE_CONNECTED: node=%d partial_g reset", node_id)
 
     def on_pour_settled(self, event: dict) -> None:
         """
@@ -282,4 +301,5 @@ class Game:
                     )
                     for node_id in (0, 1)
                 },
+                "ble_status":  dict(self._node_status),
             }

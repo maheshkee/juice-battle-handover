@@ -33,8 +33,10 @@ def main():
 
     # wire: transport delivers POUR_SETTLED events to game
     # game does NOT self-register - orchestrator law
-    transport.on_event(game_inst.on_pour_settled, msg_filter='POUR_SETTLED')
-    transport.on_event(game_inst.on_pour_active,  msg_filter='POUR_ACTIVE')
+    transport.on_event(game_inst.on_pour_settled,      msg_filter='POUR_SETTLED')
+    transport.on_event(game_inst.on_pour_active,       msg_filter='POUR_ACTIVE')
+    transport.on_event(game_inst.on_node_disconnected, msg_filter='NODE_DISCONNECTED')
+    transport.on_event(game_inst.on_node_connected,    msg_filter='NODE_CONNECTED')
 
     # start in dependency order
     game_inst.start(node_count=2)   # dual node - S013

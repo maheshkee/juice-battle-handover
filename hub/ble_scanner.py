@@ -193,6 +193,9 @@ def _subscribe_notify(char_path: str, node_name: str) -> None:
         )
         last_packet_time = time.monotonic()  # reset watchdog on successful subscribe
         log.info("Subscribed to %s notifications at %s", node_name, char_path)
+        emit_event({'msg': 'NODE_CONNECTED', 'node': int(node_name.split('-')[1]),
+                    'delta_g': 0.0, 'sigma_g': 0.0, 'seq': 0},
+                   clients, clients_lock)
         _connecting_nodes.discard(node_name)
     except Exception as e:
         log.warning("Subscribe failed for %s: %s", node_name, e)
@@ -309,6 +312,9 @@ def _properties_changed(interface, changed, invalidated, path):
     # Disconnect: find which node and schedule reconnect
     for name, dev_path in list(_active_connections.items()):
         if dev_path == path:
+            emit_event({'msg': 'NODE_DISCONNECTED', 'node': int(name.split('-')[1]),
+                        'delta_g': 0.0, 'sigma_g': 0.0, 'seq': 0},
+                       clients, clients_lock)
             log.info("%s disconnected - reconnecting in 5s", name)
             del _active_connections[name]
             _connecting_nodes.discard(name)

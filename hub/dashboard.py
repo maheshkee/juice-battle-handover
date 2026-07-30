@@ -121,7 +121,8 @@ body {
 }
 .badge-hidden { opacity: 0; }
 .badge-anomaly { background: #c62828; color: #ffcdd2; }
-.badge-bounce  { background: #e65100; color: #ffe0b2; }
+.badge-bounce        { background: #e65100; color: #ffe0b2; }
+.badge-disconnected  { background: #F59E0B; color: #1a1200; }
 @keyframes anomaly-pulse {
     0%, 100% { border-color: #c62828; }
     50%       { border-color: #ef5350; }
@@ -146,6 +147,7 @@ body {
 <div class="scoreboard">
   <div class="jar jar-0">
     <div class="badge badge-hidden" id="badge-0">&nbsp;</div>
+    <div class="badge badge-disconnected" id="ble-badge-0" style="display:none">RECONNECTING...</div>
     <div class="jar-name">Jar 0</div>
     <div class="glass-count" id="count-0">0</div>
     <div class="glass-label">GLASSES</div>
@@ -169,6 +171,7 @@ body {
 
   <div class="jar jar-1">
     <div class="badge badge-hidden" id="badge-1">&nbsp;</div>
+    <div class="badge badge-disconnected" id="ble-badge-1" style="display:none">RECONNECTING...</div>
     <div class="jar-name">Jar 1</div>
     <div class="glass-count" id="count-1">0</div>
     <div class="glass-label">GLASSES</div>
@@ -246,7 +249,21 @@ socket.on('state', (data) => {
             badge.textContent = ' ';
         }
     });
+
+    if (data.ble_status) {
+        [0, 1].forEach(function(n) {
+            setBleStatus(n, data.ble_status[String(n)] || 'connected');
+        });
+    }
 });
+
+socket.on('node_status_update', (data) => {
+    setBleStatus(data.node_id, data.status);
+});
+
+function setBleStatus(n, status) {
+    document.getElementById('ble-badge-' + n).style.display = (status === 'disconnected') ? 'block' : 'none';
+}
 
 function resetJar(n) {
   fetch('/reset/' + n, {method: 'POST'})
@@ -292,6 +309,7 @@ class Dashboard:
                 'running':        state['running'],
                 'glass_volume_g': config.GLASS_VOLUME_G,
                 'node_status':    state['node_status'],
+                'ble_status':     state['ble_status'],
             })
 
     def _reset_node(self, node_id: int):
@@ -318,6 +336,7 @@ class Dashboard:
                 'running':        state['running'],
                 'glass_volume_g': config.GLASS_VOLUME_G,
                 'node_status':    state['node_status'],
+                'ble_status':     state['ble_status'],
             }
             self._sio.emit('state', payload)
             time.sleep(0.5)
