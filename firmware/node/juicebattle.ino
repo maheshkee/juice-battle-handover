@@ -22,7 +22,9 @@ static unsigned long s_diag_timer_ms        = 0;
 
 void setup() {
     Serial.begin(115200);
-    while (!Serial) delay(10);
+    // WHY: USB power adapter has no USB host — Serial never enumerates.
+    // Wait max 3s for Serial (laptop/debug), then proceed regardless (production).
+    { unsigned long _st = millis(); while (!Serial && (millis() - _st < 3000)) delay(10); }
 
     Serial.println("=== Juice Battle Node ===");
 

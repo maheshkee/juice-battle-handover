@@ -63,17 +63,34 @@ class Storage:
                 ON overflow_events(reason);
         """)
         self._conn.commit()
+        self._migrate()
         log.info("Storage ready at %s", db_path)
 
+    def _migrate(self) -> None:
+        """Idempotent schema migrations. Safe to run on every startup."""
+        try:
+            self._conn.execute(
+                "ALTER TABLE pour_events "
+                "ADD COLUMN glasses_counted INTEGER NOT NULL DEFAULT 0"
+            )
+            self._conn.commit()
+            log.info("Migration: added glasses_counted column to pour_events")
+        except sqlite3.OperationalError as e:
+            if "duplicate column name" in str(e).lower():
+                pass  # already migrated — fine
+            else:
+                raise
+
     def record_pour(self, session_id: int, ts: str, node_id: int,
-                    delta_g: float, sigma_g: float, seq: int) -> None:
+                    delta_g: float, sigma_g: float, seq: int,
+                    glasses_counted: int = 0) -> None:
         try:
             with self._lock:
                 self._conn.execute(
                     "INSERT INTO pour_events "
-                    "(session_id, ts, node_id, delta_g, sigma_g, seq) "
-                    "VALUES (?, ?, ?, ?, ?, ?)",
-                    (session_id, ts, node_id, delta_g, sigma_g, seq)
+                    "(session_id, ts, node_id, delta_g, sigma_g, seq, glasses_counted) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    (session_id, ts, node_id, delta_g, sigma_g, seq, glasses_counted)
                 )
                 self._conn.commit()
         except sqlite3.Error as e:
@@ -131,6 +148,30 @@ class Storage:
         except sqlite3.Error as e:
             # WHY: no self-recursion here - just log, never raise
             log.error("record_error failed: %s", e)
+
+    def get_resumable_session(self) -> dict | None:
+        """Return the most recent unclosed session with its glass counts.
+        WHY: unclosed session (ended_at IS NULL) means service was killed mid-game.
+        Returns None if no resumable session exists."""
+        try:
+            with self._lock:
+                row = self._conn.execute(
+                    "SELECT id FROM sessions "
+                    "WHERE ended_at IS NULL ORDER BY id DESC LIMIT 1"
+                ).fetchone()
+                if not row:
+                    return None
+                session_id = row[0]
+                counts = self._conn.execute(
+                    "SELECT node_id, SUM(glasses_counted) FROM pour_events "
+                    "WHERE session_id = ? GROUP BY node_id",
+                    (session_id,)
+                ).fetchall()
+                glass_counts = {r[0]: int(r[1]) for r in counts if r[1] is not None}
+                return {"session_id": session_id, "glass_counts": glass_counts}
+        except sqlite3.Error as e:
+            log.error("get_resumable_session failed: %s", e)
+            return None
 
     def open_session(self, node_count: int) -> int:
         try:

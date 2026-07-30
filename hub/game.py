@@ -49,7 +49,6 @@ class Game:
             if self._running:
                 log.warning("Game.start() called while already running - ignored")
                 return
-            self._session_id = self._storage.open_session(node_count)
             self._partial_g        = {0: 0.0,  1: 0.0}
             self._partial_open_ts  = {0: None, 1: None}
             self._glass_count      = {0: 0,    1: 0}
@@ -57,6 +56,23 @@ class Game:
             self._last_settled_t   = {0: None, 1: None}
             self._bounce_until     = {0: 0.0,  1: 0.0}
             self._settling_until   = {0: 0.0,  1: 0.0}
+            if config.RESUME_SESSION:
+                resumable = self._storage.get_resumable_session()
+                if resumable:
+                    self._session_id = resumable["session_id"]
+                    for node_id, count in resumable["glass_counts"].items():
+                        self._glass_count[node_id] = count
+                    log.info(
+                        "RESTORED session=%d glass_counts=%s partial_g=0 (transient, reset)",
+                        self._session_id, dict(self._glass_count)
+                    )
+                else:
+                    self._session_id = self._storage.open_session(node_count)
+                    log.info("Fresh session created: session_id=%d", self._session_id)
+            else:
+                self._session_id = self._storage.open_session(node_count)
+                log.info("Fresh session created (RESUME_SESSION=False): session_id=%d",
+                         self._session_id)
             self._running = True
             log.info("Game started - session_id=%s node_count=%d",
                      self._session_id, node_count)
@@ -186,6 +202,7 @@ class Game:
                 delta_g=delta_g,
                 sigma_g=sigma_g,
                 seq=seq,
+                glasses_counted=new_glasses,
             )
 
             log.info("POUR_SETTLED: node=%d delta=%.1fg new_glasses=%d "

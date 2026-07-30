@@ -7,7 +7,7 @@ No game logic lives here. Display only.
 import time
 import config
 from flask import Flask, render_template_string
-from flask_socketio import SocketIO
+from flask_socketio import SocketIO, emit
 
 # ── Crowd-facing HTML template ─────────────────────────────────────────────
 # Served once on browser connect. Socket.IO client loaded from local Flask-SocketIO
@@ -255,6 +255,20 @@ class Dashboard:
         self._sio = SocketIO(self._app, async_mode='threading', cors_allowed_origins='*')
 
         self._app.add_url_rule('/', 'index', self._serve_index)
+
+        @self._sio.on('connect')
+        def _on_browser_connect():
+            # WHY: push state immediately to reconnecting browser.
+            # Without this, browser shows HTML default (0) for up to 500ms
+            # while waiting for next _push_loop cycle — looks like score reset.
+            state = self._game.get_state()
+            emit('state', {
+                'glass_count':    state['glass_count'],
+                'partial_g':      state['partial_g'],
+                'running':        state['running'],
+                'glass_volume_g': config.GLASS_VOLUME_G,
+                'node_status':    state['node_status'],
+            })
 
     def _serve_index(self):
         """Serve the scoreboard HTML page."""
