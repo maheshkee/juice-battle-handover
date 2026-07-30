@@ -229,27 +229,55 @@ def _reconnect_in(delay_ms: int, dev_path: str, node_name: str) -> None:
 
 
 def _connect(dev_path: str, node_name: str) -> bool:
+    # WHY: this runs on the GLib loop via idle_add — must return immediately.
+    # Blocking here (device.Connect + sleep 4) freezes the entire loop,
+    # starving JB-1 data during JB-0 reconnects. Fix: spawn a thread.
     global last_packet_time
     if node_name in _active_connections or node_name in _connecting_nodes:
-        return False  # already connected or connecting
+        return False
     _connecting_nodes.add(node_name)
-    # WHY: reset watchdog - device.Connect() blocks for up to ~25s (D-Bus timeout);
-    # if the main loop is blocked that long, watchdog would fire spuriously.
-    # Resetting here means watchdog gives us 30s AFTER connect attempt starts.
+    # WHY: reset watchdog before thread starts — gives 30s for connect attempt.
     last_packet_time = time.monotonic()
+    # WHY: build D-Bus proxy here on GLib loop; pass into thread.
+    # Thread gets a ready-to-use proxy — no need to access _bus from thread.
+    dev_obj = _bus.get_object(BLUEZ, dev_path)
+    device  = dbus.Interface(dev_obj, DEVICE_IFACE)
+    t = threading.Thread(
+        target=_connect_worker,
+        args=(dev_path, node_name, device),
+        daemon=True
+    )
+    t.start()
+    return False  # GLib loop unblocked immediately
+
+
+def _connect_worker(dev_path: str, node_name: str, device) -> None:
+    # WHY: runs in a thread — device.Connect() blocks up to 25s (D-Bus timeout),
+    # sleep(4) waits for GATT discovery. Both are safe off the GLib loop.
+    # Shared state (_active_connections, _connecting_nodes) is NEVER touched here —
+    # all state updates are posted back to the GLib loop via idle_add.
     try:
-        dev_obj = _bus.get_object(BLUEZ, dev_path)
-        device  = dbus.Interface(dev_obj, DEVICE_IFACE)
         log.info("Connecting to %s...", node_name)
         device.Connect()
-        _active_connections[node_name] = dev_path
-        log.info("Connected to %s", node_name)
-        time.sleep(4)  # WHY: wait for GATT service discovery before searching for char
-        GLib.idle_add(_find_characteristic, dev_path, node_name)
+        log.info("Connected to %s — waiting for GATT discovery", node_name)
+        time.sleep(4)
+        GLib.idle_add(_on_connect_success, dev_path, node_name)
     except Exception as e:
         log.warning("Connect to %s failed: %s - retry in 5s", node_name, e)
-        _connecting_nodes.discard(node_name)
-        _reconnect_in(5000, dev_path, node_name)
+        GLib.idle_add(_on_connect_fail, dev_path, node_name)
+
+
+def _on_connect_success(dev_path: str, node_name: str) -> bool:
+    # WHY: runs on GLib loop via idle_add — safe to update shared state here.
+    _active_connections[node_name] = dev_path
+    GLib.idle_add(_find_characteristic, dev_path, node_name)
+    return False
+
+
+def _on_connect_fail(dev_path: str, node_name: str) -> bool:
+    # WHY: runs on GLib loop via idle_add — safe to update shared state here.
+    _connecting_nodes.discard(node_name)
+    _reconnect_in(5000, dev_path, node_name)
     return False
 
 
