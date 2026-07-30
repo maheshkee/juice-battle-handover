@@ -1,96 +1,66 @@
----
-# HANDOFF - Juice Battle
-**Last session:** S013 - 2026-07-29
-**Board:** AQ3 (arduino@AQ3), project at ~/ArduinoApps/juice_battle/
-**Git:** gratiantechnologies/project13  HEAD: e077b64
+# Juice Battle — Handoff S015 → S016
+Date: 2026-07-30
+Session: S015
 
----
+## Current system state
+- JB-0 (MAC 70:AF:09:32:F3:C2): connected, subscribed, node=0 ✓
+- JB-1 (MAC 10:00:3B:CD:63:32): connected, subscribed, node=1 ✓
+- Firmware: identical binary on both nodes, NODE_ID resolved from BT MAC
+- Services: juice-ble-scanner + juice-battle running, boot-enabled
+- Dashboard: http://AQ3:5000 — live, reset buttons working
+- Active DB session: 79 (open, resumable)
+- Git HEAD: 1653c40
 
-## Current state - STABLE ✓
+## What works end-to-end (verified today)
+- D01: hub restart restores glass_counts from DB — crowd-invisible ✓
+- Per-node reset: operator resets one jar, other untouched, restart-safe ✓
+- Stage 1: JB-1 data uninterrupted during JB-0 reconnect (23s test) ✓
+- D03: 168 events flushed to reconnecting hub, partial state rebuilt ✓
+- MAC-based NODE_ID: one binary, both nodes, correct identity ✓
 
-Full dual-node system verified end-to-end. Both nodes calibrated, BLE
-active, concurrent pours working, conservation exact per node.
+## S016 opening sequence
+1. Confirm both nodes: journalctl -u juice-ble-scanner -n 20 | grep subscri
+2. Check session state: sqlite3 hub/data/jb.db
+   "SELECT id, ended_at FROM sessions WHERE ended_at IS NULL;"
+3. Then build Stage 3: BLE dropout pipeline
 
-### Services
-- juice-ble-scanner.service: active, boot-enabled
-- juice-battle.service: active, boot-enabled, node_count=2, session_id=79
-- Dashboard: http://AQ3:5000
+## S016 build queue (in order)
 
-### Node hardware state
+Stage 3: BLE dropout — NODE_DISCONNECTED/CONNECTED pipeline
+  - ble_scanner.py: emit NODE_DISCONNECTED on BlueZ disconnect signal
+  - ble_scanner.py: emit NODE_CONNECTED after successful subscription
+  - transport.py: recognise and pass new event types
+  - game.py: node_status='disconnected'/'reconnecting', partial_g reset
+    on NODE_CONNECTED
+  - dashboard.py: disconnected badge per jar card
 
+Stage 4: D02 — full power loss recovery verification
+  Scenario 1: hub-only restart (D01 handles — already verified)
+  Scenario 2: node-only restart (partial_g reset on NODE_CONNECTED)
+  Scenario 3: full power loss — both hub and nodes cut, restored
+
+Stage 5: Startup BLE discovery
+  - Trigger bluetoothctl scan programmatically at scanner startup
+  - Eliminates manual 'sudo timeout 60 bluetoothctl scan on' workaround
+  - Required for fully unsupervised operation
+
+## Known gaps (documented, not bugs)
+- D03 double-count: POUR_SETTLED in 5s TCP reconnect window counted by
+  both DB restore and buffer replay. Low probability at stall.
+- Startup BLE discovery: after bluetooth restart, manual scan on required.
+  Workaround: sudo timeout 60 bluetoothctl scan on
+
+## Key file locations
+Hub:      ~/ArduinoApps/juice_battle/hub/
+Firmware: ~/ArduinoApps/juice_battle/firmware/node/
+DB:       ~/ArduinoApps/juice_battle/hub/data/jb.db
+Services: juice-ble-scanner.service, juice-battle.service
+
+## Hardware state
 | | JB-0 | JB-1 |
 |---|---|---|
-| NODE_ID | 0 | 1 |
-| sigma_g (best boot) | 3.15g | 3.92g |
-| slope_threshold | 15.8 g/s | 19.6 g/s |
-| cal confidence | 0.968 GOOD | 0.823 DEGRADED |
-| validation | 4/4 PASS | 4/4 PASS |
-| NVS | persisted | persisted |
-| Polarity fix | -raw_value | -raw_value + wire swap at ADS1232 |
-
-### Hub modules — current state
-- config.py: POUR_PRESERVE_FRAC deleted. All other constants unchanged.
-- game.py: fully dual-node. All per-node state in dicts {0:...,1:...}.
-  node_status ('ok'/'bounce'/'anomaly') exposed in get_state().
-- storage.py: record_pour() writes ts correctly. overflow_events per-node.
-- dashboard.py: badge CSS, badge HTML, node_status JS handler all present.
-- main.py: game_inst.start(node_count=2)
-- transport.py, ble_scanner.py: unchanged from S012b.
-
-### S013 verification
-- JB-0: 5 glasses, 1075.5g, conservation exact
-- JB-1: 4 glasses, 898.4g, conservation exact (0.1g rounding)
-- Concurrent pours: interleaved journal, zero cross-contamination
-- D04: verified physically both nodes
-
----
-
-## Known bugs — none active
-
-D10 and D11 were phantom bugs. Closed in S013.
-
----
-
-## Operational notes (critical)
-
-**Boot sequence:**
-1. Jars on platforms first
-2. Power hub
-3. Power nodes
-Nodes tare at boot. Mid-session jar placement = ANOMALY.
-
-**Lids:** Remove before game starts. Never during play.
-After lid removal wait 6s (BOUNCE_SETTLE_S=5s) before pouring.
-
-**Browser:** Hard refresh (Ctrl+Shift+R) after any HTML_TEMPLATE change.
-
----
-
-## Next sessions
-
-### S014 - Resilience
-D01: Accumulator restore from DB on restart
-D02: Power loss recovery — hub/node restart sequence
-D03: Transport reconnect — events lost in 5s TCP backoff
-BLE dropout mid-game: one node drops, other continues, dropped shows
-disconnected state on dashboard.
-
-### S015-S016
-D05: Node maintenance mode for safe jar refill
-D06: Boot sequence optimisation (~15s tare+sigma)
-D07: LID_WEIGHT_G config constant
-D08: JB-1 physical wire swap (deferred, software fix in place)
-D12: cal.cpp diagnosis never printed on failure (cosmetic)
-
----
-
-## Engineering rules (non-negotiable)
-- Never hardcode thresholds depending on sigma_live
-- NODE_ID only in config.h
-- Orchestrator law: main.py owns zero logic
-- Git: always cd to project root before git operations
-- JCTL headers: 1.8V ONLY
-- DB is source of truth, RAM accumulator is cache
-- Logging visibility verified before any experiment
-- Every partial zeroing must have log_overflow() or explicit comment
-- Boot sequence: jars on platform BEFORE node power-on
+| MAC | 70:AF:09:32:F3:C2 | 10:00:3B:CD:63:32 |
+| NODE_ID | 0 (from MAC) | 1 (from MAC) |
+| sigma_g | 3.416g | 3.819g |
+| Power | USB adapter | USB adapter |
+| Cal | NVS persisted | NVS persisted |

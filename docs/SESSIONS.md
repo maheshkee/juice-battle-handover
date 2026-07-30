@@ -308,3 +308,69 @@ verify concurrent pours.
 ### Deferred
 - BLE dropout mid-game → S014
   - JB-0 unaffected throughout
+
+---
+
+## S015 - 2026-07-30 - Per-node reset, threading fix, ring buffer, MAC identity
+
+**Goal:** Stage 0 (per-node reset), Stage 1 (_connect threading), Stage 2 (D03 ring buffer)
+
+### Delivered
+
+**Stage 0 — per-node manual reset (restart-safe)**
+- storage.py: node_resets table, log_node_reset(), get_resumable_session()
+  updated with LEFT JOIN + COALESCE(last_reset, 0) gate
+- game.py: reset_node() zeroes RAM + writes DB timestamp atomically
+- dashboard.py: POST /reset/<node_id> route + RESET button per jar card
+- Verified: reset node=0, restart, D01 restores 0 not pre-reset count ✓
+- Commits: af13bd8
+
+**Firmware — MAC-based NODE_ID (Option C)**
+- #define NODE_ID removed from config.h
+- resolve_node_id() reads BT MAC at boot, looks up NODE_MAC_TABLE
+- extern uint8_t NODE_ID in comms.h — comms.cpp unchanged
+- One identical binary for both nodes — no per-board recompile ever again
+- FATAL halt + MAC printout if unknown node flashed
+- Verified: node=0 and node=1 streams correct after flashing same binary ✓
+
+**Root cause found and fixed: both nodes had NODE_ID=1**
+- S014 Serial blocking fix flashed both nodes with config.h at NODE_ID=1
+- System appeared to work (D01 restored from S013 DB, not new pours)
+- Detected today when all pours went to node=1
+- Fix: reflash JB-0 with NODE_ID=0, then migrate to MAC-based identity
+
+**Stage 1 — _connect() threading fix**
+- _connect() spawns daemon thread, returns False immediately to GLib loop
+- _connect_worker() runs device.Connect() + sleep(4) off the loop
+- _on_connect_success() and _on_connect_fail() post back via GLib.idle_add
+- Verified: JB-1 data uninterrupted during 23s JB-0 reconnect ✓
+- Both nodes now reconnect concurrently (was sequential 29s block) ✓
+- Commit: 80b3d8d
+
+**Stage 2 — D03 ring buffer**
+- deque(maxlen=200) in ble_scanner.py buffers every emitted event
+- New TCP client receives full buffer flush before joining live stream
+- for/else guard: dead socket during flush never added to clients list
+- Verified: 168 events flushed on juice-battle restart, partial rebuilt,
+  live pour immediately after scored correctly ✓
+- Known gap: POUR_SETTLED in 5s TCP reconnect window may double-count
+  (DB + buffer both see it). Acceptable, documented.
+- Commit: 1653c40
+
+### Key learnings
+- config.h NODE_ID survives in git but not in flash — the two can diverge
+  silently. MAC-based identity eliminates this class of bug permanently.
+- D01 restore from DB can mask wrong node_id — looks correct if DB has
+  old correct data, only fails when new pours are observed.
+- GLib.idle_add callbacks must never block. Even sleep(1) starves all
+  other nodes. Threading is the only correct fix.
+- deque.append is GIL-atomic in CPython — safe to append from GLib loop
+  and snapshot from TCP accept thread without explicit lock.
+- for/else on socket flush is clean: else only runs if loop completes
+  without break — dead socket during flush never enters clients list.
+
+### Deferred to S016
+- Stage 3: BLE dropout NODE_DISCONNECTED/CONNECTED event pipeline
+- Stage 4: D02 full power loss recovery verification
+- Startup BLE discovery (known gap — manual bluetoothctl scan on workaround)
+
