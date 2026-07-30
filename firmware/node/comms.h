@@ -1,6 +1,10 @@
 #pragma once
 #include <Arduino.h>
 
+// WHY: NODE_ID is a runtime global resolved from MAC in juicebattle.ino.
+// comms.cpp uses it in three places — this extern makes it visible.
+extern uint8_t NODE_ID;
+
 // ── Juice Battle GATT UUIDs ──────────────────────────────────────────────────
 // Hub ble_scanner.py searches for JB_CHAR_UUID to find the notify characteristic.
 // These must NOT be reused from gas-cylinder-monitor.
@@ -30,7 +34,7 @@
 // Standard messages (0x01–0x05):
 //   Byte  0:     version  (COMMS_PAYLOAD_VERSION = 0x01)
 //   Byte  1:     msg_type (COMMS_MSG_*)
-//   Byte  2:     node_id  (NODE_ID from config.h, 0 or 1)
+//   Byte  2:     node_id  (NODE_ID resolved at boot from BT MAC)
 //   Bytes 3–6:   delta_g  (float, little-endian via memcpy)
 //   Bytes 7–10:  sigma_g  (float, little-endian via memcpy, stored at comms_init)
 //   Bytes 11–12: seq_num  (uint16_t, little-endian, wraps naturally at 65535)

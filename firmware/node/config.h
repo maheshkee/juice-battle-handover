@@ -119,6 +119,7 @@
 #define SCALE_BASELINE_MAX_SPREAD_G     20.0f
 
 // ── Node identity ─────────────────────────────────────────────────────────────
-// The ONLY value that differs between two node binaries.
-// Node A (jar 0) = 0. Node B (jar 1) = 1.
-#define NODE_ID  1
+// Node identity is resolved at boot from BT MAC address.
+// NODE_ID is a runtime uint8_t declared in juicebattle.ino.
+// To add a new node: flash, observe the FATAL MAC printout,
+// add the MAC to NODE_MAC_TABLE in juicebattle.ino, reflash.

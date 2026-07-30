@@ -6,6 +6,11 @@
 #include "scale.h"
 #include "stability.h"
 #include "comms.h"
+#include "esp_mac.h"
+
+// WHY: NODE_ID is resolved at boot from BT MAC — not compiled in.
+// This means one identical binary works for both nodes forever.
+uint8_t NODE_ID = 255;  // 255 = unresolved sentinel
 
 // Orchestrator law: setup() and loop() wire modules only.
 // No math, no thresholds, no state decisions live here.
@@ -20,11 +25,48 @@ static unsigned long s_heartbeat_timer_ms   = 0;
 static unsigned long s_pour_active_timer_ms = 0;
 static unsigned long s_diag_timer_ms        = 0;
 
+void resolve_node_id() {
+    // WHY: MAC is factory-burned into efuse — immutable, survives
+    // any flash operation. Using ESP_MAC_BT matches the MAC
+    // BlueZ sees during BLE advertising.
+    static const struct {
+        uint8_t mac[6];
+        uint8_t node_id;
+    } NODE_MAC_TABLE[] = {
+        { {0x70, 0xAF, 0x09, 0x32, 0xF3, 0xC2}, 0 },  // JB-0
+        { {0x10, 0x00, 0x3B, 0xCD, 0x63, 0x32}, 1 },  // JB-1
+    };
+
+    uint8_t mac[6];
+    esp_read_mac(mac, ESP_MAC_BT);
+
+    for (size_t i = 0;
+         i < sizeof(NODE_MAC_TABLE) / sizeof(NODE_MAC_TABLE[0]);
+         i++) {
+        if (memcmp(mac, NODE_MAC_TABLE[i].mac, 6) == 0) {
+            NODE_ID = NODE_MAC_TABLE[i].node_id;
+            Serial.printf("[BOOT] node_id=%d resolved from MAC\n",
+                          NODE_ID);
+            return;
+        }
+    }
+
+    // MAC not in table — halt. Print MAC so operator can add it.
+    while (true) {
+        Serial.printf(
+            "[BOOT] FATAL: unknown MAC %02X:%02X:%02X:%02X:%02X:%02X"
+            " — add to NODE_MAC_TABLE and reflash\n",
+            mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+        delay(5000);
+    }
+}
+
 void setup() {
     Serial.begin(115200);
     // WHY: USB power adapter has no USB host — Serial never enumerates.
     // Wait max 3s for Serial (laptop/debug), then proceed regardless (production).
     { unsigned long _st = millis(); while (!Serial && (millis() - _st < 3000)) delay(10); }
+    resolve_node_id();  // Must run before comms_begin() uses NODE_ID
 
     Serial.println("=== Juice Battle Node ===");
 

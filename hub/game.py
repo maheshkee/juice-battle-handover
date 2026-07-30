@@ -87,6 +87,14 @@ class Game:
             log.info("Game stopped - session_id=%s final_count=%s",
                      self._session_id, dict(self._glass_count))
 
+    def reset_node(self, node_id: int) -> None:
+        with self._lock:
+            self._storage.log_node_reset(self._session_id, node_id)
+            self._glass_count[node_id]     = 0
+            self._partial_g[node_id]       = 0.0
+            self._partial_open_ts[node_id] = None
+            log.info("reset_node: node=%d glass_count reset to 0", node_id)
+
     def on_pour_settled(self, event: dict) -> None:
         """
         Called by Transport on every POUR_SETTLED packet.

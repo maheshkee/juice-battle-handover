@@ -80,6 +80,27 @@ class Storage:
                 pass  # already migrated — fine
             else:
                 raise
+        try:
+            self._conn.execute(
+                "ALTER TABLE pour_events ADD COLUMN event_time REAL"
+            )
+            self._conn.commit()
+            log.info("Migration: added event_time column to pour_events")
+        except sqlite3.OperationalError as e:
+            if "duplicate column name" in str(e).lower():
+                pass
+            else:
+                raise
+        self._conn.execute("""
+            CREATE TABLE IF NOT EXISTS node_resets (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id INTEGER NOT NULL,
+                node_id    INTEGER NOT NULL,
+                reset_at   REAL    NOT NULL,
+                FOREIGN KEY (session_id) REFERENCES sessions(id)
+            )
+        """)
+        self._conn.commit()
 
     def record_pour(self, session_id: int, ts: str, node_id: int,
                     delta_g: float, sigma_g: float, seq: int,
@@ -88,14 +109,26 @@ class Storage:
             with self._lock:
                 self._conn.execute(
                     "INSERT INTO pour_events "
-                    "(session_id, ts, node_id, delta_g, sigma_g, seq, glasses_counted) "
-                    "VALUES (?, ?, ?, ?, ?, ?, ?)",
-                    (session_id, ts, node_id, delta_g, sigma_g, seq, glasses_counted)
+                    "(session_id, ts, node_id, delta_g, sigma_g, seq, glasses_counted, event_time) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                    (session_id, ts, node_id, delta_g, sigma_g, seq, glasses_counted, time.time())
                 )
                 self._conn.commit()
         except sqlite3.Error as e:
             log.error("record_pour failed: %s", e)
             self.record_error(datetime.now(timezone.utc).isoformat(), "record_pour", str(e))
+
+    def log_node_reset(self, session_id: int, node_id: int) -> None:
+        try:
+            with self._lock:
+                self._conn.execute(
+                    "INSERT INTO node_resets (session_id, node_id, reset_at) VALUES (?, ?, ?)",
+                    (session_id, node_id, time.time())
+                )
+                self._conn.commit()
+        except sqlite3.Error as e:
+            log.error("log_node_reset failed: %s", e)
+            self.record_error(datetime.now(timezone.utc).isoformat(), "log_node_reset", str(e))
 
     def log_overflow(self, node_id: int, seq, reason: str,
                      grams: float, window_open_ts=None) -> None:
@@ -163,9 +196,20 @@ class Storage:
                     return None
                 session_id = row[0]
                 counts = self._conn.execute(
-                    "SELECT node_id, SUM(glasses_counted) FROM pour_events "
-                    "WHERE session_id = ? GROUP BY node_id",
-                    (session_id,)
+                    """
+                    SELECT pe.node_id, SUM(pe.glasses_counted)
+                    FROM pour_events pe
+                    LEFT JOIN (
+                        SELECT node_id, MAX(reset_at) AS last_reset
+                        FROM node_resets
+                        WHERE session_id = ?
+                        GROUP BY node_id
+                    ) nr ON nr.node_id = pe.node_id
+                    WHERE pe.session_id = ?
+                      AND pe.event_time > COALESCE(nr.last_reset, 0)
+                    GROUP BY pe.node_id
+                    """,
+                    (session_id, session_id)
                 ).fetchall()
                 glass_counts = {r[0]: int(r[1]) for r in counts if r[1] is not None}
                 return {"session_id": session_id, "glass_counts": glass_counts}

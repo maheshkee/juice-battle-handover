@@ -6,7 +6,7 @@ No game logic lives here. Display only.
 
 import time
 import config
-from flask import Flask, render_template_string
+from flask import Flask, render_template_string, jsonify
 from flask_socketio import SocketIO, emit
 
 # ── Crowd-facing HTML template ─────────────────────────────────────────────
@@ -149,6 +149,14 @@ body {
     <div class="jar-name">Jar 0</div>
     <div class="glass-count" id="count-0">0</div>
     <div class="glass-label">GLASSES</div>
+    <button id="reset-0"
+            onclick="resetJar(0)"
+            style="margin-top:1.5vh; padding:4px 14px;
+                   background:transparent; border:1px solid #444;
+                   color:#888; font-size:0.7rem; border-radius:4px;
+                   cursor:pointer; letter-spacing:0.08em;">
+      RESET
+    </button>
     <div class="partial-wrap">
       <div class="partial-bar">
         <div class="partial-fill" id="partial-0" style="width:0%"></div>
@@ -164,6 +172,14 @@ body {
     <div class="jar-name">Jar 1</div>
     <div class="glass-count" id="count-1">0</div>
     <div class="glass-label">GLASSES</div>
+    <button id="reset-1"
+            onclick="resetJar(1)"
+            style="margin-top:1.5vh; padding:4px 14px;
+                   background:transparent; border:1px solid #444;
+                   color:#888; font-size:0.7rem; border-radius:4px;
+                   cursor:pointer; letter-spacing:0.08em;">
+      RESET
+    </button>
     <div class="partial-wrap">
       <div class="partial-bar">
         <div class="partial-fill" id="partial-1" style="width:0%"></div>
@@ -231,6 +247,12 @@ socket.on('state', (data) => {
         }
     });
 });
+
+function resetJar(n) {
+  fetch('/reset/' + n, {method: 'POST'})
+    .then(r => r.json())
+    .then(d => { if (!d.ok) console.error('reset failed', d); });
+}
 </script>
 
 </body>
@@ -255,6 +277,8 @@ class Dashboard:
         self._sio = SocketIO(self._app, async_mode='threading', cors_allowed_origins='*')
 
         self._app.add_url_rule('/', 'index', self._serve_index)
+        self._app.add_url_rule('/reset/<int:node_id>', 'reset_node',
+                               self._reset_node, methods=['POST'])
 
         @self._sio.on('connect')
         def _on_browser_connect():
@@ -269,6 +293,12 @@ class Dashboard:
                 'glass_volume_g': config.GLASS_VOLUME_G,
                 'node_status':    state['node_status'],
             })
+
+    def _reset_node(self, node_id: int):
+        if node_id not in (0, 1):
+            return jsonify({'ok': False, 'error': 'invalid node'}), 400
+        self._game.reset_node(node_id)
+        return jsonify({'ok': True, 'node_id': node_id})
 
     def _serve_index(self):
         """Serve the scoreboard HTML page."""
