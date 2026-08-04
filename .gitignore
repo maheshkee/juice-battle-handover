@@ -58,3 +58,8 @@ Thumbs.db
 .pytest_cache/
 htmlcov/
 .coverage
+
+# SQLite WAL companions
+*.db-shm
+*.db-wal
+*.db-journal

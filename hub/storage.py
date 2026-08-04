@@ -217,6 +217,17 @@ class Storage:
             log.error("get_resumable_session failed: %s", e)
             return None
 
+    def get_all_time_glasses(self) -> int:
+        try:
+            with self._lock:
+                row = self._conn.execute(
+                    "SELECT SUM(glasses_counted) FROM pour_events"
+                ).fetchone()
+                return int(row[0]) if row and row[0] is not None else 0
+        except sqlite3.Error as e:
+            log.error("get_all_time_glasses failed: %s", e)
+            return 0
+
     def open_session(self, node_count: int) -> int:
         try:
             with self._lock:

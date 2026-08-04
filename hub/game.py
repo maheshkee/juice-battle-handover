@@ -43,6 +43,9 @@ class Game:
         self._bounce_until     = {0: 0.0,  1: 0.0}  # wall time: suppress after disturbance
         self._settling_until   = {0: 0.0,  1: 0.0}  # wall time: suppress after anomaly
         self._node_status      = {0: 'connected', 1: 'connected'}  # BLE connectivity
+        self._game_over            = False
+        self._winner               = None   # node_id of winner, or None for draw
+        self._reset_since_gameover = set()  # tracks which nodes reset after game_over
 
     def start(self, node_count: int = 1) -> None:
         """Open a storage session and begin accepting pour events."""
@@ -74,6 +77,9 @@ class Game:
                 self._session_id = self._storage.open_session(node_count)
                 log.info("Fresh session created (RESUME_SESSION=False): session_id=%d",
                          self._session_id)
+            self._game_over            = False
+            self._winner               = None
+            self._reset_since_gameover = set()
             self._running = True
             log.info("Game started - session_id=%s node_count=%d",
                      self._session_id, node_count)
@@ -95,6 +101,39 @@ class Game:
             self._partial_g[node_id]       = 0.0
             self._partial_open_ts[node_id] = None
             log.info("reset_node: node=%d glass_count reset to 0", node_id)
+            if self._game_over:
+                self._reset_since_gameover.add(node_id)
+                if {0, 1} <= self._reset_since_gameover:
+                    self._game_over = False
+                    self._winner    = None
+                    self._reset_since_gameover.clear()
+                    log.info("GAME_OVER cleared: both nodes reset")
+
+    def game_over(self) -> dict:
+        with self._lock:
+            c0 = self._glass_count[0]
+            c1 = self._glass_count[1]
+            if c0 > c1:
+                self._winner = 0
+            elif c1 > c0:
+                self._winner = 1
+            else:
+                self._winner = None
+            self._game_over = True
+            self._reset_since_gameover.clear()
+            if self._winner is not None:
+                log.info("GAME_OVER: winner=node=%d glasses=%d",
+                         self._winner, self._glass_count[self._winner])
+            else:
+                log.info("GAME_OVER: DRAW")
+            return {'game_over': True, 'winner': self._winner}
+
+    def adjust_glass_count(self, node_id: int, delta: int) -> int:
+        with self._lock:
+            self._glass_count[node_id] = max(0, self._glass_count[node_id] + delta)
+            log.info("ADJUST: node=%d delta=%+d new_count=%d",
+                     node_id, delta, self._glass_count[node_id])
+            return self._glass_count[node_id]
 
     def on_node_disconnected(self, evt: dict) -> None:
         node_id = evt.get('node', -1)
@@ -138,6 +177,8 @@ class Game:
         with self._lock:
             if not self._running:
                 # Event arrived before start() or after stop() - discard silently
+                return
+            if self._game_over:
                 return
 
             # --- Belt-and-suspenders dedup (ble_scanner.py also deduplicates) ---
@@ -293,6 +334,8 @@ class Game:
                 "glass_count": dict(self._glass_count),
                 "partial_g":   dict(self._partial_g),
                 "running":     self._running,
+                "game_over":   self._game_over,
+                "winner":      self._winner,
                 "node_status": {
                     node_id: (
                         'anomaly' if now < self._settling_until[node_id] else
