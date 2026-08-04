@@ -363,20 +363,19 @@ body {
     background: #000;
     color: #fff;
     font-family: 'Arial Black', Arial, sans-serif;
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    height: 100vh;
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
     user-select: none;
 }
 #main-wrap {
     width: 100%;
-    max-width: 1100px;
-    margin: 0 auto;
+    flex: 1;
     display: flex;
     flex-direction: column;
     position: relative;
+    overflow: hidden;
 }
 .brandband {
     background: #fff;
@@ -447,28 +446,79 @@ body {
 .game-over-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 .main-grid {
     display: grid;
-    grid-template-columns: 340px 120px 340px;
-    justify-content: center;
+    grid-template-columns: 1fr 380px 1fr;
     gap: 20px;
-    padding: 10px 16px;
+    max-width: 1800px;
+    margin: 0 auto;
+    padding: 8px 60px;
     align-items: start;
+    flex: 1;
 }
 .card {
-    width: 340px;
-    min-height: 520px;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    padding: 24px 18px 20px;
+    justify-content: space-between;
+    min-height: 560px;
+    padding: 22px 20px 20px;
     border-radius: 14px;
     position: relative;
     overflow: hidden;
 }
+.card-top { margin-bottom: 8px; }
+.node-label { font-size: 10px; color: #444; text-transform: uppercase; letter-spacing: 2px; }
+.card-mid { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.mid-row { display: flex; align-items: flex-end; gap: 14px; }
+.card-0 .mid-row { flex-direction: row; }
+.card-1 .mid-row { flex-direction: row-reverse; }
+.score-row { display: flex; align-items: baseline; gap: 12px; margin-top: 8px; }
+.share-pct { font-size: 12px; color: #555; letter-spacing: 1px; }
+.card-bot { display: flex; flex-direction: column; align-items: center; gap: 5px; width: 100%; }
+.jar-svg { width: 72px; height: 120px; flex-shrink: 0; }
+.jar-liquid { transition: transform 0.6s ease; transform-box: fill-box; transform-origin: bottom center; }
+.dot-strip { display: flex; gap: 5px; justify-content: center; flex-wrap: wrap; margin: 4px 0; }
+.dot { width: 22px; height: 5px; border-radius: 3px; background: #222; }
+.feed-panel {
+    background: #080808; border: 1px solid #1a1a1a; border-radius: 12px;
+    padding: 14px 14px; margin-top: 14px; width: 100%;
+}
+.feed-header { font-size: 10px; letter-spacing: 2px; color: #444; text-transform: uppercase; margin-bottom: 8px; }
+.feed-row { display: flex; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px solid #111; }
+.feed-row:last-child { border-bottom: none; }
+.feed-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.feed-text { font-size: 13px; color: #888; font-family: monospace, 'Courier New'; flex: 1; line-height: 1.3; }
+.feed-time { font-size: 10px; color: #444; white-space: nowrap; }
+.ticker-bar {
+    background: #06060a; border-top: 1px solid #161616;
+    display: flex; align-items: center; gap: 0;
+    overflow: hidden; flex-shrink: 0;
+}
+.ticker-left {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 20px; flex-shrink: 0;
+    border-right: 1px solid #181818;
+    min-width: 320px;
+}
+.ticker-left-text { display: flex; flex-direction: column; gap: 3px; }
+.ticker-left-text .tl-main { font-size: 12px; font-weight: 700; color: #555; }
+.ticker-left-text .tl-sub  { font-size: 10px; letter-spacing: 2px; color: #3a3a3a; text-transform: uppercase; }
+.ticker-mid { flex: 1; overflow: hidden; padding: 10px 0; }
+.ticker-track { display: flex; width: max-content; animation: ticker-scroll 40s linear infinite; }
+.ticker-item { white-space: nowrap; padding: 0 28px; font-size: 12px; letter-spacing: 2px;
+               color: #555; text-transform: uppercase; font-family: monospace, 'Courier New'; }
+.ticker-sep { color: #2a2a2a; padding: 0 4px; }
+.ticker-right {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 20px; flex-shrink: 0;
+    border-left: 1px solid #181818;
+    font-size: 11px; color: #444; text-transform: uppercase; letter-spacing: 1px;
+    min-width: 240px;
+}
+@keyframes ticker-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 .card-0 { background: #0d1508; border: 2px solid #4a6a1a; }
 .card-1 { background: #150a12; border: 2px solid #7a2a4a; }
 .char-svg {
-    width: 130px;
-    height: 130px;
+    width: 120px;
+    height: 120px;
     animation: bob 3s ease-in-out infinite;
     flex-shrink: 0;
 }
@@ -484,27 +534,18 @@ body {
 .glance-right   { animation: glance-right 1.6s ease-in-out !important; }
 .glance-left    { animation: glance-left  1.6s ease-in-out !important; }
 .persona-name {
-    font-size: 11px;
+    font-size: 26px;
     font-weight: 700;
     text-transform: uppercase;
-    margin-top: 10px;
     letter-spacing: 1px;
 }
 .card-0 .persona-name { color: #a8d84a; }
 .card-1 .persona-name { color: #e8608a; }
-.jar-label {
-    font-size: 7px;
-    color: #333;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-top: 2px;
-}
 .glass-count {
-    font-size: 74px;
+    font-size: 96px;
     font-weight: 800;
     line-height: 1;
     font-variant-numeric: tabular-nums;
-    margin-top: 6px;
     display: inline-block;
 }
 .card-0 .glass-count { color: #a8d84a; }
@@ -512,19 +553,18 @@ body {
 .glass-count.digit-swap { animation: digit-swap 0.5s ease-in-out forwards; }
 .glass-count.numpop     { animation: numpop 0.5s ease-out; }
 .glasses-label {
-    font-size: 7px;
-    color: #333;
+    font-size: 11px;
+    color: #444;
     text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-top: 2px;
+    letter-spacing: 2px;
 }
 .progress-bar {
     width: 100%;
-    height: 3px;
+    height: 4px;
     background: #131313;
     border-radius: 2px;
     overflow: hidden;
-    margin: 8px 0 4px;
+    margin: 4px 0;
 }
 .progress-fill {
     height: 100%;
@@ -535,9 +575,9 @@ body {
 .card-0 .progress-fill { background: #7ab52a; }
 .card-1 .progress-fill { background: #c84070; }
 .pour-label {
-    font-size: 8px;
+    font-size: 10px;
     color: #3a3a3a;
-    height: 14px;
+    height: 16px;
     text-align: center;
 }
 .streak-badge {
@@ -545,63 +585,49 @@ body {
     background: #1a1400;
     border: 1px solid #5a4400;
     color: #e8b830;
-    font-size: 8px;
+    font-size: 11px;
     font-weight: 700;
-    padding: 3px 8px;
+    padding: 4px 10px;
     border-radius: 20px;
-    margin-top: 4px;
     letter-spacing: 0.5px;
 }
 .reset-btn {
     background: transparent;
-    border: 1px solid #242424;
-    color: #3a3a3a;
-    font-size: 8px;
+    border: 1px solid #2a2a2a;
+    border-radius: 10px;
+    color: #666;
+    font-size: 12px;
     text-transform: uppercase;
-    padding: 4px 10px;
-    border-radius: 4px;
+    padding: 12px 24px;
     cursor: pointer;
-    letter-spacing: 0.08em;
-    margin-top: 6px;
+    letter-spacing: 2px;
+    font-family: 'Arial Black', Arial, sans-serif;
 }
+.reset-btn:hover { border-color: #444; color: #999; }
 .vs-col {
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
     gap: 10px;
-    align-self: center;
+    align-self: start;
+    padding-top: 50px;
 }
-.vs-text { font-size: 17px; font-weight: 800; color: #282828; }
+.vs-text { font-size: 24px; font-weight: 800; color: #282828; }
 .lead-pill {
-    font-size: 7px;
+    font-size: 10px;
     font-weight: 700;
-    padding: 4px 8px;
+    padding: 5px 10px;
     border-radius: 20px;
     text-align: center;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 1px;
     border: 1px solid #2a2a2a;
     background: #1a1a1a;
     color: #3a3a3a;
 }
-.status-row {
-    border-top: 1px solid #131313;
-    text-align: center;
-    padding: 8px 16px;
-    font-size: 8px;
-    letter-spacing: 2px;
-    color: #2a2a2a;
-    text-transform: uppercase;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    position: relative;
-}
 .status-dot {
-    width: 6px;
-    height: 6px;
+    width: 7px;
+    height: 7px;
     background: #2a8a2a;
     border-radius: 50%;
     display: inline-block;
@@ -803,87 +829,156 @@ body {
 <div class="main-grid">
 
     <div class="card card-0" id="card-0">
-        <div class="char-wrap" id="char-wrap-0">
-        <svg id="char-0" class="char-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-            <ellipse cx="50" cy="55" rx="33" ry="37" fill="#E8D830"/>
-            <ellipse cx="50" cy="55" rx="33" ry="37" fill="none" stroke="#C2B01E" stroke-width="2"/>
-            <path d="M50 18 Q55 9 61 13" stroke="#5a8a20" stroke-width="4" fill="none" stroke-linecap="round"/>
-            <g id="lemon-eyes">
-                <ellipse cx="38" cy="47" rx="5" ry="7" fill="#2a2a10"/>
-                <ellipse cx="62" cy="47" rx="5" ry="7" fill="#2a2a10"/>
-                <circle cx="39.5" cy="44.5" r="1.8" fill="#fff"/>
-                <circle cx="63.5" cy="44.5" r="1.8" fill="#fff"/>
-            </g>
-            <path id="lemon-mouth" d="M42 66 Q50 70 58 66" stroke="#2a2a10" stroke-width="3.5" fill="none" stroke-linecap="round"/>
-            <g id="lemon-blush" opacity="0">
-                <ellipse cx="26" cy="59" rx="6" ry="4" fill="#F09090"/>
-                <ellipse cx="74" cy="59" rx="6" ry="4" fill="#F09090"/>
-            </g>
-        </svg>
+        <div class="card-top">
+            <div class="node-label">NODE A &middot; JAR 0</div>
         </div>
-        <div class="persona-name">LEMON WARRIOR</div>
-        <div class="jar-label">JAR 0</div>
-        <div class="glass-count" id="count-0">0</div>
-        <div class="glasses-label">GLASSES</div>
-        <div class="progress-bar"><div class="progress-fill" id="progress-0"></div></div>
-        <div class="pour-label" id="pour-label-0">&nbsp;</div>
-        <div class="streak-badge" id="streak-0"></div>
-        <button class="reset-btn" onclick="resetJar(0)">RESET</button>
+        <div class="card-mid">
+            <div class="mid-row">
+                <svg class="jar-svg" viewBox="0 0 60 130" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="13" y="0" width="34" height="10" rx="4" fill="#888"/>
+                    <rect x="3" y="12" width="54" height="115" rx="8" stroke="#a8d84a" stroke-width="2" fill="transparent"/>
+                    <rect id="jar-liquid-0" x="5" y="14" width="50" height="111" rx="6" fill="#a8d84a" opacity="0.45" class="jar-liquid"/>
+                    <line id="jar-surface-0" x1="5" y1="14" x2="55" y2="14" stroke="#c8f86a" stroke-width="1.5"/>
+                </svg>
+                <div class="char-wrap" id="char-wrap-0">
+                <svg id="char-0" class="char-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                    <ellipse cx="50" cy="55" rx="33" ry="37" fill="#E8D830"/>
+                    <ellipse cx="50" cy="55" rx="33" ry="37" fill="none" stroke="#C2B01E" stroke-width="2"/>
+                    <path d="M50 18 Q55 9 61 13" stroke="#5a8a20" stroke-width="4" fill="none" stroke-linecap="round"/>
+                    <g id="lemon-eyes">
+                        <ellipse cx="38" cy="47" rx="5" ry="7" fill="#2a2a10"/>
+                        <ellipse cx="62" cy="47" rx="5" ry="7" fill="#2a2a10"/>
+                        <circle cx="39.5" cy="44.5" r="1.8" fill="#fff"/>
+                        <circle cx="63.5" cy="44.5" r="1.8" fill="#fff"/>
+                    </g>
+                    <path id="lemon-mouth" d="M42 66 Q50 70 58 66" stroke="#2a2a10" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+                    <g id="lemon-blush" opacity="0">
+                        <ellipse cx="26" cy="59" rx="6" ry="4" fill="#F09090"/>
+                        <ellipse cx="74" cy="59" rx="6" ry="4" fill="#F09090"/>
+                    </g>
+                </svg>
+                </div>
+            </div>
+            <div class="score-row">
+                <div class="persona-name">LEMON WARRIOR</div>
+                <div class="glass-count" id="count-0">0</div>
+            </div>
+            <div class="glasses-label">GLASSES</div>
+            <div class="share-pct" id="share-0">&nbsp;</div>
+        </div>
+        <div class="card-bot">
+            <div class="progress-bar"><div class="progress-fill" id="progress-0"></div></div>
+            <div class="pour-label" id="pour-label-0">&nbsp;</div>
+            <div class="streak-badge" id="streak-0"></div>
+            <div class="dot-strip" id="dot-strip-0"></div>
+            <button class="reset-btn" onclick="resetJar(0)">RESET</button>
+        </div>
     </div>
 
     <div class="vs-col">
         <div class="vs-text">VS</div>
         <div class="lead-pill" id="lead-pill">TIED</div>
+        <div class="feed-panel">
+            <div class="feed-header">LIVE POUR FEED</div>
+            <div id="feed-rows"></div>
+        </div>
     </div>
 
     <div class="card card-1" id="card-1">
-        <div class="char-wrap" id="char-wrap-1">
-        <svg id="char-1" class="char-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="50" cy="50" r="38" fill="#3a8a30"/>
-            <circle cx="50" cy="50" r="33" fill="#EAF3DE"/>
-            <circle cx="50" cy="50" r="29" fill="#E8406A"/>
-            <ellipse cx="38" cy="38" rx="2" ry="3" fill="#1a0808"/>
-            <ellipse cx="62" cy="40" rx="2" ry="3" fill="#1a0808"/>
-            <ellipse cx="42" cy="62" rx="2" ry="3" fill="#1a0808"/>
-            <ellipse cx="60" cy="64" rx="2" ry="3" fill="#1a0808"/>
-            <ellipse cx="50" cy="32" rx="2" ry="3" fill="#1a0808"/>
-            <g id="melon-eyes">
-                <ellipse cx="40" cy="48" rx="6" ry="7.5" fill="#fff"/>
-                <ellipse cx="60" cy="48" rx="6" ry="7.5" fill="#fff"/>
-                <circle cx="40" cy="48" r="3.5" fill="#1f0c0c"/>
-                <circle cx="60" cy="48" r="3.5" fill="#1f0c0c"/>
-                <circle cx="41.4" cy="46.2" r="1.3" fill="#fff"/>
-                <circle cx="61.4" cy="46.2" r="1.3" fill="#fff"/>
-            </g>
-            <path id="melon-mouth" d="M42 62 Q50 66 58 62" stroke="#1f0c0c" stroke-width="3" fill="none" stroke-linecap="round"/>
-            <g id="melon-blush" opacity="0">
-                <ellipse cx="28" cy="56" rx="6" ry="4" fill="#FF9090"/>
-                <ellipse cx="72" cy="56" rx="6" ry="4" fill="#FF9090"/>
-            </g>
-        </svg>
+        <div class="card-top">
+            <div class="node-label">NODE B &middot; JAR 1</div>
         </div>
-        <div class="persona-name">MELON CRUSHER</div>
-        <div class="jar-label">JAR 1</div>
-        <div class="glass-count" id="count-1">0</div>
-        <div class="glasses-label">GLASSES</div>
-        <div class="progress-bar"><div class="progress-fill" id="progress-1"></div></div>
-        <div class="pour-label" id="pour-label-1">&nbsp;</div>
-        <div class="streak-badge" id="streak-1"></div>
-        <button class="reset-btn" onclick="resetJar(1)">RESET</button>
+        <div class="card-mid">
+            <div class="mid-row">
+                <svg class="jar-svg" viewBox="0 0 60 130" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="13" y="0" width="34" height="10" rx="4" fill="#888"/>
+                    <rect x="3" y="12" width="54" height="115" rx="8" stroke="#e8608a" stroke-width="2" fill="transparent"/>
+                    <rect id="jar-liquid-1" x="5" y="14" width="50" height="111" rx="6" fill="#e8608a" opacity="0.45" class="jar-liquid"/>
+                    <line id="jar-surface-1" x1="5" y1="14" x2="55" y2="14" stroke="#ff88aa" stroke-width="1.5"/>
+                </svg>
+                <div class="char-wrap" id="char-wrap-1">
+                <svg id="char-1" class="char-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="50" cy="50" r="38" fill="#3a8a30"/>
+                    <circle cx="50" cy="50" r="33" fill="#EAF3DE"/>
+                    <circle cx="50" cy="50" r="29" fill="#E8406A"/>
+                    <ellipse cx="38" cy="38" rx="2" ry="3" fill="#1a0808"/>
+                    <ellipse cx="62" cy="40" rx="2" ry="3" fill="#1a0808"/>
+                    <ellipse cx="42" cy="62" rx="2" ry="3" fill="#1a0808"/>
+                    <ellipse cx="60" cy="64" rx="2" ry="3" fill="#1a0808"/>
+                    <ellipse cx="50" cy="32" rx="2" ry="3" fill="#1a0808"/>
+                    <g id="melon-eyes">
+                        <ellipse cx="40" cy="48" rx="6" ry="7.5" fill="#fff"/>
+                        <ellipse cx="60" cy="48" rx="6" ry="7.5" fill="#fff"/>
+                        <circle cx="40" cy="48" r="3.5" fill="#1f0c0c"/>
+                        <circle cx="60" cy="48" r="3.5" fill="#1f0c0c"/>
+                        <circle cx="41.4" cy="46.2" r="1.3" fill="#fff"/>
+                        <circle cx="61.4" cy="46.2" r="1.3" fill="#fff"/>
+                    </g>
+                    <path id="melon-mouth" d="M42 62 Q50 66 58 62" stroke="#1f0c0c" stroke-width="3" fill="none" stroke-linecap="round"/>
+                    <g id="melon-blush" opacity="0">
+                        <ellipse cx="28" cy="56" rx="6" ry="4" fill="#FF9090"/>
+                        <ellipse cx="72" cy="56" rx="6" ry="4" fill="#FF9090"/>
+                    </g>
+                </svg>
+                </div>
+            </div>
+            <div class="score-row">
+                <div class="persona-name">MELON CRUSHER</div>
+                <div class="glass-count" id="count-1">0</div>
+            </div>
+            <div class="glasses-label">GLASSES</div>
+            <div class="share-pct" id="share-1">&nbsp;</div>
+        </div>
+        <div class="card-bot">
+            <div class="progress-bar"><div class="progress-fill" id="progress-1"></div></div>
+            <div class="pour-label" id="pour-label-1">&nbsp;</div>
+            <div class="streak-badge" id="streak-1"></div>
+            <div class="dot-strip" id="dot-strip-1"></div>
+            <button class="reset-btn" onclick="resetJar(1)">RESET</button>
+        </div>
     </div>
 
 </div>
 
-<div class="status-row">
-    <span class="status-dot" id="status-dot"></span>
-    <span id="status-text">CONNECTING...</span>
-    <div id="qr-wrap" style="position:absolute; right:16px; bottom:6px; text-align:center;">
-        <img src="/static/qr.png" style="height:52px; width:52px; opacity:0.85; display:block;"
-             onerror="this.parentElement.style.display='none'">
-        <div style="font-size:6px; letter-spacing:1.5px; color:#2b2b2b; text-transform:uppercase; margin-top:3px;">SCAN TO KNOW MORE</div>
-    </div>
 </div>
 
+<div class="ticker-bar">
+    <div class="ticker-left">
+        <img src="/static/qr.png" style="height:52px;width:52px;opacity:0.85;flex-shrink:0;"
+             onerror="this.style.display='none'">
+        <div class="ticker-left-text">
+            <div class="tl-main">Scan to see how we wired these jars</div>
+            <div class="tl-sub">DHARANOVA &middot; IOT SENSING, EDGE &amp; TELEMETRY</div>
+        </div>
+    </div>
+    <div class="ticker-mid">
+        <div class="ticker-track" id="ticker-track">
+            <span class="ticker-item" id="t-fastest">FASTEST POUR —s</span>
+            <span class="ticker-sep">&middot;</span>
+            <span class="ticker-item">FLOW SENSORS STREAMING AT 10 HZ</span>
+            <span class="ticker-sep">&middot;</span>
+            <span class="ticker-item">BUILT BY DHARANOVA — GROUNDED INNOVATION</span>
+            <span class="ticker-sep">&middot;</span>
+            <span class="ticker-item">TOTAL GLASSES TODAY: <span id="t-total">0</span></span>
+            <span class="ticker-sep">&middot;</span>
+            <span class="ticker-item">LEMON <span id="t-lemon-pct">50</span>% &middot; MELON <span id="t-melon-pct">50</span>%</span>
+            <span class="ticker-sep">&middot;&nbsp;&nbsp;&nbsp;&middot;</span>
+            <span class="ticker-item" id="t-fastest2">FASTEST POUR —s</span>
+            <span class="ticker-sep">&middot;</span>
+            <span class="ticker-item">FLOW SENSORS STREAMING AT 10 HZ</span>
+            <span class="ticker-sep">&middot;</span>
+            <span class="ticker-item">BUILT BY DHARANOVA — GROUNDED INNOVATION</span>
+            <span class="ticker-sep">&middot;</span>
+            <span class="ticker-item">TOTAL GLASSES TODAY: <span id="t-total2">0</span></span>
+            <span class="ticker-sep">&middot;</span>
+            <span class="ticker-item">LEMON <span id="t-lemon-pct2">50</span>% &middot; MELON <span id="t-melon-pct2">50</span>%</span>
+            <span class="ticker-sep">&middot;</span>
+        </div>
+    </div>
+    <div class="ticker-right">
+        <span class="status-dot" id="status-dot"></span>
+        <span id="status-text">CONNECTING...</span>
+    </div>
 </div>
 
 <script src="/static/socket.io.js"></script>
@@ -911,6 +1006,13 @@ const prevPartial  = {'0': 0, '1': 0};
 const idleCount    = {'0': 0, '1': 0};
 const streak       = {'0': 0, '1': 0};
 const IDLE_AFTER   = 3;
+const JAR_CAPACITY_G = 5000; // estimate — should move to config.py later
+
+const feedEvents     = [];        // [{text, color, ts}] newest-first, max 5
+let   minPourSec     = null;      // fastest pour duration seen this session
+const pourStartTs    = {'0': 0, '1': 0};
+const prevPourActive = {'0': false, '1': false};
+let   lastBleStatus  = {};        // detect connect/disconnect transitions
 
 // Unlock Chromium kiosk autoplay on first interaction
 document.addEventListener('click', function() {
@@ -1083,6 +1185,76 @@ function spawnConfetti(cardEl) {
     }
 }
 
+// ── Feed panel ─────────────────────────────────────────────────────────────
+function addFeedEvent(text, color) {
+    feedEvents.unshift({ text, color, ts: Date.now() });
+    if (feedEvents.length > 5) feedEvents.pop();
+    renderFeed();
+}
+
+function relTime(ts) {
+    const s = Math.floor((Date.now() - ts) / 1000);
+    if (s < 5)  return 'now';
+    if (s < 60) return s + 's';
+    return Math.floor(s / 60) + 'm';
+}
+
+function renderFeed() {
+    const rows = el('feed-rows');
+    if (!rows) return;
+    rows.innerHTML = feedEvents.map(e =>
+        '<div class="feed-row">' +
+        '<div class="feed-dot" style="background:' + e.color + '"></div>' +
+        '<div class="feed-text">' + e.text + '</div>' +
+        '<div class="feed-time">' + relTime(e.ts) + '</div>' +
+        '</div>'
+    ).join('');
+}
+
+setInterval(renderFeed, 5000);
+
+// ── Dot strip ──────────────────────────────────────────────────────────────
+function updateDotStrip(n, count) {
+    const strip = el('dot-strip-' + n);
+    if (!strip) return;
+    const color   = n === 0 ? '#a8d84a' : '#e8608a';
+    const MAX     = 12;
+    const filled  = Math.min(count, MAX);
+    let html = '';
+    for (let i = 0; i < MAX; i++) {
+        html += '<div class="dot" style="' + (i < filled ? 'background:' + color + ';' : '') + '"></div>';
+    }
+    strip.innerHTML = html;
+}
+
+// ── Jar fill ───────────────────────────────────────────────────────────────
+function updateJarFill(n, count, vol) {
+    const used         = count * vol;
+    const fillFraction = Math.max(0, Math.min(1, 1 - used / JAR_CAPACITY_G));
+    const liq  = el('jar-liquid-' + n);
+    const surf = el('jar-surface-' + n);
+    if (liq)  liq.style.transform = 'scaleY(' + fillFraction + ')';
+    if (surf) {
+        const surfY = (125 - fillFraction * 111).toFixed(1);
+        surf.setAttribute('y1', surfY);
+        surf.setAttribute('y2', surfY);
+    }
+}
+
+// ── Ticker stats ───────────────────────────────────────────────────────────
+function updateTicker(c0, c1, totalServed) {
+    const total   = c0 + c1;
+    const pct0    = total > 0 ? Math.round(c0 / total * 100) : 50;
+    const pct1    = total > 0 ? Math.round(c1 / total * 100) : 50;
+    const fastest = minPourSec !== null ? minPourSec.toFixed(1) + 's' : '—s';
+    ['', '2'].forEach(sfx => {
+        const ft = el('t-fastest' + sfx);    if (ft) ft.textContent = 'FASTEST POUR ' + fastest;
+        const tt = el('t-total' + sfx);      if (tt) tt.textContent = totalServed;
+        const lp = el('t-lemon-pct' + sfx);  if (lp) lp.textContent = pct0;
+        const mp = el('t-melon-pct' + sfx);  if (mp) mp.textContent = pct1;
+    });
+}
+
 socket.on('connect',    () => { el('status-text').textContent = 'CONNECTED'; });
 socket.on('disconnect', () => { el('status-text').textContent = 'RECONNECTING...'; });
 
@@ -1107,6 +1279,12 @@ socket.on('state', (data) => {
     // ── Pour activity → character states ──
     const p0Inc = (pg['0'] ?? 0) > prevPartial['0'];
     const p1Inc = (pg['1'] ?? 0) > prevPartial['1'];
+
+    // Track pour start time for fastest-pour stat
+    if (p0Inc && !prevPourActive['0']) pourStartTs['0'] = Date.now();
+    if (p1Inc && !prevPourActive['1']) pourStartTs['1'] = Date.now();
+    prevPourActive['0'] = p0Inc;
+    prevPourActive['1'] = p1Inc;
 
     // Per-node pour tracking: start shared loop when first node begins, fade when last stops
     if (p0Inc && !pouringNodes.has('0')) {
@@ -1157,6 +1335,14 @@ socket.on('state', (data) => {
             const loser      = 1 - n;
             const loserNs    = String(loser);
             const scoreColor = n === 0 ? '#a8d84a' : '#e8608a';
+            const personaName = n === 0 ? 'LEMON WARRIOR' : 'MELON CRUSHER';
+
+            // Record pour duration for ticker fastest-pour stat
+            if (pourStartTs[ns] > 0) {
+                const durSec = (Date.now() - pourStartTs[ns]) / 1000;
+                if (minPourSec === null || durSec < minPourSec) minPourSec = durSec;
+                pourStartTs[ns] = 0;
+            }
 
             playSound('glass');
 
@@ -1203,11 +1389,18 @@ socket.on('state', (data) => {
             streak[ns]      = (streak[ns] || 0) + 1;
             streak[loserNs] = 0;
             const newStreak = streak[ns];
-            if (newStreak >= 3 && newStreak % 2 === 1) playSound('fanfare');
+            if (newStreak >= 3 && newStreak % 2 === 1) {
+                playSound('fanfare');
+                addFeedEvent(personaName + ' is on a ' + newStreak + '-pour streak', '#e8b830');
+            }
+            addFeedEvent(personaName + ' poured glass #' + newCount, scoreColor);
         } else {
             el('count-' + n).textContent = String(newCount);
         }
         prevCount[ns] = newCount;
+
+        updateDotStrip(n, newCount);
+        updateJarFill(n, newCount, vol);
 
         const badge = el('streak-' + n);
         if (streak[ns] >= 2) {
@@ -1219,11 +1412,21 @@ socket.on('state', (data) => {
         }
     });
 
+    // ── Share percentages + ticker ──
+    const c0 = gc['0'] ?? 0;
+    const c1 = gc['1'] ?? 0;
+    {
+        const total = c0 + c1;
+        const p0 = total > 0 ? Math.round(c0 / total * 100) : 50;
+        const p1 = 100 - p0;
+        const s0 = el('share-0'); if (s0) s0.textContent = total > 0 ? p0 + '% OF ALL POURS' : ' ';
+        const s1 = el('share-1'); if (s1) s1.textContent = total > 0 ? p1 + '% OF ALL POURS' : ' ';
+        updateTicker(c0, c1, data.all_time_served ?? 0);
+    }
+
     // ── Lead pill ──
-    const c0   = gc['0'] ?? 0;
-    const c1   = gc['1'] ?? 0;
     const pill = el('lead-pill');
-    const pillBase = 'padding:4px 8px;border-radius:20px;font-size:7px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;';
+    const pillBase = 'padding:5px 10px;border-radius:20px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;';
     if (c0 > c1) {
         pill.textContent = 'LEMON LEADS';
         pill.style.cssText = pillBase + 'background:#0d1508;color:#a8d84a;border:1px solid #4a6a1a;';
@@ -1239,9 +1442,16 @@ socket.on('state', (data) => {
     const bleStatus = data.ble_status || {};
     const warnings  = [];
     [0, 1].forEach(n => {
-        if ((bleStatus[String(n)] || 'connected') === 'disconnected')
-            warnings.push('JAR ' + n + ' RECONNECTING');
+        const ns  = String(n);
+        const cur = bleStatus[ns] || 'connected';
+        const prv = lastBleStatus[ns] || 'connected';
+        if (cur !== prv) {
+            if (cur === 'disconnected') addFeedEvent('JAR ' + n + ' disconnected', '#e8b830');
+            else                        addFeedEvent('JAR ' + n + ' reconnected',  '#7ab52a');
+        }
+        if (cur === 'disconnected') warnings.push('JAR ' + n + ' RECONNECTING');
     });
+    lastBleStatus = Object.assign({}, bleStatus);
     if (warnings.length === 0) {
         el('status-dot').className    = 'status-dot';
         el('status-text').textContent = 'BOTH NODES CONNECTED';
@@ -1326,11 +1536,14 @@ function resetJar(n) {
             if (!d.ok) { console.error('reset failed', d); return; }
             streak['0'] = 0;  streak['1'] = 0;
             prevCount[String(n)] = 0;
+            minPourSec = null;
             [0, 1].forEach(i => {
                 const badge = el('streak-' + i);
                 badge.style.display = 'none';
                 badge.textContent   = '';
             });
+            updateDotStrip(n, 0);
+            updateJarFill(n, 0, 150);
         });
 }
 
