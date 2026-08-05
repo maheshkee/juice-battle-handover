@@ -46,6 +46,18 @@ _notify_subs:        dict[str, str] = {}   # char_path → node_name
 _node_last_seen: dict[int, float] = {}   # node_id -> epoch
 
 
+def _restart_discovery() -> None:
+    # WHY: re-arms BlueZ scanning after UnknownObject — device registry entry was deleted
+    # entirely, not just disconnected. BlueZ raises an error if discovery is already running;
+    # that is harmless, just log and continue.
+    try:
+        adapter_iface = dbus.Interface(_bus.get_object(BLUEZ, ADAPTER_PATH), 'org.bluez.Adapter1')
+        adapter_iface.StartDiscovery()
+        log.info("BLE discovery re-armed")
+    except Exception as e:
+        log.warning("_restart_discovery: %s", e)
+
+
 def _set_hub_led(node_id: int, quality: int) -> None:
     """Drive RGB LED1 (node 0) or LED2 (node 1) based on ADC quality."""
     # quality: 0=GOOD, 1=DEGRADED, 2=FAILED
@@ -271,6 +283,15 @@ def _connect_worker(dev_path: str, node_name: str, device) -> None:
         log.info("Connected to %s — waiting for GATT discovery", node_name)
         time.sleep(4)
         GLib.idle_add(_on_connect_success, dev_path, node_name)
+    except dbus.exceptions.DBusException as e:
+        # WHY: UnknownObject means BlueZ deleted the device entry entirely —
+        # the dev_path is stale; Connect() on it will always fail. Must re-arm discovery.
+        if 'UnknownObject' in e.get_dbus_name():
+            log.warning("%s registry entry deleted — re-arming discovery", node_name)
+            GLib.idle_add(_on_unknown_object, node_name)
+        else:
+            log.warning("Connect to %s failed: %s - retry in 5s", node_name, e)
+            GLib.idle_add(_on_connect_fail, dev_path, node_name)
     except Exception as e:
         log.warning("Connect to %s failed: %s - retry in 5s", node_name, e)
         GLib.idle_add(_on_connect_fail, dev_path, node_name)
@@ -287,6 +308,15 @@ def _on_connect_fail(dev_path: str, node_name: str) -> bool:
     # WHY: runs on GLib loop via idle_add — safe to update shared state here.
     _connecting_nodes.discard(node_name)
     _reconnect_in(5000, dev_path, node_name)
+    return False
+
+
+def _on_unknown_object(node_name: str) -> bool:
+    # WHY: UnknownObject means the device path is gone from BlueZ registry entirely —
+    # retrying Connect() on a dead path is wrong, must re-scan.
+    # Runs on GLib loop via idle_add — safe to update shared state here.
+    _connecting_nodes.discard(node_name)
+    _restart_discovery()
     return False
 
 
