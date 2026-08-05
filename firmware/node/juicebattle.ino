@@ -7,6 +7,7 @@
 #include "stability.h"
 #include "comms.h"
 #include "esp_mac.h"
+#include <esp_task_wdt.h>
 
 // WHY: NODE_ID is resolved at boot from BT MAC — not compiled in.
 // This means one identical binary works for both nodes forever.
@@ -153,9 +154,16 @@ void setup() {
 
     pinMode(8, OUTPUT);
     digitalWrite(8, HIGH);  // off at boot (active-low)
+
+    // WHY: hardware watchdog — if loop() stalls for any reason (ADS1232 hang,
+    // BLE stack wedge, any blocking call), chip reboots and re-advertises automatically.
+    // 10s timeout = 9x worst-case loop duration (1100ms ADS1232 DRDY timeout).
+    esp_task_wdt_init(10, true);   // 10s timeout, panic (reboot) on expiry
+    esp_task_wdt_add(NULL);        // subscribe this task (loop task)
 }
 
 void loop() {
+    esp_task_wdt_reset();  // feed watchdog — proves loop is alive
     ScaleResult     r  = scale_read(g_cal, g_noise.sigma_g);
     StabilityResult sr = stability_update(r);
 

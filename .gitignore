@@ -23,7 +23,6 @@ pip-wheel-metadata/
 build/
 .cache/
 *.d
-firmware/node/juicebattle/
 
 # ── Secrets — NEVER commit these ─────────────────────────────────────────────
 .env
