@@ -158,7 +158,12 @@ void setup() {
     // WHY: hardware watchdog — if loop() stalls for any reason (ADS1232 hang,
     // BLE stack wedge, any blocking call), chip reboots and re-advertises automatically.
     // 10s timeout = 9x worst-case loop duration (1100ms ADS1232 DRDY timeout).
-    esp_task_wdt_init(10, true);   // 10s timeout, panic (reboot) on expiry
+    esp_task_wdt_config_t wdt_cfg = {
+        .timeout_ms    = 10000,
+        .idle_core_mask = 0,
+        .trigger_panic  = true
+    };
+    esp_task_wdt_init(&wdt_cfg);   // IDF v5.x API — struct replaces (timeout, panic) args
     esp_task_wdt_add(NULL);        // subscribe this task (loop task)
 }
 
