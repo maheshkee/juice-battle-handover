@@ -23,7 +23,7 @@ TRANSPORT_PORT = 7001
 
 # Transport TCP client (Docker consumer connects here)
 # 172.17.0.1 = Docker bridge gateway = the host from inside Docker
-TRANSPORT_CLIENT_HOST = "172.17.0.1"
+TRANSPORT_CLIENT_HOST = "127.0.0.1"
 TRANSPORT_CLIENT_PORT = 7001
 TRANSPORT_RECONNECT_S = 5   # seconds between reconnect attempts
 
