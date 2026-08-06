@@ -26,6 +26,8 @@ from ambient   import AmbientPlayer
 
 
 def main():
+    import subprocess
+    subprocess.run(['touch', '/tmp/jb_reload'], check=False)
     # instantiate modules - each receives its dependencies via constructor
     storage   = Storage(config.DB_PATH)
     transport = Transport()

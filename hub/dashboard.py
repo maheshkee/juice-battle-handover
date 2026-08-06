@@ -6,7 +6,7 @@ No game logic lives here. Display only.
 
 import time
 import config
-from flask import Flask, render_template_string, jsonify
+from flask import Flask, render_template_string, jsonify, make_response
 from flask_socketio import SocketIO, emit
 
 # ── Crowd-facing HTML template ─────────────────────────────────────────────
@@ -1972,7 +1972,8 @@ function updateJarFill(n,count,vol){const used=count*vol,ff=Math.max(0,Math.min(
 function updateTicker(c0,c1,totalServed){['','2'].forEach(sfx=>{const sn=el('t-served'+sfx);if(sn)sn.textContent=String(totalServed);});}
 let wasDisconnected=false;
 socket.on('disconnect',()=>{el('status-text').textContent='RECONNECTING...';wasDisconnected=true;});
-socket.on('connect',()=>{el('status-text').textContent='CONNECTED';if(wasDisconnected)window.location.reload();});
+socket.on('connect',()=>{el('status-text').textContent='CONNECTED';if(wasDisconnected){wasDisconnected=false;window.location.reload();}});
+socket.io.on('reconnect',()=>{window.location.reload();});
 socket.on('state',(data)=>{
   const gc=data.glass_count||{},pg=data.partial_g||{},vol=data.glass_volume_g||150;
   if(!initialized){prevCount['0']=gc['0']??0;prevCount['1']=gc['1']??0;prevPartial['0']=pg['0']??0;prevPartial['1']=pg['1']??0;el('count-0').textContent=String(prevCount['0']);el('count-1').textContent=String(prevCount['1']);initialized=true;}
@@ -2125,7 +2126,11 @@ class Dashboard:
 
     def _serve_v3(self):
         """Serve the crowd-facing v3 dashboard with atmospheric background and cause panel."""
-        return render_template_string(HTML_V3)
+        response = make_response(render_template_string(HTML_V3))
+        response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+        return response
 
     def _push_loop(self):
         """
