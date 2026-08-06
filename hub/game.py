@@ -37,10 +37,14 @@ class SoundPlayer:
 
     def _play_file(self, path: str) -> None:
         try:
-            _pygame.mixer.music.load(path)
-            _pygame.mixer.music.play()
-            while _pygame.mixer.music.get_busy():
-                _pygame.time.wait(100)
+            # Use Sound (sample channel), not mixer.music.
+            # mixer.music is reserved for AmbientPlayer's looping flute.
+            # Sound plays on its own channel and does not interrupt background music.
+            sound = _pygame.mixer.Sound(path)
+            channel = sound.play()
+            if channel is not None:
+                while channel.get_busy():
+                    _pygame.time.wait(100)
         except Exception as e:
             log.warning("SoundPlayer: playback error: %s", e)
 

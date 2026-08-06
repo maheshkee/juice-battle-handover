@@ -22,6 +22,7 @@ from storage   import Storage
 from transport import Transport
 from game      import Game
 from dashboard import Dashboard
+from ambient   import AmbientPlayer
 
 
 def main():
@@ -30,6 +31,7 @@ def main():
     transport = Transport()
     game_inst = Game(storage)
     dashboard = Dashboard(game_inst)
+    ambient   = AmbientPlayer()
 
     # wire: transport delivers POUR_SETTLED events to game
     # game does NOT self-register - orchestrator law
@@ -41,6 +43,7 @@ def main():
     # start in dependency order
     game_inst.start(node_count=2)   # dual node - S013
     transport.start()               # begins TCP connection to ble_scanner service
+    ambient.start()                 # background music + announcement scheduler
     dashboard.start()               # blocks - runs Flask-SocketIO server
 
 

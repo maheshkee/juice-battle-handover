@@ -19,19 +19,29 @@ pip install flask flask-socketio --break-system-packages
 echo "[2/6] Configuring audio output..."
 pip install pygame --break-system-packages
 
-# Set USB audio adapter as default ALSA device (card 1).
-# Why card 1? Card 0 is the onboard (silent/HDMI) device.
-# The USB adapter enumerates as card 1 when plugged into the hub.
+# Write .asoundrc using card NAME "Device" (matches USB Audio Device).
+# Names are stable across reboots; card numbers are not.
 ASOUNDRC="$HOME/.asoundrc"
-if grep -q "defaults.pcm.card 1" "$ASOUNDRC" 2>/dev/null; then
+if grep -q 'card "Device"' "$ASOUNDRC" 2>/dev/null; then
     echo "      .asoundrc already configured — skipping"
 else
-    cat >> "$ASOUNDRC" << 'ASOUNDRC_EOF'
-# Juice Battle: route default audio to USB adapter (card 1)
-defaults.pcm.card 1
-defaults.ctl.card 1
+    cat > "$ASOUNDRC" << 'ASOUNDRC_EOF'
+# Route default audio to USB adapter.
+# Using card NAME not number — card numbers change on reboot depending
+# on enumeration order. Names are stable.
+defaults.pcm.card 0
+defaults.ctl.card 0
+
+pcm.!default {
+    type hw
+    card "Device"
+}
+ctl.!default {
+    type hw
+    card "Device"
+}
 ASOUNDRC_EOF
-    echo "      .asoundrc written: USB audio set as default"
+    echo "      .asoundrc written: USB audio (card Device) set as default"
 fi
 
 # Verify the USB audio device is visible to ALSA
@@ -41,6 +51,57 @@ else
     echo "      WARNING: USB audio adapter not detected by ALSA"
     echo "               Plug in the USB adapter and re-run setup, or"
     echo "               audio will be silently disabled at runtime."
+fi
+
+# Install gTTS for announcement generation
+pip install gtts --break-system-packages
+
+# Generate announcement MP3s (skip if already exist)
+echo "      Generating voice announcements (requires internet)..."
+python3 << 'PYEOF'
+import os, sys
+try:
+    from gtts import gTTS
+except ImportError:
+    print("      ERROR: gtts not installed — skipping announcements")
+    sys.exit(0)
+
+SOUNDS_DIR = os.path.join(os.path.dirname(os.path.abspath("hub/setup.sh")), "hub", "static", "sounds")
+os.makedirs(SOUNDS_DIR, exist_ok=True)
+
+announcements = {
+    "ann_namaste":      "Namaste! Welcome to Juice Battle, by Dharanova.",
+    "ann_grounded":     "Dharanova. Grounded innovation, powering the future of IoT.",
+    "ann_come_taste":   "Come, taste fresh juice and experience Dharanova's intelligent sensing technology. Every pour, measured in real time.",
+    "ann_every_drop":   "Every drop measured. Every glass counted. This is IoT, made real.",
+    "ann_enthusiasts":  "Dharanova welcomes all IoT enthusiasts. Step closer, and play Juice Battle!",
+    "ann_real_sensors": "Real sensors. Real data. Real juice. Welcome to Juice Battle, by Dharanova.",
+    "ann_every_dot":    "Every dot accounted for. Every connection matters. This is Dharanova.",
+}
+
+for filename, text in announcements.items():
+    path = os.path.join(SOUNDS_DIR, f"{filename}.mp3")
+    if os.path.exists(path):
+        print(f"      ✓ {filename}.mp3 (exists, skipped)")
+        continue
+    try:
+        gTTS(text=text, lang='en', tld='co.in').save(path)
+        print(f"      ✓ {filename}.mp3 (generated)")
+    except Exception as e:
+        print(f"      WARNING: {filename}.mp3 failed: {e}")
+PYEOF
+
+# flute.mp3 must be manually downloaded (Pixabay requires browser)
+FLUTE="$HUB_DIR/static/sounds/flute.mp3"
+if [ ! -f "$FLUTE" ]; then
+    echo ""
+    echo "      ⚠️  flute.mp3 NOT found — background music will be silent."
+    echo "      Download from Pixabay (free, no login required):"
+    echo "      https://pixabay.com/music/india-free-soul-indian-bansuri-music-for-festivities-and-travel-vlogs-470121/"
+    echo "      Save as flute.mp3 and copy to: $FLUTE"
+    echo ""
+else
+    echo "      ✓ flute.mp3 found"
 fi
 
 # ── 3. Data directory ──────────────────────────────────────────────────────
