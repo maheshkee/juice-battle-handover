@@ -388,7 +388,7 @@ def _check_known_devices() -> bool:
             log.info("No cached JB-* devices found - waiting for InterfacesAdded")
     except Exception as e:
         log.warning("check_known_devices error: %s", e)
-    return False  # GLib.idle_add: False = do not repeat
+    return True  # repeat when called via timeout_add
 
 
 def _tcp_accept_loop(server_sock: socket.socket) -> None:
@@ -469,6 +469,7 @@ def main():
 
     # WHY: check nodes already in cache - matches reference _check_known_devices pattern
     GLib.idle_add(_check_known_devices)
+    GLib.timeout_add_seconds(10, _check_known_devices)  # WHY: periodic poll catches JB-* devices that appear in BlueZ cache after startup
 
     # Watchdog: check every 10s, exit(1) if no packets for WATCHDOG_TIMEOUT_S
     loop = GLib.MainLoop()
