@@ -1559,7 +1559,7 @@ html, body {
 .reset-btn { background: transparent; border: 1px solid #2a2a2a; border-radius: 10px; color: #666; font-size: 11px; text-transform: uppercase; padding: 8px 20px; cursor: pointer; letter-spacing: 2px; font-family: 'Arial Black', Arial, sans-serif; }
 .reset-btn:hover { border-color: #444; color: #999; }
 /* CENTRE COLUMN */
-.card-centre { background: rgba(8,8,8,0.82); border: 1px solid #1a1a1a; border-radius: 14px; padding: 10px; display: flex; flex-direction: column; gap: 6px; backdrop-filter: blur(2px); }
+.card-centre { background: rgba(8,8,8,0.82); border: 1px solid #1a1a1a; border-radius: 14px; padding: 10px; display: flex; flex-direction: column; gap: 6px; backdrop-filter: blur(2px); position: relative; }
 .vs-col-top { text-align: center; }
 .vs-text { font-size: 18px; font-weight: 800; color: #282828; }
 .lead-pill { font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 20px; text-align: center; text-transform: uppercase; letter-spacing: 1px; border: 1px solid #2a2a2a; background: #1a1a1a; color: #3a3a3a; align-self: center; margin-top: 4px; }
@@ -1666,14 +1666,19 @@ html, body {
 #overlay-score { font-size: 13px; color: #555; letter-spacing: 2px; margin-top: 12px; text-transform: uppercase; }
 #overlay-rule { border: none; border-top: 1px solid #c67b3f; width: 200px; margin: 24px auto; }
 #overlay-brand { font-size: 10px; letter-spacing: 4px; color: #c67b3f; text-transform: uppercase; }
-#round-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.97); z-index: 101; display: none; flex-direction: column; align-items: center; justify-content: center; }
-#round-overlay-heading { font-size: 18px; font-weight: 700; letter-spacing: 6px; color: #c67b3f; text-transform: uppercase; margin-bottom: 12px; }
-#round-overlay-winner { font-size: 54px; font-weight: 800; letter-spacing: 6px; text-transform: uppercase; text-align: center; }
-#round-overlay-scores { font-size: 14px; color: #555; letter-spacing: 3px; margin-top: 14px; text-transform: uppercase; }
-#round-countdown-wrap { width: 300px; height: 6px; background: #1a1a1a; border-radius: 3px; margin-top: 28px; overflow: hidden; }
-#round-countdown-bar { height: 100%; background: #c67b3f; width: 100%; border-radius: 3px; transition: none; }
-#round-begin-banner { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); background: rgba(0,0,0,0.92); border: 2px solid #c67b3f; border-radius: 12px; padding: 28px 60px; z-index: 102; display: none; text-align: center; }
-#round-begin-text { font-size: 42px; font-weight: 800; letter-spacing: 8px; color: #c67b3f; text-transform: uppercase; }
+@keyframes drainBar { from{width:100%} to{width:0%} }
+#round-over-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.93); border-radius: 14px; z-index: 10; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 9px; padding: 14px 12px; }
+#ro-heading { font-size: 13px; font-weight: 700; letter-spacing: 4px; color: #c67b3f; text-transform: uppercase; text-align: center; }
+.ro-score-row { display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 0 6px; font-size: 14px; font-weight: 700; }
+.ro-name0 { color: #b8e83a; }
+.ro-name1 { color: #ff5f8f; }
+.ro-val { color: #fff; font-size: 22px; font-weight: 800; }
+#ro-winner { font-size: 14px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; text-align: center; color: #e8b830; margin-top: 2px; }
+#ro-bar-wrap { width: 100%; height: 8px; background: #1a1a1a; border-radius: 4px; overflow: hidden; margin-top: 6px; }
+#ro-bar { height: 100%; border-radius: 4px; background: #c67b3f; width: 100%; }
+#round-begin-banner { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.93); border-radius: 14px; z-index: 11; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
+#rb-number { font-size: 28px; font-weight: 800; letter-spacing: 6px; color: #c67b3f; text-transform: uppercase; text-align: center; }
+#rb-begins { font-size: 13px; font-weight: 700; letter-spacing: 5px; color: #5a3a1a; text-transform: uppercase; }
 </style>
 </head>
 <body>
@@ -1690,14 +1695,6 @@ html, body {
     <hr id="overlay-rule">
     <div id="overlay-brand">DHARANOVA &middot; GROUNDED INNOVATION</div>
 </div>
-
-<div id="round-overlay">
-    <div id="round-overlay-heading">ROUND <span id="round-overlay-num"></span> COMPLETE</div>
-    <div id="round-overlay-winner"></div>
-    <div id="round-overlay-scores"></div>
-    <div id="round-countdown-wrap"><div id="round-countdown-bar"></div></div>
-</div>
-<div id="round-begin-banner"><div id="round-begin-text"></div></div>
 
 <div id="main-wrap">
 
@@ -1754,7 +1751,18 @@ html, body {
     </div>
   </div>
 
-  <div class="card-centre">
+  <div class="card-centre" id="centre-panel">
+    <div id="round-over-overlay">
+      <div id="ro-heading"></div>
+      <div class="ro-score-row"><span class="ro-name0">🍋 Lemon Warrior</span><span id="ro-score0" class="ro-val">0</span></div>
+      <div class="ro-score-row"><span class="ro-name1">🍈 Melon Crusher</span><span id="ro-score1" class="ro-val">0</span></div>
+      <div id="ro-winner"></div>
+      <div id="ro-bar-wrap"><div id="ro-bar"></div></div>
+    </div>
+    <div id="round-begin-banner">
+      <div id="rb-number"></div>
+      <div id="rb-begins">BEGINS</div>
+    </div>
     <div class="vs-col-top">
       <div class="vs-text">VS</div>
       <div class="lead-pill" id="lead-pill">TIED</div>
@@ -2044,35 +2052,25 @@ socket.on('state',(data)=>{
 function handleGameOver(winner){playSound('fanfare');setTimeout(()=>{playSound('cheer');setTimeout(()=>{sounds.cheer.pause();sounds.cheer.currentTime=0;},4000);},1500);el('game-over-btn').disabled=true;const w=String(winner);let name,color,isDraw;if(w==='0'){name='LEMON WARRIOR';color='#b8e83a';isDraw=false;}else if(w==='1'){name='MELON CRUSHER';color='#ff5f8f';isDraw=false;}else{name="IT'S A DRAW";color='#c67b3f';isDraw=true;}el('overlay-name').textContent=name;el('overlay-name').style.color=color;el('overlay-sub').style.display=isDraw?'none':'';const destSvg=el('overlay-char'),drawLogoEl=el('overlay-draw-logo');if(isDraw){destSvg.style.display='none';drawLogoEl.style.display='';destSvg.innerHTML='';}else{destSvg.style.display='';drawLogoEl.style.display='none';const srcSvg=el('char-'+w);destSvg.innerHTML=srcSvg?srcSvg.innerHTML:'';}const c0=prevCount['0'],c1=prevCount['1'],wg=isDraw?c0:(w==='0'?c0:c1),lg=isDraw?c1:(w==='0'?c1:c0);el('overlay-score').textContent=wg+' GLASS'+(wg!==1?'ES':'')+' VS '+lg+' GLASS'+(lg!==1?'ES':'');const overlay=el('winner-overlay');overlay.style.opacity='0';overlay.style.transition='';overlay.style.display='flex';void overlay.offsetWidth;overlay.style.transition='opacity 0.5s ease';overlay.style.opacity='1';setTimeout(()=>{overlay.style.transition='opacity 0.8s ease';overlay.style.opacity='0';setTimeout(()=>{overlay.style.display='none';},800);},5000);}
 function resetJar(n){fetch('/reset/'+n,{method:'POST'}).then(r=>r.json()).then(d=>{if(!d.ok){console.error('reset failed',d);return;}streak['0']=0;streak['1']=0;prevCount[String(n)]=0;minPourSec=null;[0,1].forEach(i=>{const b=el('streak-'+i);b.style.display='none';b.textContent='';});updateJarFill(n,0,150);});}
 function triggerGameOver(){fetch('/game_over',{method:'POST'}).then(r=>r.json()).then(d=>{if(!d.ok)console.error('game_over failed',d);});}
-let roundCountdownTimer=null;
-function showRoundOverlay(data){
-  const w=data.winner;
-  let name,color;
-  if(w===0){name='LEMON WARRIOR 🍋';color='#b8e83a';}
-  else if(w===1){name='MELON CRUSHER 🍈';color='#ff5f8f';}
-  else{name="IT'S A TIE! 🤝";color='#c67b3f';}
-  el('round-overlay-num').textContent=data.round;
-  el('round-overlay-winner').textContent=name;
-  el('round-overlay-winner').style.color=color;
-  el('round-overlay-scores').textContent='JAR 0: '+data.score0+'  |  JAR 1: '+data.score1;
-  const bar=el('round-countdown-bar');
-  bar.style.transition='none';bar.style.width='100%';
-  el('round-overlay').style.display='flex';
-  void bar.offsetWidth;
-  bar.style.transition='width 10s linear';bar.style.width='0%';
-  if(roundCountdownTimer){clearTimeout(roundCountdownTimer);roundCountdownTimer=null;}
-}
-function hideRoundOverlay(){
-  el('round-overlay').style.display='none';
-  if(roundCountdownTimer){clearTimeout(roundCountdownTimer);roundCountdownTimer=null;}
-}
-function showRoundBeginBanner(round){
-  el('round-begin-text').textContent='ROUND '+round;
-  el('round-begin-banner').style.display='block';
-  setTimeout(()=>{el('round-begin-banner').style.display='none';},2000);
-}
-socket.on('round_over',function(data){showRoundOverlay(data);});
-socket.on('round_begin',function(data){hideRoundOverlay();showRoundBeginBanner(data.round);});
+socket.on('round_over',function(data){
+  var names=['🍋 Lemon Warrior','🍈 Melon Crusher'];
+  var winnerText=data.winner===-1?"IT'S A TIE! 🤝":names[data.winner]+' WINS! 🏆';
+  document.getElementById('ro-heading').textContent='ROUND '+data.round+' COMPLETE';
+  document.getElementById('ro-score0').textContent=data.score0;
+  document.getElementById('ro-score1').textContent=data.score1;
+  document.getElementById('ro-winner').textContent=winnerText;
+  var bar=document.getElementById('ro-bar');
+  bar.style.animation='none';
+  bar.offsetHeight;
+  bar.style.animation='drainBar 10s linear forwards';
+  document.getElementById('round-over-overlay').style.display='flex';
+});
+socket.on('round_begin',function(data){
+  document.getElementById('round-over-overlay').style.display='none';
+  document.getElementById('rb-number').textContent='ROUND '+data.round;
+  document.getElementById('round-begin-banner').style.display='flex';
+  setTimeout(function(){document.getElementById('round-begin-banner').style.display='none';},2000);
+});
 </script>
 </body>
 </html>"""
