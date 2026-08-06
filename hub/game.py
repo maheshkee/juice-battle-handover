@@ -3,8 +3,46 @@ import threading
 import time
 import logging
 import config
+import os
+import pygame as _pygame
 
 log = logging.getLogger(__name__)
+
+
+class SoundPlayer:
+    """Non-blocking audio player. pygame.mixer initialised once; each play() fires a
+    daemon thread so audio never blocks the game logic thread."""
+
+    _SOUNDS_DIR = os.path.join(os.path.dirname(__file__), "static", "sounds")
+
+    def __init__(self):
+        try:
+            _pygame.mixer.init()
+            self._ok = True
+            log.info("SoundPlayer: pygame.mixer initialised")
+        except Exception as e:
+            self._ok = False
+            log.warning("SoundPlayer: mixer init failed (%s) — audio disabled", e)
+
+    def play(self, name: str) -> None:
+        """Play <name>.mp3 from static/sounds/. Non-blocking."""
+        if not self._ok:
+            return
+        path = os.path.join(self._SOUNDS_DIR, f"{name}.mp3")
+        if not os.path.exists(path):
+            log.warning("SoundPlayer: file not found: %s", path)
+            return
+        t = threading.Thread(target=self._play_file, args=(path,), daemon=True)
+        t.start()
+
+    def _play_file(self, path: str) -> None:
+        try:
+            _pygame.mixer.music.load(path)
+            _pygame.mixer.music.play()
+            while _pygame.mixer.music.get_busy():
+                _pygame.time.wait(100)
+        except Exception as e:
+            log.warning("SoundPlayer: playback error: %s", e)
 
 
 class Game:
@@ -46,6 +84,7 @@ class Game:
         self._game_over            = False
         self._winner               = None   # node_id of winner, or None for draw
         self._reset_since_gameover = set()  # tracks which nodes reset after game_over
+        self._sound = SoundPlayer()
 
     def start(self, node_count: int = 1) -> None:
         """Open a storage session and begin accepting pour events."""
@@ -126,6 +165,7 @@ class Game:
                          self._winner, self._glass_count[self._winner])
             else:
                 log.info("GAME_OVER: DRAW")
+            self._sound.play("fanfare")
             return {'game_over': True, 'winner': self._winner}
 
     def adjust_glass_count(self, node_id: int, delta: int) -> int:
@@ -254,6 +294,7 @@ class Game:
                 new_glasses += 1
             # Per-person semantics: overshoot residue dies immediately at glass-fire.
             if new_glasses > 0:
+                self._sound.play("glass")
                 if self._partial_g[node_id] > 0:
                     self._storage.log_overflow(
                         node_id, seq, 'RESIDUE',

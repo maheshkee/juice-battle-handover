@@ -12,11 +12,39 @@ echo "    Project root: $SCRIPT_DIR"
 echo ""
 
 # ── 1. Python dependencies ─────────────────────────────────────────────────
-echo "[1/5] Installing Python dependencies..."
+echo "[1/6] Installing Python dependencies..."
 pip install flask flask-socketio --break-system-packages
 
-# ── 2. Data directory ──────────────────────────────────────────────────────
-echo "[2/5] Creating data directory..."
+# ── 2. Audio output (USB adapter + pygame) ────────────────────────────────
+echo "[2/6] Configuring audio output..."
+pip install pygame --break-system-packages
+
+# Set USB audio adapter as default ALSA device (card 1).
+# Why card 1? Card 0 is the onboard (silent/HDMI) device.
+# The USB adapter enumerates as card 1 when plugged into the hub.
+ASOUNDRC="$HOME/.asoundrc"
+if grep -q "defaults.pcm.card 1" "$ASOUNDRC" 2>/dev/null; then
+    echo "      .asoundrc already configured — skipping"
+else
+    cat >> "$ASOUNDRC" << 'ASOUNDRC_EOF'
+# Juice Battle: route default audio to USB adapter (card 1)
+defaults.pcm.card 1
+defaults.ctl.card 1
+ASOUNDRC_EOF
+    echo "      .asoundrc written: USB audio set as default"
+fi
+
+# Verify the USB audio device is visible to ALSA
+if aplay -l 2>/dev/null | grep -q "USB Audio"; then
+    echo "      USB audio adapter detected OK"
+else
+    echo "      WARNING: USB audio adapter not detected by ALSA"
+    echo "               Plug in the USB adapter and re-run setup, or"
+    echo "               audio will be silently disabled at runtime."
+fi
+
+# ── 3. Data directory ──────────────────────────────────────────────────────
+echo "[3/6] Creating data directory..."
 mkdir -p "$DATA_DIR"
 # ── 2b. Socket.IO JS client (served locally - offline-safe) ────────────────
 echo "      Downloading socket.io.js (v4.6.1)..."
@@ -25,19 +53,19 @@ curl -L -o "$HUB_DIR/static/socket.io.js" \
     "https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.6.1/socket.io.min.js"
 echo "      socket.io.js: $(du -sh "$HUB_DIR/static/socket.io.js" | cut -f1)"
 
-# ── 3. Systemd service files ───────────────────────────────────────────────
-echo "[3/5] Installing systemd services..."
+# ── 4. Systemd service files ───────────────────────────────────────────────
+echo "[4/6] Installing systemd services..."
 sudo cp "$HUB_DIR/juice-ble-scanner.service" /etc/systemd/system/
 sudo cp "$HUB_DIR/juice-battle.service"      /etc/systemd/system/
 
-# ── 4. Enable on boot ──────────────────────────────────────────────────────
-echo "[4/5] Enabling services (will auto-start on every boot)..."
+# ── 5. Enable on boot ──────────────────────────────────────────────────────
+echo "[5/6] Enabling services (will auto-start on every boot)..."
 sudo systemctl daemon-reload
 sudo systemctl enable juice-ble-scanner.service
 sudo systemctl enable juice-battle.service
 
-# ── 5. Start now ───────────────────────────────────────────────────────────
-echo "[5/5] Starting services..."
+# ── 6. Start now ───────────────────────────────────────────────────────────
+echo "[6/6] Starting services..."
 sudo systemctl start juice-ble-scanner.service
 echo "      Waiting 4s for BLE scanner to acquire GATT connection..."
 sleep 4
