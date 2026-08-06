@@ -1,3 +1,4 @@
+// NEEDS_REFLASH: comms.cpp — NimBLEDevice::setConnectionParams(16,32,0,500) supervision timeout 5s
 #include "config.h"
 #include "types.h"
 #include "ads1232.h"

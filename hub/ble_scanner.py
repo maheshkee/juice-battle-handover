@@ -38,6 +38,12 @@ _event_buffer: deque = deque(maxlen=200)
 loop: GLib.MainLoop | None = None
 _bus                       = None
 
+# Known node MACs — must match NODE_MAC_TABLE in firmware/node/comms.cpp
+KNOWN_NODES: dict[str, str] = {
+    'JB-0': '70:AF:09:32:F3:C2',
+    'JB-1': '10:00:3B:CD:63:32',
+}
+
 # Connection state — per node, keyed by name ("JB-0", "JB-1")
 _active_connections: dict[str, str] = {}   # name → device_path
 _connecting_nodes:   set[str]       = set()
@@ -426,6 +432,34 @@ def watchdog_fn() -> bool:
     return True  # GLib: must return True to repeat
 
 
+def _watchdog_ghost_connections() -> bool:
+    """
+    Runs every 60s. For each known node MAC that is not connected:
+    - Remove device from BlueZ cache via bluetoothctl remove <MAC>
+    - This forces NimBLE to detect disconnection and restart advertising
+    - BlueZ will rediscover it fresh → InterfacesAdded fires → we connect
+    WHY: NimBLE can get stuck in CONNECTED state if supervision timeout
+    doesn't fire. bluetoothctl remove breaks the ghost from the BlueZ side.
+    """
+    for name, mac in KNOWN_NODES.items():
+        if name not in _active_connections:
+            log.info("[WATCHDOG] %s not connected — removing from BlueZ cache to force re-advertise", name)
+            try:
+                result = subprocess.run(
+                    ['bluetoothctl', 'remove', mac],
+                    capture_output=True, text=True, timeout=5
+                )
+                log.info("[WATCHDOG] bluetoothctl remove %s: %s", mac, result.stdout.strip())
+            except Exception as e:
+                log.warning("[WATCHDOG] remove failed for %s: %s", mac, e)
+    return True  # must return True for GLib.timeout_add_seconds to repeat
+
+
+def _start_watchdog() -> bool:
+    GLib.timeout_add_seconds(60, _watchdog_ghost_connections)
+    return False  # one-shot, do not repeat
+
+
 def main():
     global loop, _bus
 
@@ -474,6 +508,10 @@ def main():
     # Watchdog: check every 10s, exit(1) if no packets for WATCHDOG_TIMEOUT_S
     loop = GLib.MainLoop()
     GLib.timeout_add_seconds(10, watchdog_fn)
+
+    # Ghost connection watchdog: starts after 30s (let nodes connect first),
+    # then runs every 60s — removes stuck nodes from BlueZ to force re-advertise
+    GLib.timeout_add_seconds(30, _start_watchdog)
 
     loop.run()
 

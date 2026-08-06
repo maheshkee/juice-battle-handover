@@ -23,7 +23,6 @@ log = logging.getLogger(__name__)
 
 SOUNDS_DIR       = os.path.join(os.path.dirname(__file__), "static", "sounds")
 AMBIENT_PLAYLIST = ['varanasi.mp3', 'anirudh.mp3']   # played in order, cycling
-MUSIC_END        = pygame.USEREVENT + 1               # fired by pygame when track ends
 MUSIC_VOLUME     = 0.60   # 0.0–1.0  (background level — low enough to talk over)
 DUCKED_VOLUME    = 0.05   # near-silent while announcement plays
 ANNOUNCE_INTERVAL_S = 30  # seconds between announcements
@@ -49,13 +48,14 @@ class AmbientPlayer:
     """
 
     def __init__(self):
-        self._running        = False
-        self._lock           = threading.Lock()
-        self._ann_index      = 0          # round-robin index into ANNOUNCEMENTS
-        self._music_ok       = False
-        self._scheduler      = None
-        self._music_thread   = None
-        self._playlist_index = 0
+        self._running             = False
+        self._lock                = threading.Lock()
+        self._ann_index           = 0          # round-robin index into ANNOUNCEMENTS
+        self._music_ok            = False
+        self._scheduler           = None
+        self._music_thread        = None
+        self._playlist_index      = 0
+        self._announcement_playing = False
 
     def start(self) -> None:
         """Start background music and announcement scheduler."""
@@ -70,7 +70,6 @@ class AmbientPlayer:
                 log.warning("AmbientPlayer: %s not found — music disabled", AMBIENT_PLAYLIST[0])
                 self._music_ok = False
             else:
-                pygame.mixer.music.set_endevent(MUSIC_END)
                 pygame.mixer.music.load(first_track)
                 pygame.mixer.music.set_volume(MUSIC_VOLUME)
                 pygame.mixer.music.play()
@@ -107,21 +106,20 @@ class AmbientPlayer:
     # ------------------------------------------------------------------ #
 
     def _music_loop(self) -> None:
-        """Event-driven playlist loop. Advances to the next track when the current one ends."""
+        """Polling playlist loop. Advances to the next track when get_busy() returns False."""
         while True:
             with self._lock:
                 if not self._running:
                     break
-            event = pygame.event.wait(timeout=1000)
-            if event.type == MUSIC_END:
+            if not self._announcement_playing and not pygame.mixer.music.get_busy():
                 self._playlist_index = (self._playlist_index + 1) % len(AMBIENT_PLAYLIST)
                 next_track = os.path.join(SOUNDS_DIR, AMBIENT_PLAYLIST[self._playlist_index])
-                current_vol = pygame.mixer.music.get_volume()
                 pygame.mixer.music.load(next_track)
-                pygame.mixer.music.set_volume(current_vol)
+                pygame.mixer.music.set_volume(MUSIC_VOLUME)
                 pygame.mixer.music.play()
                 log.info("AmbientPlayer: playlist advanced → %s",
                          AMBIENT_PLAYLIST[self._playlist_index])
+            time.sleep(1)
 
     def _scheduler_loop(self) -> None:
         """Runs in daemon thread. Fires announcements on a fixed interval."""
@@ -153,6 +151,7 @@ class AmbientPlayer:
             duration = sound.get_length()   # seconds
 
             # Duck background music
+            self._announcement_playing = True
             if self._music_ok:
                 pygame.mixer.music.set_volume(DUCKED_VOLUME)
 
@@ -165,12 +164,14 @@ class AmbientPlayer:
             # Restore music volume
             if self._music_ok:
                 pygame.mixer.music.set_volume(MUSIC_VOLUME)
+            self._announcement_playing = False
 
         except Exception as e:
             log.warning("AmbientPlayer: announcement playback error: %s", e)
             # Always restore volume even on error
             if self._music_ok:
                 pygame.mixer.music.set_volume(MUSIC_VOLUME)
+            self._announcement_playing = False
 
     def play_round_winner(self, winner_node: int) -> None:
         """Play round winner announcement. Blocks until audio finishes."""
@@ -187,6 +188,7 @@ class AmbientPlayer:
         try:
             sound = pygame.mixer.Sound(path)
             duration = sound.get_length()
+            self._announcement_playing = True
             if self._music_ok:
                 pygame.mixer.music.set_volume(DUCKED_VOLUME)
             log.info("AmbientPlayer: playing '%s' (%.1fs)", name, duration)
@@ -194,10 +196,12 @@ class AmbientPlayer:
             time.sleep(duration + 0.3)
             if self._music_ok:
                 pygame.mixer.music.set_volume(MUSIC_VOLUME)
+            self._announcement_playing = False
         except Exception as e:
             log.warning("AmbientPlayer: playback error: %s", e)
             if self._music_ok:
                 pygame.mixer.music.set_volume(MUSIC_VOLUME)
+            self._announcement_playing = False
 
     def play_round_begin(self, round_number: int) -> None:
         """Play round begin announcement. Blocks until audio finishes."""
@@ -212,6 +216,7 @@ class AmbientPlayer:
         try:
             sound = pygame.mixer.Sound(path)
             duration = sound.get_length()
+            self._announcement_playing = True
             if self._music_ok:
                 pygame.mixer.music.set_volume(DUCKED_VOLUME)
             log.info("AmbientPlayer: playing '%s' (%.1fs)", name, duration)
@@ -219,7 +224,9 @@ class AmbientPlayer:
             time.sleep(duration + 0.3)
             if self._music_ok:
                 pygame.mixer.music.set_volume(MUSIC_VOLUME)
+            self._announcement_playing = False
         except Exception as e:
             log.warning("AmbientPlayer: playback error: %s", e)
             if self._music_ok:
                 pygame.mixer.music.set_volume(MUSIC_VOLUME)
+            self._announcement_playing = False

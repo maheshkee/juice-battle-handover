@@ -44,6 +44,11 @@ void comms_init(float sigma_g) {
     snprintf(node_name, sizeof(node_name), "JB-%d", (int)NODE_ID);
 
     NimBLEDevice::init(node_name);
+    // WHY: shorten supervision timeout so node detects ghost connection within 5s
+    // (AQ3 crash/power loss) and returns to advertising automatically.
+    // Without this, NimBLE can wait indefinitely — node becomes invisible.
+    // Values: minInterval=16(20ms), maxInterval=32(40ms), latency=0, timeout=500(5s)
+    NimBLEDevice::setConnectionParams(16, 32, 0, 500);
 
     NimBLEServer* server = NimBLEDevice::createServer();
     server->setCallbacks(&s_server_callbacks);
