@@ -1970,8 +1970,9 @@ function renderFeed(){const rows=el('feed-rows');if(!rows)return;rows.innerHTML=
 setInterval(renderFeed,5000);
 function updateJarFill(n,count,vol){const used=count*vol,ff=Math.max(0,Math.min(1,1-used/JAR_CAPACITY_G)),h=(122*ff).toFixed(1),y=(142-122*ff).toFixed(1),liq=el('jar-liquid-'+n),surf=el('jar-surface-'+n);if(liq){liq.setAttribute('height',h);liq.setAttribute('y',y);}if(surf){surf.setAttribute('y1',y);surf.setAttribute('y2',y);}}
 function updateTicker(c0,c1,totalServed){['','2'].forEach(sfx=>{const sn=el('t-served'+sfx);if(sn)sn.textContent=String(totalServed);});}
-socket.on('connect',()=>{el('status-text').textContent='CONNECTED';});
-socket.on('disconnect',()=>{el('status-text').textContent='RECONNECTING...';});
+let wasDisconnected=false;
+socket.on('disconnect',()=>{el('status-text').textContent='RECONNECTING...';wasDisconnected=true;});
+socket.on('connect',()=>{el('status-text').textContent='CONNECTED';if(wasDisconnected)window.location.reload();});
 socket.on('state',(data)=>{
   const gc=data.glass_count||{},pg=data.partial_g||{},vol=data.glass_volume_g||150;
   if(!initialized){prevCount['0']=gc['0']??0;prevCount['1']=gc['1']??0;prevPartial['0']=pg['0']??0;prevPartial['1']=pg['1']??0;el('count-0').textContent=String(prevCount['0']);el('count-1').textContent=String(prevCount['1']);initialized=true;}
@@ -2004,7 +2005,7 @@ socket.on('state',(data)=>{
       addFeedEvent(personaName+' poured glass #'+newCount,scoreColor);
     }else{el('count-'+n).textContent=String(newCount);}
     prevCount[ns]=newCount;updateJarFill(n,newCount,vol);
-    const badge=el('streak-'+n);if(streak[ns]>=2){const fires='&#x1F525;'.repeat(Math.min(streak[ns],5));badge.textContent=fires+' '+streak[ns]+'-POUR STREAK';badge.style.display='inline-block';}else{badge.style.display='none';}
+    const badge=el('streak-'+n);if(streak[ns]>=2){const fires='🔥'.repeat(Math.min(streak[ns],5));badge.textContent=fires+' '+streak[ns]+'-POUR STREAK';badge.style.display='inline-block';}else{badge.style.display='none';}
   });
   const c0=gc['0']??0,c1=gc['1']??0,total=c0+c1,p0=total>0?Math.round(c0/total*100):50,p1=100-p0;
   const s0=el('share-0');if(s0)s0.textContent=total>0?p0+'% OF ALL POURS':' ';
