@@ -23,9 +23,9 @@ log = logging.getLogger(__name__)
 
 SOUNDS_DIR       = os.path.join(os.path.dirname(__file__), "static", "sounds")
 MUSIC_FILE       = os.path.join(SOUNDS_DIR, "flute.mp3")
-MUSIC_VOLUME     = 0.35   # 0.0–1.0  (background level — low enough to talk over)
+MUSIC_VOLUME     = 0.60   # 0.0–1.0  (background level — low enough to talk over)
 DUCKED_VOLUME    = 0.05   # near-silent while announcement plays
-ANNOUNCE_INTERVAL_S = 45  # seconds between announcements
+ANNOUNCE_INTERVAL_S = 30  # seconds between announcements
 FADE_MS          = 800    # music fade duration in ms
 
 # Announcement files in rotation order
