@@ -143,3 +143,55 @@ class AmbientPlayer:
             # Always restore volume even on error
             if self._music_ok:
                 pygame.mixer.music.set_volume(MUSIC_VOLUME)
+
+    def play_round_winner(self, winner_node: int) -> None:
+        """Play round winner announcement. Blocks until audio finishes."""
+        if winner_node == 0:
+            name = 'ann_round_winner_0'
+        elif winner_node == 1:
+            name = 'ann_round_winner_1'
+        else:
+            name = 'ann_round_tie'
+        path = os.path.join(SOUNDS_DIR, f"{name}.mp3")
+        if not os.path.exists(path):
+            log.warning("AmbientPlayer: file missing: %s", path)
+            return
+        try:
+            sound = pygame.mixer.Sound(path)
+            duration = sound.get_length()
+            if self._music_ok:
+                pygame.mixer.music.set_volume(DUCKED_VOLUME)
+            log.info("AmbientPlayer: playing '%s' (%.1fs)", name, duration)
+            sound.play()
+            time.sleep(duration + 0.3)
+            if self._music_ok:
+                pygame.mixer.music.set_volume(MUSIC_VOLUME)
+        except Exception as e:
+            log.warning("AmbientPlayer: playback error: %s", e)
+            if self._music_ok:
+                pygame.mixer.music.set_volume(MUSIC_VOLUME)
+
+    def play_round_begin(self, round_number: int) -> None:
+        """Play round begin announcement. Blocks until audio finishes."""
+        if 1 <= round_number <= 10:
+            name = f'ann_round_begin_{round_number}'
+        else:
+            name = 'ann_round_begin_generic'
+        path = os.path.join(SOUNDS_DIR, f"{name}.mp3")
+        if not os.path.exists(path):
+            log.warning("AmbientPlayer: file missing: %s", path)
+            return
+        try:
+            sound = pygame.mixer.Sound(path)
+            duration = sound.get_length()
+            if self._music_ok:
+                pygame.mixer.music.set_volume(DUCKED_VOLUME)
+            log.info("AmbientPlayer: playing '%s' (%.1fs)", name, duration)
+            sound.play()
+            time.sleep(duration + 0.3)
+            if self._music_ok:
+                pygame.mixer.music.set_volume(MUSIC_VOLUME)
+        except Exception as e:
+            log.warning("AmbientPlayer: playback error: %s", e)
+            if self._music_ok:
+                pygame.mixer.music.set_volume(MUSIC_VOLUME)

@@ -35,6 +35,9 @@ def main():
     dashboard = Dashboard(game_inst)
     ambient   = AmbientPlayer()
 
+    # wire ambient player into game for round announcements
+    game_inst.set_ambient(ambient)
+
     # wire: transport delivers POUR_SETTLED events to game
     # game does NOT self-register - orchestrator law
     transport.on_event(game_inst.on_pour_settled,      msg_filter='POUR_SETTLED')

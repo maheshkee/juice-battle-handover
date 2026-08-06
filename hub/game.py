@@ -90,6 +90,15 @@ class Game:
         self._reset_since_gameover = set()  # tracks which nodes reset after game_over
         self._sound = SoundPlayer()
 
+        # Round state
+        self._ambient           = None
+        self.round_number       = storage.get_round_number()
+        self.glasses_this_round = 0
+        self._round_in_progress = True
+        self._round_last_winner = -1
+        self._round_last_score0 = 0
+        self._round_last_score1 = 0
+
     def start(self, node_count: int = 1) -> None:
         """Open a storage session and begin accepting pour events."""
         with self._lock:
@@ -172,6 +181,48 @@ class Game:
             self._sound.play("fanfare")
             return {'game_over': True, 'winner': self._winner}
 
+    def set_ambient(self, ambient) -> None:
+        self._ambient = ambient
+
+    def _trigger_round_end(self) -> None:
+        # Called under self._lock.
+        self._round_in_progress = False
+        score0 = self._glass_count[0]
+        score1 = self._glass_count[1]
+        if score0 > score1:
+            winner_node = 0
+        elif score1 > score0:
+            winner_node = 1
+        else:
+            winner_node = -1
+        self._round_last_winner = winner_node
+        self._round_last_score0 = score0
+        self._round_last_score1 = score1
+        log.info("ROUND_END: round=%d winner=%d score0=%d score1=%d",
+                 self.round_number, winner_node, score0, score1)
+        threading.Thread(
+            target=self._round_end_sequence,
+            args=(winner_node,),
+            daemon=True
+        ).start()
+
+    def _round_end_sequence(self, winner_node: int) -> None:
+        if self._ambient is not None:
+            self._ambient.play_round_winner(winner_node)
+        time.sleep(10)
+        with self._lock:
+            self._glass_count[0] = 0
+            self._glass_count[1] = 0
+            self.glasses_this_round = 0
+            self.round_number += 1
+            new_round = self.round_number
+        self._storage.set_round_number(new_round)
+        log.info("ROUND_BEGIN: round=%d", new_round)
+        if self._ambient is not None:
+            self._ambient.play_round_begin(new_round)
+        with self._lock:
+            self._round_in_progress = True
+
     def adjust_glass_count(self, node_id: int, delta: int) -> int:
         with self._lock:
             self._glass_count[node_id] = max(0, self._glass_count[node_id] + delta)
@@ -223,6 +274,8 @@ class Game:
                 # Event arrived before start() or after stop() - discard silently
                 return
             if self._game_over:
+                return
+            if not self._round_in_progress:
                 return
 
             # --- Belt-and-suspenders dedup (ble_scanner.py also deduplicates) ---
@@ -305,6 +358,9 @@ class Game:
                         self._partial_g[node_id], self._partial_open_ts[node_id])
                 self._partial_g[node_id] = 0.0
                 self._partial_open_ts[node_id] = None
+                self.glasses_this_round += new_glasses
+                if self.glasses_this_round >= config.ROUND_SIZE:
+                    self._trigger_round_end()
 
             # --- Persist to storage ---
             ts = datetime.now(timezone.utc).isoformat()
@@ -390,4 +446,10 @@ class Game:
                     for node_id in (0, 1)
                 },
                 "ble_status":  dict(self._node_status),
+                "round_number":       self.round_number,
+                "round_in_progress":  self._round_in_progress,
+                "glasses_this_round": self.glasses_this_round,
+                "round_last_winner":  self._round_last_winner,
+                "round_last_score0":  self._round_last_score0,
+                "round_last_score1":  self._round_last_score1,
             }

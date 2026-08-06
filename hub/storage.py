@@ -100,6 +100,12 @@ class Storage:
                 FOREIGN KEY (session_id) REFERENCES sessions(id)
             )
         """)
+        self._conn.execute("""
+            CREATE TABLE IF NOT EXISTS kv_store (
+                key   TEXT PRIMARY KEY,
+                value TEXT
+            )
+        """)
         self._conn.commit()
 
     def record_pour(self, session_id: int, ts: str, node_id: int,
@@ -227,6 +233,28 @@ class Storage:
         except sqlite3.Error as e:
             log.error("get_all_time_glasses failed: %s", e)
             return 0
+
+    def get_round_number(self) -> int:
+        try:
+            with self._lock:
+                row = self._conn.execute(
+                    "SELECT value FROM kv_store WHERE key='round_number'"
+                ).fetchone()
+                return int(row[0]) if row else 1
+        except sqlite3.Error as e:
+            log.error("get_round_number failed: %s", e)
+            return 1
+
+    def set_round_number(self, n: int) -> None:
+        try:
+            with self._lock:
+                self._conn.execute(
+                    "INSERT OR REPLACE INTO kv_store (key, value) VALUES ('round_number', ?)",
+                    (str(n),)
+                )
+                self._conn.commit()
+        except sqlite3.Error as e:
+            log.error("set_round_number failed: %s", e)
 
     def open_session(self, node_count: int) -> int:
         try:

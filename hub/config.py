@@ -74,3 +74,5 @@ ANOMALY_SETTLE_S = 30.0   # suppress all events after jar-removal anomaly
 DASHBOARD_PORT = 5000
 
 RESUME_SESSION = True   # WHY: on restart, resume active session from DB
+
+ROUND_SIZE = 10   # glasses per round (both jars combined)
