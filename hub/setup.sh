@@ -125,6 +125,20 @@ sudo systemctl daemon-reload
 sudo systemctl enable juice-ble-scanner.service
 sudo systemctl enable juice-battle.service
 
+# ── 5b. USB audio hotplug recovery (udev rule) ────────────────────────────
+echo "[5b] Installing USB audio hotplug udev rule..."
+sudo tee /etc/udev/rules.d/99-juice-battle-audio.rules > /dev/null << 'UDEV_EOF'
+# Auto-restart juice-battle when Generalplus USB audio adapter is replugged.
+# ATTRS (plural) searches parent USB device for idVendor/idProduct.
+# SUBSYSTEM=="sound" fires when ALSA device appears — better timing than usb.
+# systemd-run needed because udev context cannot call systemctl directly.
+ACTION=="add", SUBSYSTEM=="sound", \
+    ATTRS{idVendor}=="1b3f", ATTRS{idProduct}=="2008", \
+    RUN+="/usr/bin/systemd-run --no-block /bin/systemctl restart juice-battle.service"
+UDEV_EOF
+sudo udevadm control --reload-rules
+echo "      udev rule installed: USB audio replug will auto-restart juice-battle"
+
 # ── 6. Start now ───────────────────────────────────────────────────────────
 echo "[6/6] Starting services..."
 sudo systemctl start juice-ble-scanner.service
