@@ -2,7 +2,7 @@
 ambient.py — Background music + periodic voice announcements for Juice Battle.
 
 Architecture:
-  - Music channel (pygame.mixer.music): loops flute.mp3 continuously at low volume.
+  - Music channel (pygame.mixer.music): plays AMBIENT_PLAYLIST tracks in order, cycling.
   - Announcement channel (pygame.mixer.Sound): plays TTS MP3s at full volume.
   - Scheduler thread: every ANNOUNCE_INTERVAL_S seconds, picks next announcement,
     ducks music, plays announcement, restores music.
@@ -22,7 +22,8 @@ import pygame
 log = logging.getLogger(__name__)
 
 SOUNDS_DIR       = os.path.join(os.path.dirname(__file__), "static", "sounds")
-MUSIC_FILE       = os.path.join(SOUNDS_DIR, "flute.mp3")
+AMBIENT_PLAYLIST = ['varanasi.mp3', 'anirudh.mp3']   # played in order, cycling
+MUSIC_END        = pygame.USEREVENT + 1               # fired by pygame when track ends
 MUSIC_VOLUME     = 0.60   # 0.0–1.0  (background level — low enough to talk over)
 DUCKED_VOLUME    = 0.05   # near-silent while announcement plays
 ANNOUNCE_INTERVAL_S = 30  # seconds between announcements
@@ -48,11 +49,13 @@ class AmbientPlayer:
     """
 
     def __init__(self):
-        self._running     = False
-        self._lock        = threading.Lock()
-        self._ann_index   = 0          # round-robin index into ANNOUNCEMENTS
-        self._music_ok    = False
-        self._scheduler   = None
+        self._running        = False
+        self._lock           = threading.Lock()
+        self._ann_index      = 0          # round-robin index into ANNOUNCEMENTS
+        self._music_ok       = False
+        self._scheduler      = None
+        self._music_thread   = None
+        self._playlist_index = 0
 
     def start(self) -> None:
         """Start background music and announcement scheduler."""
@@ -62,21 +65,29 @@ class AmbientPlayer:
             if not pygame.mixer.get_init():
                 pygame.mixer.init()
 
-            if not os.path.exists(MUSIC_FILE):
-                log.warning("AmbientPlayer: flute.mp3 not found at %s — music disabled", MUSIC_FILE)
+            first_track = os.path.join(SOUNDS_DIR, AMBIENT_PLAYLIST[0])
+            if not os.path.exists(first_track):
+                log.warning("AmbientPlayer: %s not found — music disabled", AMBIENT_PLAYLIST[0])
                 self._music_ok = False
             else:
-                pygame.mixer.music.load(MUSIC_FILE)
+                pygame.mixer.music.set_endevent(MUSIC_END)
+                pygame.mixer.music.load(first_track)
                 pygame.mixer.music.set_volume(MUSIC_VOLUME)
-                pygame.mixer.music.play(loops=-1)   # -1 = loop forever
+                pygame.mixer.music.play()
+                self._playlist_index = 0
                 self._music_ok = True
-                log.info("AmbientPlayer: background music started (volume=%.2f)", MUSIC_VOLUME)
+                log.info("AmbientPlayer: background music started — %s (volume=%.2f)",
+                         AMBIENT_PLAYLIST[0], MUSIC_VOLUME)
 
         except Exception as e:
             log.warning("AmbientPlayer: failed to start music: %s", e)
             self._music_ok = False
 
         self._running = True
+        self._music_thread = threading.Thread(
+            target=self._music_loop, daemon=True, name="ambient-music"
+        )
+        self._music_thread.start()
         self._scheduler = threading.Thread(
             target=self._scheduler_loop, daemon=True, name="ambient-scheduler"
         )
@@ -94,6 +105,23 @@ class AmbientPlayer:
     # ------------------------------------------------------------------ #
     #  Internal                                                            #
     # ------------------------------------------------------------------ #
+
+    def _music_loop(self) -> None:
+        """Event-driven playlist loop. Advances to the next track when the current one ends."""
+        while True:
+            with self._lock:
+                if not self._running:
+                    break
+            event = pygame.event.wait(timeout=1000)
+            if event.type == MUSIC_END:
+                self._playlist_index = (self._playlist_index + 1) % len(AMBIENT_PLAYLIST)
+                next_track = os.path.join(SOUNDS_DIR, AMBIENT_PLAYLIST[self._playlist_index])
+                current_vol = pygame.mixer.music.get_volume()
+                pygame.mixer.music.load(next_track)
+                pygame.mixer.music.set_volume(current_vol)
+                pygame.mixer.music.play()
+                log.info("AmbientPlayer: playlist advanced → %s",
+                         AMBIENT_PLAYLIST[self._playlist_index])
 
     def _scheduler_loop(self) -> None:
         """Runs in daemon thread. Fires announcements on a fixed interval."""
