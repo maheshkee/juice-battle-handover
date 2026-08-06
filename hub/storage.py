@@ -256,6 +256,30 @@ class Storage:
         except sqlite3.Error as e:
             log.error("set_round_number failed: %s", e)
 
+    def get_kv(self, key: str, default: str = None) -> str:
+        """Read a string value from kv_store. Returns default if key missing."""
+        try:
+            with self._lock:
+                row = self._conn.execute(
+                    "SELECT value FROM kv_store WHERE key=?", (key,)
+                ).fetchone()
+                return row[0] if row else default
+        except sqlite3.Error as e:
+            log.error("get_kv(%s) failed: %s", key, e)
+            return default
+
+    def set_kv(self, key: str, value: str) -> None:
+        """Write a string value to kv_store atomically."""
+        try:
+            with self._lock:
+                self._conn.execute(
+                    "INSERT OR REPLACE INTO kv_store (key, value) VALUES (?,?)",
+                    (key, value)
+                )
+                self._conn.commit()
+        except sqlite3.Error as e:
+            log.error("set_kv(%s) failed: %s", key, e)
+
     def open_session(self, node_count: int) -> int:
         try:
             with self._lock:

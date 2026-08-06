@@ -129,6 +129,17 @@ class Game:
                 self._session_id = self._storage.open_session(node_count)
                 log.info("Fresh session created (RESUME_SESSION=False): session_id=%d",
                          self._session_id)
+            # Check if last shutdown was clean (operator restart vs crash/power loss)
+            if self._storage.get_kv('service_stopped_cleanly') == 'true':
+                log.info("Clean restart detected — resetting current-round scores to zero")
+                self._storage.set_kv('service_stopped_cleanly', 'false')  # consume the flag
+                self._glass_count[0] = 0
+                self._glass_count[1] = 0
+                self.glasses_this_round = 0
+                # round_number and all-time counter are NOT reset
+            else:
+                log.info("Unclean shutdown or first boot — resuming previous scores")
+
             self._game_over            = False
             self._winner               = None
             self._reset_since_gameover = set()

@@ -7,6 +7,8 @@ it is in the wrong file.
 
 import sys
 import os
+import atexit
+import signal
 import logging
 logging.basicConfig(
     level=logging.INFO,
@@ -30,6 +32,27 @@ def main():
     subprocess.run(['touch', '/tmp/jb_reload'], check=False)
     # instantiate modules - each receives its dependencies via constructor
     storage   = Storage(config.DB_PATH)
+
+    def _on_clean_exit():
+        """
+        Called only on clean shutdown (SIGTERM from systemctl stop/restart).
+        Writes a flag so the next startup knows to reset scores.
+        WHY: atexit fires on sys.exit() but NOT on SIGKILL or power loss.
+        This is exactly the distinction we need:
+          clean restart  → flag written → scores reset on next start
+          crash/power loss → flag never written → scores resume on next start
+        """
+        try:
+            storage.set_kv('service_stopped_cleanly', 'true')
+            logging.info("Clean shutdown — scores will reset on next start")
+        except Exception as e:
+            logging.warning("Could not write shutdown flag: %s", e)
+
+    atexit.register(_on_clean_exit)
+    # SIGTERM (sent by systemctl stop/restart) does not trigger atexit by default.
+    # Convert it to sys.exit(0) so atexit fires.
+    # SIGKILL and power loss bypass this entirely — that's the correct behaviour.
+    signal.signal(signal.SIGTERM, lambda sig, frame: sys.exit(0))
     transport = Transport()
     game_inst = Game(storage)
     dashboard = Dashboard(game_inst)
