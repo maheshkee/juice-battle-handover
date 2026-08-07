@@ -107,6 +107,30 @@ class Storage:
             )
         """)
         self._conn.commit()
+        try:
+            self._conn.execute("ALTER TABLE sessions ADD COLUMN slug TEXT")
+            self._conn.commit()
+        except Exception:
+            pass  # column already exists
+        try:
+            self._conn.execute(
+                "ALTER TABLE sessions ADD COLUMN total_glasses INTEGER DEFAULT 0"
+            )
+            self._conn.commit()
+        except Exception:
+            pass  # column already exists
+        self._conn.execute("""
+            CREATE TABLE IF NOT EXISTS round_results (
+                id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id   INTEGER NOT NULL REFERENCES sessions(id),
+                round_number INTEGER NOT NULL,
+                score0       INTEGER NOT NULL,
+                score1       INTEGER NOT NULL,
+                winner       TEXT NOT NULL,
+                completed_at REAL NOT NULL
+            )
+        """)
+        self._conn.commit()
 
     def record_pour(self, session_id: int, ts: str, node_id: int,
                     delta_g: float, sigma_g: float, seq: int,
@@ -280,13 +304,13 @@ class Storage:
         except sqlite3.Error as e:
             log.error("set_kv(%s) failed: %s", key, e)
 
-    def open_session(self, node_count: int) -> int:
+    def open_session(self, node_count: int, slug: str = None) -> int:
         try:
             with self._lock:
                 started_at = datetime.now(timezone.utc).isoformat()
                 cur = self._conn.execute(
-                    "INSERT INTO sessions (started_at, node_count) VALUES (?, ?)",
-                    (started_at, node_count)
+                    "INSERT INTO sessions (started_at, node_count, slug) VALUES (?, ?, ?)",
+                    (started_at, node_count, slug)
                 )
                 self._conn.commit()
                 return cur.lastrowid
@@ -307,3 +331,64 @@ class Storage:
         except sqlite3.Error as e:
             log.error("close_session failed: %s", e)
             self.record_error(datetime.now(timezone.utc).isoformat(), "close_session", str(e))
+
+    # --- Session / Round analytics ---
+
+    def increment_session_glasses(self, session_id: int) -> None:
+        """Increment total_glasses for this session by 1. Called on every confirmed pour."""
+        with self._lock:
+            self._conn.execute(
+                "UPDATE sessions SET total_glasses = COALESCE(total_glasses, 0) + 1 WHERE id = ?",
+                (session_id,)
+            )
+            self._conn.commit()
+
+    def get_session_glasses(self, session_id: int) -> int:
+        """Return total glasses poured this session (for IoT Enthusiasts counter)."""
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT COALESCE(total_glasses, 0) FROM sessions WHERE id = ?",
+                (session_id,)
+            ).fetchone()
+            return row[0] if row else 0
+
+    def record_round_result(self, session_id: int, round_number: int,
+                            score0: int, score1: int, winner: str) -> None:
+        """Persist the result of a completed round."""
+        with self._lock:
+            self._conn.execute(
+                """INSERT INTO round_results
+                   (session_id, round_number, score0, score1, winner, completed_at)
+                   VALUES (?, ?, ?, ?, ?, ?)""",
+                (session_id, round_number, score0, score1, winner, time.time())
+            )
+            self._conn.commit()
+
+    def get_session_wins(self, session_id: int) -> dict:
+        """Return round win counts per node for this session.
+        Returns {'lemon': N, 'melon': N, 'tie': N}"""
+        with self._lock:
+            rows = self._conn.execute(
+                """SELECT winner, COUNT(*) FROM round_results
+                   WHERE session_id = ?
+                   GROUP BY winner""",
+                (session_id,)
+            ).fetchall()
+            wins = {'lemon': 0, 'melon': 0, 'tie': 0}
+            for winner, count in rows:
+                if winner in wins:
+                    wins[winner] = count
+            return wins
+
+    def get_last_activity_time(self, session_id: int) -> float:
+        """Return unix timestamp of last pour event in this session,
+        or session started_at if no pours yet. Used for grace period check."""
+        with self._lock:
+            row = self._conn.execute(
+                """SELECT COALESCE(
+                       (SELECT MAX(event_time) FROM pour_events WHERE session_id = ?),
+                       (SELECT started_at FROM sessions WHERE id = ?)
+                   )""",
+                (session_id, session_id)
+            ).fetchone()
+            return row[0] if row else time.time()

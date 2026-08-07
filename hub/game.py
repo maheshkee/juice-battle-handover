@@ -117,23 +117,39 @@ class Game:
             self._last_settled_t   = {0: None, 1: None}
             self._bounce_until     = {0: 0.0,  1: 0.0}
             self._settling_until   = {0: 0.0,  1: 0.0}
+            _today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+            _n = int(self._storage.get_kv(f"slug_counter_{_today}", "0")) + 1
+            slug = f"{_today}-{_n:03d}"
             if config.RESUME_SESSION:
                 resumable = self._storage.get_resumable_session()
                 if resumable:
-                    self._session_id = resumable["session_id"]
-                    for node_id, count in resumable["glass_counts"].items():
-                        self._glass_count[node_id] = count
-                    log.info(
-                        "RESTORED session=%d glass_counts=%s partial_g=0 (transient, reset)",
-                        self._session_id, dict(self._glass_count)
-                    )
+                    last_t = self._storage.get_last_activity_time(resumable["session_id"])
+                    if time.time() - last_t < 4 * 3600:
+                        self._session_id = resumable["session_id"]
+                        for node_id, count in resumable["glass_counts"].items():
+                            self._glass_count[node_id] = count
+                        log.info(
+                            "RESTORED session=%d glass_counts=%s partial_g=0 (transient, reset)",
+                            self._session_id, dict(self._glass_count)
+                        )
+                    else:
+                        log.info(
+                            "Resumable session=%d grace expired (%.0fh idle) — new session",
+                            resumable["session_id"],
+                            (time.time() - last_t) / 3600
+                        )
+                        self._storage.set_kv(f"slug_counter_{_today}", str(_n))
+                        self._session_id = self._storage.open_session(node_count, slug)
+                        log.info("Fresh session: session_id=%d slug=%s", self._session_id, slug)
                 else:
-                    self._session_id = self._storage.open_session(node_count)
-                    log.info("Fresh session created: session_id=%d", self._session_id)
+                    self._storage.set_kv(f"slug_counter_{_today}", str(_n))
+                    self._session_id = self._storage.open_session(node_count, slug)
+                    log.info("Fresh session: session_id=%d slug=%s", self._session_id, slug)
             else:
-                self._session_id = self._storage.open_session(node_count)
-                log.info("Fresh session created (RESUME_SESSION=False): session_id=%d",
-                         self._session_id)
+                self._storage.set_kv(f"slug_counter_{_today}", str(_n))
+                self._session_id = self._storage.open_session(node_count, slug)
+                log.info("Fresh session (RESUME_SESSION=False): session_id=%d slug=%s",
+                         self._session_id, slug)
             # Check if last shutdown was clean (operator restart vs crash/power loss)
             if self._storage.get_kv('service_stopped_cleanly') == 'true':
                 log.info("Clean restart detected — resetting current-round scores to zero")
@@ -151,6 +167,14 @@ class Game:
             self._running = True
             log.info("Game started - session_id=%s node_count=%d",
                      self._session_id, node_count)
+
+    def get_session_glasses(self) -> int:
+        """Total glasses poured in this session (from DB — authoritative for dashboard)."""
+        return self._storage.get_session_glasses(self._session_id)
+
+    def get_round_wins(self) -> dict:
+        """Round win counts for this session: {'lemon': N, 'melon': N, 'tie': N}."""
+        return self._storage.get_session_wins(self._session_id)
 
     def stop(self) -> None:
         """Close the storage session and stop accepting pour events."""
@@ -216,6 +240,10 @@ class Game:
         self._round_last_score1 = score1
         log.info("ROUND_END: round=%d winner=%d score0=%d score1=%d",
                  self.round_number, winner_node, score0, score1)
+        winner_str = {0: 'lemon', 1: 'melon'}.get(winner_node, 'tie')
+        self._storage.record_round_result(
+            self._session_id, self.round_number, score0, score1, winner_str
+        )
         threading.Thread(
             target=self._round_end_sequence,
             args=(winner_node,),
@@ -363,6 +391,7 @@ class Game:
             new_glasses = 0
             while self._partial_g[node_id] >= config.GLASS_VOLUME_G:
                 self._glass_count[node_id] += 1
+                self._storage.increment_session_glasses(self._session_id)
                 self._partial_g[node_id]   -= config.GLASS_VOLUME_G
                 new_glasses += 1
             # Per-person semantics: overshoot residue dies immediately at glass-fire.
