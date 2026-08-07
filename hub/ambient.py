@@ -41,6 +41,46 @@ ANNOUNCEMENTS = [
 ]
 
 
+def _detect_usb_playlist() -> list:
+    """Scan for a USB pendrive mounted under /media/arduino/ containing
+    MP3 files. If found, use those as the ambient playlist (sorted
+    alphabetically). Falls back to built-in playlist if nothing found.
+
+    WHY: operator plugs in a pendrive before the stall starts.
+    No SSH, no code changes. Pull it out = automatic fallback.
+    The pendrive REPLACES the built-in playlist entirely — operator
+    curates it for the specific event.
+    """
+    import glob
+
+    media_root = "/media/arduino"
+    fallback   = AMBIENT_PLAYLIST  # built-in list defined in config or here
+
+    if not os.path.isdir(media_root):
+        return fallback
+
+    # Find all mounted volumes under /media/arduino/
+    try:
+        volumes = [
+            os.path.join(media_root, d)
+            for d in os.listdir(media_root)
+            if os.path.isdir(os.path.join(media_root, d))
+        ]
+    except PermissionError:
+        return fallback
+
+    for vol in sorted(volumes):
+        mp3s = sorted(glob.glob(os.path.join(vol, "*.mp3")))
+        if mp3s:
+            log.info(
+                "USB playlist detected: %d tracks from %s", len(mp3s), vol
+            )
+            return mp3s
+
+    log.info("No USB playlist found — using built-in playlist")
+    return fallback
+
+
 class AmbientPlayer:
     """
     Start with AmbientPlayer().start()
@@ -57,6 +97,9 @@ class AmbientPlayer:
         self._music_thread        = None
         self._playlist_index      = 0
         self._announcement_playing = False
+        self._playlist = _detect_usb_playlist()
+        log.info("AmbientPlayer playlist: %s",
+                 [os.path.basename(p) for p in self._playlist])
 
     def start(self) -> None:
         """Start background music and announcement scheduler."""
