@@ -442,16 +442,19 @@ def _watchdog_ghost_connections() -> bool:
     doesn't fire. bluetoothctl remove breaks the ghost from the BlueZ side.
     """
     for name, mac in KNOWN_NODES.items():
-        if name not in _active_connections:
-            log.info("[WATCHDOG] %s not connected — removing from BlueZ cache to force re-advertise", name)
-            try:
-                result = subprocess.run(
-                    ['bluetoothctl', 'remove', mac],
-                    capture_output=True, text=True, timeout=5
-                )
-                log.info("[WATCHDOG] bluetoothctl remove %s: %s", mac, result.stdout.strip())
-            except Exception as e:
-                log.warning("[WATCHDOG] remove failed for %s: %s", mac, e)
+        if name in _active_connections:
+            continue   # already connected — skip
+        if name in _connecting_nodes:
+            continue   # mid-handshake — skip, do NOT evict
+        log.info("[WATCHDOG] %s not connected — removing from BlueZ cache to force re-advertise", name)
+        try:
+            result = subprocess.run(
+                ['bluetoothctl', 'remove', mac],
+                capture_output=True, text=True, timeout=5
+            )
+            log.info("[WATCHDOG] bluetoothctl remove %s: %s", mac, result.stdout.strip())
+        except Exception as e:
+            log.warning("[WATCHDOG] remove failed for %s: %s", mac, e)
     return True  # must return True for GLib.timeout_add_seconds to repeat
 
 
