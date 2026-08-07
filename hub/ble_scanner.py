@@ -263,10 +263,14 @@ def _connect(dev_path: str, node_name: str) -> bool:
     # WHY: this runs on the GLib loop via idle_add — must return immediately.
     # Blocking here (device.Connect + sleep 4) freezes the entire loop,
     # starving JB-1 data during JB-0 reconnects. Fix: spawn a thread.
+    # WHY: guard only checks _active_connections here. _connecting_nodes is
+    # pre-claimed at every call site before idle_add (storm guard lives there).
+    # Checking _connecting_nodes here would cause _connect to bail out on its
+    # own pre-claim and never connect.
     global last_packet_time
-    if node_name in _active_connections or node_name in _connecting_nodes:
+    if node_name in _active_connections:
         return False
-    _connecting_nodes.add(node_name)
+    _connecting_nodes.add(node_name)  # no-op if already claimed by call site
     # WHY: reset watchdog before thread starts — gives 30s for connect attempt.
     last_packet_time = time.monotonic()
     # WHY: build D-Bus proxy here on GLib loop; pass into thread.
@@ -341,6 +345,37 @@ def _interfaces_added(path, interfaces):
             _connecting_nodes.add(name)
             # WHY: idle_add defers connect out of signal handler - matches reference pattern
             GLib.idle_add(_connect, path, name)
+
+
+def _interfaces_removed(path, interfaces):
+    # WHY: BlueZ fires InterfacesRemoved when a device is fully evicted (not just
+    # disconnected). Without this handler, _active_connections becomes stale and
+    # _find_characteristic loops forever while the watchdog skips the "connected" node.
+    if DEVICE_IFACE not in interfaces:
+        return
+    for name, dev_path in list(_active_connections.items()):
+        if dev_path == path:
+            log.warning("%s evicted from BlueZ — cleaning state and scheduling reconnect", name)
+            emit_event({'msg': 'NODE_DISCONNECTED', 'node': int(name.split('-')[1]),
+                        'delta_g': 0.0, 'sigma_g': 0.0, 'seq': 0},
+                       clients, clients_lock)
+            del _active_connections[name]
+            _connecting_nodes.discard(name)
+            stale = [cp for cp, n in list(_notify_subs.items()) if n == name]
+            for cp in stale:
+                try:
+                    _bus.remove_signal_receiver(
+                        _on_notify,
+                        dbus_interface=DBUS_PROP,
+                        signal_name='PropertiesChanged',
+                        path=cp,
+                        path_keyword='path'
+                    )
+                except Exception as e:
+                    log.warning("Failed to remove signal receiver for %s: %s", cp, e)
+                del _notify_subs[cp]
+            _reconnect_in(5000, path, name)
+            break
 
 
 def _properties_changed(interface, changed, invalidated, path):
@@ -496,6 +531,11 @@ def main():
         _interfaces_added,
         dbus_interface=DBUS_OM,
         signal_name='InterfacesAdded'
+    )
+    bus.add_signal_receiver(
+        _interfaces_removed,
+        dbus_interface=DBUS_OM,
+        signal_name='InterfacesRemoved'
     )
     bus.add_signal_receiver(
         _properties_changed,
