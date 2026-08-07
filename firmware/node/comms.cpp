@@ -7,6 +7,12 @@ static uint16_t               g_seq    = 0;
 static float                  g_sigma_g = 0.0f;
 
 class ServerCallbacks : public NimBLEServerCallbacks {
+    void onConnect(NimBLEServer* pServer, NimBLEConnInfo& connInfo) override {
+        // WHY: 5s supervision timeout — if AQ3 vanishes without clean disconnect,
+        // NimBLE detects ghost connection within 5s and restarts advertising.
+        pServer->updateConnParams(connInfo.getConnHandle(), 16, 32, 0, 500);
+    }
+
     void onDisconnect(NimBLEServer* pServer, NimBLEConnInfo& connInfo, int reason) override {
         // WHY: restart advertising immediately so hub can reconnect without node reboot
         NimBLEDevice::startAdvertising();
@@ -44,11 +50,6 @@ void comms_init(float sigma_g) {
     snprintf(node_name, sizeof(node_name), "JB-%d", (int)NODE_ID);
 
     NimBLEDevice::init(node_name);
-    // WHY: shorten supervision timeout so node detects ghost connection within 5s
-    // (AQ3 crash/power loss) and returns to advertising automatically.
-    // Without this, NimBLE can wait indefinitely — node becomes invisible.
-    // Values: minInterval=16(20ms), maxInterval=32(40ms), latency=0, timeout=500(5s)
-    NimBLEDevice::setConnectionParams(16, 32, 0, 500);
 
     NimBLEServer* server = NimBLEDevice::createServer();
     server->setCallbacks(&s_server_callbacks);
