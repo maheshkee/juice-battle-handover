@@ -250,7 +250,11 @@ def _find_characteristic(dev_path: str, node_name: str) -> bool:
 
 def _reconnect_in(delay_ms: int, dev_path: str, node_name: str) -> None:
     def _cb():
-        GLib.idle_add(_connect, dev_path, node_name)
+        # WHY: guard here prevents storm when multiple _reconnect_in calls are
+        # queued for the same node — only the first one that fires gets through.
+        if node_name not in _connecting_nodes and node_name not in _active_connections:
+            _connecting_nodes.add(node_name)
+            GLib.idle_add(_connect, dev_path, node_name)
         return False
     GLib.timeout_add(delay_ms, _cb)
 
@@ -334,6 +338,7 @@ def _interfaces_added(path, interfaces):
     if name.startswith(DEVICE_PREFIX):
         log.info("Found: %s at %s", name, path)
         if name not in _active_connections and name not in _connecting_nodes:
+            _connecting_nodes.add(name)
             # WHY: idle_add defers connect out of signal handler - matches reference pattern
             GLib.idle_add(_connect, path, name)
 
@@ -389,6 +394,7 @@ def _check_known_devices() -> bool:
                 found += 1
                 if name not in _active_connections and name not in _connecting_nodes:
                     log.info("Found cached: %s at %s", name, path)
+                    _connecting_nodes.add(name)
                     GLib.idle_add(_connect, path, name)
         if found == 0:
             log.info("No cached JB-* devices found - waiting for InterfacesAdded")
