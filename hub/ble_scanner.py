@@ -222,9 +222,32 @@ def _subscribe_notify(char_path: str, node_name: str) -> None:
             del _active_connections[node_name]
 
 
-def _find_characteristic(dev_path: str, node_name: str) -> bool:
+def _find_characteristic(dev_path: str, node_name: str,
+                         _retry: int = 0) -> bool:
+    # WHY: GATT service discovery is async — BlueZ resolves services
+    # after Connect() returns. We poll until the characteristic appears.
+    # But if it never appears (firmware bug, stale BlueZ cache), we must
+    # give up and trigger a fresh connect rather than looping forever.
+    MAX_RETRIES = 10  # 10 × 3s = 30s max wait for GATT discovery
+
     if node_name not in _active_connections:
         return False  # disconnected before char discovery completed
+
+    if _retry >= MAX_RETRIES:
+        log.warning(
+            "find_characteristic: %s not found after %d retries (%.0fs) — "
+            "forcing reconnect",
+            node_name, MAX_RETRIES, MAX_RETRIES * 3
+        )
+        # Clean up active connection state so watchdog and reconnect
+        # logic see this node as disconnected, not stuck-connected.
+        dev_path_stored = _active_connections.pop(node_name, None)
+        _connecting_nodes.discard(node_name)
+        # Schedule fresh reconnect after 5s — gives BlueZ time to settle
+        if dev_path_stored:
+            _reconnect_in(5000, dev_path_stored, node_name)
+        return False
+
     try:
         om      = dbus.Interface(_bus.get_object(BLUEZ, '/'), DBUS_OM)
         objects = om.GetManagedObjects()
@@ -241,8 +264,13 @@ def _find_characteristic(dev_path: str, node_name: str) -> bool:
             log.info("Found JB char at %s for %s", found, node_name)
             _subscribe_notify(found, node_name)
         else:
-            log.warning("JB char not found for %s yet - retrying in 3s", node_name)
-            GLib.timeout_add(3000, _find_characteristic, dev_path, node_name)
+            log.warning(
+                "JB char not found for %s yet - retry %d/%d in 3s",
+                node_name, _retry + 1, MAX_RETRIES
+            )
+            GLib.timeout_add(
+                3000, _find_characteristic, dev_path, node_name, _retry + 1
+            )
     except Exception as e:
         log.warning("find_characteristic error for %s: %s", node_name, e)
     return False
