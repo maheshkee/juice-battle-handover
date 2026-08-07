@@ -17,7 +17,12 @@ class SoundPlayer:
 
     def __init__(self):
         try:
-            _pygame.mixer.init()
+            _pygame.mixer.init(
+                frequency=config.PYGAME_MIXER_FREQUENCY,
+                size=config.PYGAME_MIXER_SIZE,
+                channels=config.PYGAME_MIXER_CHANNELS,
+                buffer=config.PYGAME_MIXER_BUFFER,
+            )
             self._ok = True
             log.info("SoundPlayer: pygame.mixer initialised")
         except Exception as e:

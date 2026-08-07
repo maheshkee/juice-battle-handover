@@ -75,4 +75,12 @@ DASHBOARD_PORT = 5000
 
 RESUME_SESSION = True   # WHY: on restart, resume active session from DB
 
-ROUND_SIZE = 10   # glasses per round (both jars combined)
+ROUND_SIZE = 2   # glasses per round (both jars combined)
+
+# pygame.mixer init parameters — identical in game.py and ambient.py.
+# buffer=4096 (8x default 512) gives ARM Cortex-A53 enough headroom to decode
+# long MP3s (anirudh.mp3 is 38min) without starving the ALSA buffer.
+PYGAME_MIXER_FREQUENCY = 44100
+PYGAME_MIXER_SIZE      = -16
+PYGAME_MIXER_CHANNELS  = 2
+PYGAME_MIXER_BUFFER    = 4096

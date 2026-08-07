@@ -18,6 +18,7 @@ import threading
 import time
 import logging
 import pygame
+import config
 
 log = logging.getLogger(__name__)
 
@@ -63,7 +64,12 @@ class AmbientPlayer:
             # pygame.mixer may already be initialised by SoundPlayer in game.py.
             # init() is idempotent — safe to call again.
             if not pygame.mixer.get_init():
-                pygame.mixer.init()
+                pygame.mixer.init(
+                    frequency=config.PYGAME_MIXER_FREQUENCY,
+                    size=config.PYGAME_MIXER_SIZE,
+                    channels=config.PYGAME_MIXER_CHANNELS,
+                    buffer=config.PYGAME_MIXER_BUFFER,
+                )
 
             first_track = os.path.join(SOUNDS_DIR, AMBIENT_PLAYLIST[0])
             if not os.path.exists(first_track):
@@ -77,6 +83,9 @@ class AmbientPlayer:
                 self._music_ok = True
                 log.info("AmbientPlayer: background music started — %s (volume=%.2f)",
                          AMBIENT_PLAYLIST[0], MUSIC_VOLUME)
+                log.info("AmbientPlayer: now playing track %d/%d: %s",
+                         self._playlist_index + 1, len(AMBIENT_PLAYLIST),
+                         AMBIENT_PLAYLIST[self._playlist_index])
 
         except Exception as e:
             log.warning("AmbientPlayer: failed to start music: %s", e)
@@ -118,6 +127,9 @@ class AmbientPlayer:
                 pygame.mixer.music.set_volume(MUSIC_VOLUME)
                 pygame.mixer.music.play()
                 log.info("AmbientPlayer: playlist advanced → %s",
+                         AMBIENT_PLAYLIST[self._playlist_index])
+                log.info("AmbientPlayer: now playing track %d/%d: %s",
+                         self._playlist_index + 1, len(AMBIENT_PLAYLIST),
                          AMBIENT_PLAYLIST[self._playlist_index])
             time.sleep(1)
 
