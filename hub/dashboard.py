@@ -6,7 +6,7 @@ No game logic lives here. Display only.
 
 import time
 import config
-from flask import Flask, render_template_string, jsonify, make_response
+from flask import Flask, render_template_string, jsonify, make_response, request
 from flask_socketio import SocketIO, emit
 
 # ── Crowd-facing HTML template ─────────────────────────────────────────────
@@ -2088,6 +2088,258 @@ socket.on('round_begin',function(data){
 
 
 
+_OPS_HTML = """<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>Juice Battle Ops</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{background:#080808;color:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:16px;max-width:420px;margin:0 auto}
+h1{font-size:13px;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:#fff;text-align:center;padding:12px 0 4px}
+.sub{text-align:center;font-size:11px;color:#444;margin-bottom:20px}
+.section-label{font-size:10px;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:#444;margin:16px 0 8px 2px}
+.card{background:#111;border:0.5px solid #222;border-radius:12px;padding:12px;margin-bottom:4px}
+.stat-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:0.5px solid #1a1a1a}
+.stat-row:last-child{border-bottom:none}
+.stat-label{font-size:12px;color:#555}
+.stat-val{font-size:12px;font-weight:600;color:#888}
+.stat-val.green{color:#7ab52a}
+.stat-val.amber{color:#e8901a}
+.jar-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:0.5px solid #1a1a1a}
+.jar-row:last-child{border-bottom:none}
+.jar-name{font-size:12px;color:#888;font-weight:500;flex:1}
+.jar-count{font-size:22px;font-weight:700;min-width:40px;text-align:center}
+.adj-btns{display:flex;gap:8px}
+.adj-btn{width:36px;height:36px;border-radius:8px;border:0.5px solid #333;background:#1a1a1a;color:#fff;font-size:20px;font-weight:400;cursor:pointer;display:flex;align-items:center;justify-content:center;user-select:none;transition:transform 0.1s}
+.adj-btn:active{transform:scale(0.92)}
+.adj-btn.plus{border-color:#2a4a1a;background:#141f0a;color:#7ab52a}
+.adj-btn.minus{border-color:#4a1a1a;background:#1f0a0a;color:#e84040}
+.btn-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.btn-grid.single{grid-template-columns:1fr}
+.op-btn{padding:12px 8px;border-radius:10px;border:0.5px solid #2a2a2a;background:#111;color:#666;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;text-align:center;user-select:none;transition:transform 0.1s,opacity 0.1s}
+.op-btn:active{transform:scale(0.96);opacity:0.8}
+.op-btn.amber{border-color:#4a3010;background:#120e06;color:#e8901a}
+.op-btn.red{border-color:#4a1010;background:#120606;color:#e84040}
+.op-btn.green{border-color:#1a4010;background:#060f04;color:#7ab52a}
+.op-btn.blue{border-color:#102a4a;background:#060c12;color:#3a8ae8}
+.op-btn.gray{border-color:#2a2a2a;background:#111;color:#666}
+.round-input-row{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+.round-input-row input{flex:1;background:#1a1a1a;border:0.5px solid #333;border-radius:8px;color:#fff;font-size:16px;padding:10px 12px;text-align:center}
+.round-input-row input:focus{outline:none;border-color:#555}
+.vol-row{display:flex;align-items:center;gap:10px;padding:6px 0}
+.vol-row label{font-size:11px;color:#555;min-width:60px}
+.vol-row input[type=range]{flex:1;accent-color:#e8901a}
+.vol-val{font-size:12px;color:#e8901a;min-width:32px;text-align:right;font-weight:600}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1a1a1a;border:0.5px solid #333;border-radius:8px;padding:8px 16px;font-size:12px;color:#fff;opacity:0;transition:opacity 0.2s;pointer-events:none;white-space:nowrap}
+.toast.show{opacity:1}
+.confirm-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);align-items:center;justify-content:center;z-index:99}
+.confirm-overlay.show{display:flex}
+.confirm-box{background:#111;border:0.5px solid #333;border-radius:16px;padding:24px;max-width:280px;width:90%;text-align:center}
+.confirm-box h2{font-size:14px;font-weight:700;color:#e84040;margin-bottom:8px}
+.confirm-box p{font-size:12px;color:#666;margin-bottom:20px;line-height:1.5}
+.confirm-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+</style>
+</head>
+<body>
+<h1>Juice Battle Ops</h1>
+<p class="sub">Operator panel</p>
+
+<div class="section-label">Live status</div>
+<div class="card">
+  <div class="stat-row"><span class="stat-label">Session</span><span class="stat-val" id="st-slug">&mdash;</span></div>
+  <div class="stat-row"><span class="stat-label">Round</span><span class="stat-val" id="st-round">&mdash;</span></div>
+  <div class="stat-row"><span class="stat-label">Session glasses</span><span class="stat-val" id="st-sg">&mdash;</span></div>
+  <div class="stat-row"><span class="stat-label">All-time</span><span class="stat-val" id="st-at">&mdash;</span></div>
+  <div class="stat-row"><span class="stat-label">BLE</span><span class="stat-val green" id="st-ble">&mdash;</span></div>
+</div>
+
+<div class="section-label">Adjust glass count</div>
+<div class="card">
+  <div class="jar-row">
+    <span class="jar-name">Lemon Warrior</span>
+    <span class="jar-count" id="cnt-0">&mdash;</span>
+    <div class="adj-btns">
+      <div class="adj-btn minus" onclick="adjust(0,-1)">&minus;</div>
+      <div class="adj-btn plus"  onclick="adjust(0,+1)">+</div>
+    </div>
+  </div>
+  <div class="jar-row">
+    <span class="jar-name">Melon Crusher</span>
+    <span class="jar-count" id="cnt-1">&mdash;</span>
+    <div class="adj-btns">
+      <div class="adj-btn minus" onclick="adjust(1,-1)">&minus;</div>
+      <div class="adj-btn plus"  onclick="adjust(1,+1)">+</div>
+    </div>
+  </div>
+</div>
+
+<div class="section-label">Round controls</div>
+<div class="card">
+  <div class="round-input-row">
+    <input type="number" id="round-target" min="1" max="99" value="1" placeholder="Round #">
+    <div class="op-btn amber" style="white-space:nowrap;padding:12px 14px" onclick="setRound()">Set round</div>
+  </div>
+  <div class="btn-grid">
+    <div class="op-btn amber" onclick="post('/reset_rounds')">Reset to round 1</div>
+    <div class="op-btn green" onclick="forceRoundEnd()">Force round end</div>
+  </div>
+</div>
+
+<div class="section-label">Node controls</div>
+<div class="card">
+  <div class="btn-grid">
+    <div class="op-btn blue" onclick="post('/reset/0')">Reset Lemon</div>
+    <div class="op-btn blue" onclick="post('/reset/1')">Reset Melon</div>
+  </div>
+</div>
+
+<div class="section-label">Audio</div>
+<div class="card">
+  <div class="vol-row">
+    <label>Music vol</label>
+    <input type="range" min="0" max="100" value="20" id="vol-slider"
+           oninput="document.getElementById('vol-out').textContent=this.value+'%'"
+           onchange="setVolume(this.value)">
+    <span class="vol-val" id="vol-out">20%</span>
+  </div>
+  <div class="btn-grid" style="margin-top:8px">
+    <div class="op-btn gray" onclick="post('/audio/pause')">Pause music</div>
+    <div class="op-btn gray" onclick="post('/audio/resume')">Resume music</div>
+  </div>
+  <div class="btn-grid single" style="margin-top:8px">
+    <div class="op-btn amber" onclick="audioNext()">Next track</div>
+  </div>
+  <div id="track-name" style="text-align:center;font-size:10px;color:#444;margin-top:8px">&mdash;</div>
+</div>
+
+<div class="section-label">Danger zone</div>
+<div class="card">
+  <div class="btn-grid">
+    <div class="op-btn red" onclick="confirmAction('new-session')">New session</div>
+    <div class="op-btn red" onclick="confirmAction('game-over')">Game over</div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="confirm-overlay" id="confirm-overlay">
+  <div class="confirm-box">
+    <h2 id="confirm-title">Are you sure?</h2>
+    <p id="confirm-msg">This cannot be undone.</p>
+    <div class="confirm-btns">
+      <div class="op-btn gray" onclick="closeConfirm()">Cancel</div>
+      <div class="op-btn red" id="confirm-yes" onclick="doConfirm()">Confirm</div>
+    </div>
+  </div>
+</div>
+
+<script>
+let _confirmAction = null;
+const CONFIRM_COPY = {
+  'new-session': {
+    title: 'Start new session?',
+    msg: 'Resets IoT counter, round wins, and round number. Cannot be undone.'
+  },
+  'game-over': {
+    title: 'Trigger game over?',
+    msg: 'Ends the current game and shows the winner overlay on the display.'
+  }
+};
+
+function toast(msg, dur=2000){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),dur);
+}
+
+function post(url, body=null){
+  const opts={method:'POST',headers:{'Content-Type':'application/json'}};
+  if(body)opts.body=JSON.stringify(body);
+  return fetch(url,opts).then(r=>r.json()).then(d=>{
+    toast(d.ok===false?(d.error||'Error'):'Done');
+    return d;
+  }).catch(()=>toast('Network error'));
+}
+
+function adjust(node, delta){
+  fetch('/adjust/'+node+'/'+delta,{method:'POST'})
+    .then(r=>r.json()).then(d=>{
+      if(d.ok!==false){
+        document.getElementById('cnt-'+node).textContent=d.new_count??'?';
+        toast((delta>0?'+1':'-1')+' on '+(node===0?'Lemon':'Melon'));
+      }
+    });
+}
+
+function setVolume(pct){
+  post('/audio/volume',{level: parseFloat(pct)/100});
+}
+
+function audioNext(){
+  fetch('/audio/next',{method:'POST'}).then(r=>r.json()).then(d=>{
+    if(d.ok){
+      document.getElementById('track-name').textContent=d.track||'';
+      toast('Now: '+d.track);
+    }
+  });
+}
+
+function setRound(){
+  const n=parseInt(document.getElementById('round-target').value)||1;
+  post('/set_round',{round:n});
+}
+
+function forceRoundEnd(){
+  post('/force_round_end');
+}
+
+function confirmAction(action){
+  _confirmAction=action;
+  const c=CONFIRM_COPY[action]||{title:'Are you sure?',msg:''};
+  document.getElementById('confirm-title').textContent=c.title;
+  document.getElementById('confirm-msg').textContent=c.msg;
+  document.getElementById('confirm-overlay').classList.add('show');
+}
+
+function closeConfirm(){
+  document.getElementById('confirm-overlay').classList.remove('show');
+  _confirmAction=null;
+}
+
+function doConfirm(){
+  closeConfirm();
+  if(_confirmAction==='new-session'){
+    post('/new_session');
+  } else if(_confirmAction==='game-over'){
+    post('/game_over');
+  }
+}
+
+function refreshStatus(){
+  fetch('/state').then(r=>r.json()).then(d=>{
+    const gc=d.glass_count||{};
+    document.getElementById('cnt-0').textContent=gc['0']??0;
+    document.getElementById('cnt-1').textContent=gc['1']??0;
+    document.getElementById('st-round').textContent='Round '+(d.round_number||1);
+    document.getElementById('st-sg').textContent=(d.session_glasses??0)+' glasses';
+    document.getElementById('st-at').textContent=(d.all_time_served??0)+' all-time';
+    const ble=d.ble_status||{};
+    const both=ble['0']==='connected'&&ble['1']==='connected';
+    const el=document.getElementById('st-ble');
+    el.textContent=both?'Both connected':'Check nodes';
+    el.className='stat-val '+(both?'green':'amber');
+  }).catch(()=>{});
+}
+
+refreshStatus();
+setInterval(refreshStatus, 3000);
+</script>
+</body>
+</html>"""
+
+
 class Dashboard:
     """
     Crowd-facing scoreboard server.
@@ -2096,9 +2348,10 @@ class Dashboard:
     No game logic lives here - display only.
     """
 
-    def __init__(self, game, storage=None):
+    def __init__(self, game, storage=None, ambient=None):
         # game instance injected by main.py - Dashboard never imports game directly
-        self._game = game
+        self._game    = game
+        self._ambient = ambient
 
         if storage is None:
             from storage import Storage as _Storage
@@ -2127,6 +2380,24 @@ class Dashboard:
         self._app.add_url_rule('/v3', 'index_v3', self._serve_v3)
         self._app.add_url_rule('/reset_rounds', 'reset_rounds',
                                self._reset_rounds, methods=['POST'])
+        self._app.add_url_rule('/audio/volume', 'audio_volume',
+                               self._audio_volume, methods=['POST'])
+        self._app.add_url_rule('/audio/pause', 'audio_pause',
+                               self._audio_pause, methods=['POST'])
+        self._app.add_url_rule('/audio/resume', 'audio_resume',
+                               self._audio_resume, methods=['POST'])
+        self._app.add_url_rule('/audio/next', 'audio_next',
+                               self._audio_next, methods=['POST'])
+        self._app.add_url_rule('/ops', 'ops',
+                               self._ops_page, methods=['GET'])
+        self._app.add_url_rule('/new_session', 'new_session',
+                               self._new_session, methods=['POST'])
+        self._app.add_url_rule('/set_round', 'set_round',
+                               self._set_round, methods=['POST'])
+        self._app.add_url_rule('/force_round_end', 'force_round_end',
+                               self._force_round_end, methods=['POST'])
+        self._app.add_url_rule('/state', 'state_json',
+                               self._state_json, methods=['GET'])
 
         @self._sio.on('connect')
         def _on_browser_connect():
@@ -2187,6 +2458,79 @@ class Dashboard:
             return jsonify({'ok': False, 'error': 'invalid delta'}), 400
         new_count = self._game.adjust_glass_count(node_id, delta_int)
         return jsonify({'ok': True, 'node': node_id, 'new_count': new_count})
+
+    def _audio_volume(self):
+        if not self._ambient:
+            return jsonify({'ok': False, 'error': 'no ambient player'})
+        data  = request.get_json(silent=True) or {}
+        level = float(data.get('level', 0.4))
+        new   = self._ambient.set_music_volume(level)
+        return jsonify({'ok': True, 'volume': round(new, 2)})
+
+    def _audio_pause(self):
+        if not self._ambient:
+            return jsonify({'ok': False, 'error': 'no ambient player'})
+        self._ambient.pause_music()
+        return jsonify({'ok': True, 'state': 'paused'})
+
+    def _audio_resume(self):
+        if not self._ambient:
+            return jsonify({'ok': False, 'error': 'no ambient player'})
+        self._ambient.resume_music()
+        return jsonify({'ok': True, 'state': 'playing'})
+
+    def _audio_next(self):
+        if not self._ambient:
+            return jsonify({'ok': False, 'error': 'no ambient player'})
+        track = self._ambient.next_track()
+        return jsonify({'ok': True, 'track': track})
+
+    def _ops_page(self):
+        return render_template_string(_OPS_HTML)
+
+    def _new_session(self):
+        """Force-start a new session. Resets round number,
+        round wins, and opens a fresh DB session."""
+        import datetime as _dt
+        with self._game._lock:
+            # Close current session
+            self._storage.close_session(self._game._session_id)
+            # Clear round results
+            self._storage.clear_round_results(self._game._session_id)
+            # Open fresh session
+            slug = _dt.datetime.now().strftime("%Y-%m-%d") + "-new"
+            new_id = self._storage.open_session(2, slug=slug)
+            self._game._session_id = new_id
+            # Reset all counters
+            self._game._glass_count = {0: 0, 1: 0}
+            self._game.round_number = 1
+            self._game.glasses_this_round = 0
+            self._storage.set_round_number(1)
+            self._storage.set_kv('service_stopped_cleanly', 'false')
+            # Reset dashboard caches
+            self._round_wins         = {'lemon': 0, 'melon': 0, 'tie': 0}
+            self._round_wins_ts      = 0.0
+            self._session_glasses    = 0
+            self._session_glasses_ts = 0.0
+        self._sio.emit('state', self._build_payload(self._game.get_state()))
+        return jsonify({'ok': True, 'session_id': new_id, 'slug': slug})
+
+    def _set_round(self):
+        """Set round number to any value. Operator use only."""
+        data = request.get_json(silent=True) or {}
+        n = max(1, int(data.get('round', 1)))
+        self._game.round_number = n
+        self._storage.set_round_number(n)
+        self._sio.emit('state', self._build_payload(self._game.get_state()))
+        return jsonify({'ok': True, 'round_number': n})
+
+    def _force_round_end(self):
+        """Manually trigger round end from ops panel."""
+        self._game._trigger_round_end()
+        return jsonify({'ok': True})
+
+    def _state_json(self):
+        return jsonify(self._build_payload(self._game.get_state()))
 
     def _serve_index(self):
         """Serve the scoreboard HTML page."""

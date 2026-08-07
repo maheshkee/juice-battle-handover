@@ -55,8 +55,8 @@ def main():
     signal.signal(signal.SIGTERM, lambda sig, frame: sys.exit(0))
     transport = Transport()
     game_inst = Game(storage)
-    dashboard = Dashboard(game_inst)
     ambient   = AmbientPlayer()
+    dashboard = Dashboard(game_inst, ambient=ambient)
 
     # wire ambient player into game for round announcements
     game_inst.set_ambient(ambient)

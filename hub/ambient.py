@@ -97,6 +97,7 @@ class AmbientPlayer:
         self._music_thread        = None
         self._playlist_index      = 0
         self._announcement_playing = False
+        self._music_paused         = False
         self._playlist = _detect_usb_playlist()
         log.info("AmbientPlayer playlist: %s",
                  [os.path.basename(p) for p in self._playlist])
@@ -152,6 +153,48 @@ class AmbientPlayer:
         if self._music_ok:
             pygame.mixer.music.fadeout(FADE_MS)
         log.info("AmbientPlayer: stopped")
+
+    def set_music_volume(self, level: float) -> float:
+        """Set music volume live. Clamps to 0.0–1.0.
+        Also updates module-level MUSIC_VOLUME so ducking/restore
+        still targets the new level, not the old constant."""
+        global MUSIC_VOLUME
+        level = max(0.0, min(1.0, level))
+        MUSIC_VOLUME = level
+        with self._lock:
+            if not self._announcement_playing:
+                pygame.mixer.music.set_volume(level)
+        log.info("AmbientPlayer: volume set to %.2f", level)
+        return level
+
+    def pause_music(self) -> None:
+        """Pause background music. Announcements still work."""
+        with self._lock:
+            pygame.mixer.music.pause()
+            self._music_paused = True
+        log.info("AmbientPlayer: music paused")
+
+    def resume_music(self) -> None:
+        """Resume background music after pause."""
+        with self._lock:
+            pygame.mixer.music.unpause()
+            self._music_paused = False
+        log.info("AmbientPlayer: music resumed")
+
+    def next_track(self) -> str:
+        """Skip to next track in playlist immediately.
+        Returns the basename of the new track."""
+        with self._lock:
+            self._playlist_index = (
+                (self._playlist_index + 1) % len(self._playlist)
+            )
+            track = self._playlist[self._playlist_index]
+            pygame.mixer.music.load(track)
+            pygame.mixer.music.set_volume(MUSIC_VOLUME)
+            pygame.mixer.music.play()
+        name = os.path.basename(track)
+        log.info("AmbientPlayer: skipped to %s", name)
+        return name
 
     # ------------------------------------------------------------------ #
     #  Internal                                                            #
