@@ -115,21 +115,24 @@ class AmbientPlayer:
                     buffer=config.PYGAME_MIXER_BUFFER,
                 )
 
-            first_track = os.path.join(SOUNDS_DIR, AMBIENT_PLAYLIST[0])
-            if not os.path.exists(first_track):
-                log.warning("AmbientPlayer: %s not found — music disabled", AMBIENT_PLAYLIST[0])
+            self._playlist_index = 0
+            _t0 = self._playlist[0]
+            if not os.path.isabs(_t0):
+                _t0 = os.path.join(SOUNDS_DIR, _t0)
+            if not os.path.exists(_t0):
+                log.warning("AmbientPlayer: %s not found — music disabled",
+                            os.path.basename(self._playlist[0]))
                 self._music_ok = False
             else:
-                pygame.mixer.music.load(first_track)
+                pygame.mixer.music.load(_t0)
                 pygame.mixer.music.set_volume(MUSIC_VOLUME)
                 pygame.mixer.music.play()
-                self._playlist_index = 0
                 self._music_ok = True
                 log.info("AmbientPlayer: background music started — %s (volume=%.2f)",
-                         AMBIENT_PLAYLIST[0], MUSIC_VOLUME)
+                         os.path.basename(self._playlist[0]), MUSIC_VOLUME)
                 log.info("AmbientPlayer: now playing track %d/%d: %s",
-                         self._playlist_index + 1, len(AMBIENT_PLAYLIST),
-                         AMBIENT_PLAYLIST[self._playlist_index])
+                         self._playlist_index + 1, len(self._playlist),
+                         os.path.basename(self._playlist[self._playlist_index]))
 
         except Exception as e:
             log.warning("AmbientPlayer: failed to start music: %s", e)
@@ -207,16 +210,20 @@ class AmbientPlayer:
                 if not self._running:
                     break
             if not self._announcement_playing and not pygame.mixer.music.get_busy():
-                self._playlist_index = (self._playlist_index + 1) % len(AMBIENT_PLAYLIST)
-                next_track = os.path.join(SOUNDS_DIR, AMBIENT_PLAYLIST[self._playlist_index])
-                pygame.mixer.music.load(next_track)
+                self._playlist_index = (self._playlist_index + 1) % len(self._playlist)
+                track = self._playlist[self._playlist_index]
+                # WHY: fallback playlist returns bare filenames, USB returns absolute paths.
+                # Only prepend SOUNDS_DIR if the path is not already absolute.
+                if not os.path.isabs(track):
+                    track = os.path.join(SOUNDS_DIR, track)
+                pygame.mixer.music.load(track)
                 pygame.mixer.music.set_volume(MUSIC_VOLUME)
                 pygame.mixer.music.play()
                 log.info("AmbientPlayer: playlist advanced → %s",
-                         AMBIENT_PLAYLIST[self._playlist_index])
+                         os.path.basename(self._playlist[self._playlist_index]))
                 log.info("AmbientPlayer: now playing track %d/%d: %s",
-                         self._playlist_index + 1, len(AMBIENT_PLAYLIST),
-                         AMBIENT_PLAYLIST[self._playlist_index])
+                         self._playlist_index + 1, len(self._playlist),
+                         os.path.basename(self._playlist[self._playlist_index]))
             time.sleep(1)
 
     def _scheduler_loop(self) -> None:
