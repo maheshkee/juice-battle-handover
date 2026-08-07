@@ -189,10 +189,16 @@ class Game:
     def reset_node(self, node_id: int) -> None:
         with self._lock:
             self._storage.log_node_reset(self._session_id, node_id)
+            old_count = self._glass_count[node_id]
             self._glass_count[node_id]     = 0
             self._partial_g[node_id]       = 0.0
             self._partial_open_ts[node_id] = None
-            log.info("reset_node: node=%d glass_count reset to 0", node_id)
+            # Remove this node's contribution from the current round total
+            self.glasses_this_round = max(0, self.glasses_this_round - old_count)
+            log.info(
+                "reset_node: node=%d glass_count reset · glasses_this_round adjusted to %d",
+                node_id, self.glasses_this_round
+            )
             if self._game_over:
                 self._reset_since_gameover.add(node_id)
                 if {0, 1} <= self._reset_since_gameover:

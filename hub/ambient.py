@@ -192,6 +192,10 @@ class AmbientPlayer:
                 (self._playlist_index + 1) % len(self._playlist)
             )
             track = self._playlist[self._playlist_index]
+            # WHY: fallback playlist entries are bare filenames ('varanasi.mp3').
+            # Must resolve to absolute path — same pattern as _music_loop().
+            if not os.path.isabs(track):
+                track = os.path.join(SOUNDS_DIR, track)
             pygame.mixer.music.load(track)
             pygame.mixer.music.set_volume(MUSIC_VOLUME)
             pygame.mixer.music.play()
@@ -209,7 +213,7 @@ class AmbientPlayer:
             with self._lock:
                 if not self._running:
                     break
-            if not self._announcement_playing and not pygame.mixer.music.get_busy():
+            if not self._announcement_playing and not self._music_paused and not pygame.mixer.music.get_busy():
                 self._playlist_index = (self._playlist_index + 1) % len(self._playlist)
                 track = self._playlist[self._playlist_index]
                 # WHY: fallback playlist returns bare filenames, USB returns absolute paths.

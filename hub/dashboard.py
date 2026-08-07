@@ -713,6 +713,20 @@ body {
     30%  { transform: scale(1.18); }
     100% { transform: scale(1); }
 }
+@keyframes logoPulse {
+  0%,100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255,255,255,0); }
+  50% { transform: scale(1.02); box-shadow: 0 0 32px 8px rgba(255,255,255,0.06); }
+}
+@keyframes earth-rotate{from{transform:translateX(0)}to{transform:translateX(-250px)}}
+@keyframes city-blink{0%,100%{opacity:0.85}50%{opacity:0.15}}
+@keyframes india-pulse{0%,100%{r:5;opacity:0.9}50%{r:14;opacity:0.25}}
+@keyframes pulse-ring{0%{r:5;opacity:0.8;stroke-width:2}100%{r:42;opacity:0;stroke-width:0.5}}
+@keyframes data-travel{from{stroke-dashoffset:70}to{stroke-dashoffset:0}}
+@keyframes sat-orbit-a{from{transform:rotate(0deg) translateX(0) rotate(0deg)}to{transform:rotate(360deg) translateX(0) rotate(-360deg)}}
+@keyframes sat-orbit-b{from{transform:rotate(120deg)}to{transform:rotate(480deg)}}
+@keyframes sat-orbit-c{from{transform:rotate(240deg)}to{transform:rotate(600deg)}}
+@keyframes water-ripple{0%{r:4;opacity:0.8;stroke-width:2.5}100%{r:60;opacity:0;stroke-width:0.3}}
+@keyframes particle-float{0%{transform:translateY(0);opacity:0.7}100%{transform:translateY(-180px);opacity:0}}
 .char-wrap { display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .char-wrap.area-zoom { animation: area-zoom 0.6s ease-out forwards; }
 .look-cycle-left  { animation: look-cycle-left  4.8s ease-in-out infinite !important; }
@@ -1848,19 +1862,100 @@ html, body {
       <div class="ms-bar"><div class="ms-bar-fill"></div></div>
       <div class="ms-badge">Built by <strong>DHARANOVA</strong> &mdash; Grounded Innovation</div>
     </div>
-    <div class="ms-centre">
-      <svg width="130" height="130" viewBox="0 0 160 160">
+    <div class="ms-centre" style="position:relative;overflow:visible">
+      <svg id="living-earth" width="200" height="200" viewBox="0 0 300 300" style="overflow:visible">
         <defs>
-          <radialGradient id="wgg" cx="40%" cy="35%"><stop offset="0%" stop-color="#1a6a9a"/><stop offset="100%" stop-color="#051a30"/></radialGradient>
-          <clipPath id="wcc"><circle cx="80" cy="80" r="70"/></clipPath>
+          <clipPath id="earth-clip"><circle cx="150" cy="150" r="118"/></clipPath>
+          <radialGradient id="earth-atm" cx="50%" cy="50%" r="50%">
+            <stop offset="80%" stop-color="#00d4a0" stop-opacity="0"/>
+            <stop offset="100%" stop-color="#00d4a0" stop-opacity="0.18"/>
+          </radialGradient>
         </defs>
-        <circle cx="80" cy="80" r="72" fill="rgba(0,30,60,0.3)" stroke="#0a3050" stroke-width="1.5"/>
-        <circle cx="80" cy="80" r="70" fill="url(#wgg)"/>
-        <g clip-path="url(#wcc)">
-          <path d="M0,100 Q40,80 80,100 Q120,120 160,100 L160,160 L0,160 Z" fill="rgba(30,120,200,0.55)"><animateTransform attributeName="transform" type="translate" values="0,0;-20,8;0,0" dur="3s" repeatCount="indefinite"/></path>
-          <path d="M0,112 Q40,92 80,112 Q120,132 160,112 L160,160 L0,160 Z" fill="rgba(20,80,160,0.4)"><animateTransform attributeName="transform" type="translate" values="0,0;20,5;0,0" dur="4s" repeatCount="indefinite"/></path>
+        <!-- atmosphere glow -->
+        <circle cx="150" cy="150" r="130" fill="url(#earth-atm)" id="earth-glow-ring"/>
+        <!-- ocean base -->
+        <circle cx="150" cy="150" r="118" fill="#041828"/>
+        <!-- rotating continent layer -->
+        <g clip-path="url(#earth-clip)">
+          <g id="earth-surface" style="animation:earth-rotate 25s linear infinite">
+            <!-- continents pass 1 -->
+            <ellipse cx="105" cy="135" rx="32" ry="44" fill="#0a3d1a" opacity="0.85"/>
+            <ellipse cx="188" cy="122" rx="26" ry="34" fill="#0a3d1a" opacity="0.75"/>
+            <ellipse cx="80" cy="170" rx="18" ry="13" fill="#0a3d1a" opacity="0.65"/>
+            <ellipse cx="215" cy="158" rx="16" ry="22" fill="#0a3d1a" opacity="0.6"/>
+            <ellipse cx="148" cy="178" rx="13" ry="9" fill="#0a3d1a" opacity="0.55"/>
+            <!-- city lights pass 1 -->
+            <circle cx="104" cy="127" r="2" fill="#ffdd44" opacity="0.85" style="animation:city-blink 1.8s ease-in-out infinite"/>
+            <circle cx="118" cy="140" r="1.5" fill="#ffdd44" opacity="0.7" style="animation:city-blink 2.4s ease-in-out infinite 0.4s"/>
+            <circle cx="90" cy="152" r="1.5" fill="#ffdd44" opacity="0.65" style="animation:city-blink 1.6s ease-in-out infinite 0.8s"/>
+            <circle cx="190" cy="115" r="2" fill="#ffdd44" opacity="0.8" style="animation:city-blink 2.1s ease-in-out infinite 0.3s"/>
+            <circle cx="202" cy="130" r="1.5" fill="#ffdd44" opacity="0.7" style="animation:city-blink 1.9s ease-in-out infinite 0.7s"/>
+            <circle cx="218" cy="150" r="1.5" fill="#ffdd44" opacity="0.6" style="animation:city-blink 2.6s ease-in-out infinite 1.1s"/>
+            <!-- continents pass 2 (offset 250px for seamless loop) -->
+            <ellipse cx="355" cy="135" rx="32" ry="44" fill="#0a3d1a" opacity="0.85"/>
+            <ellipse cx="438" cy="122" rx="26" ry="34" fill="#0a3d1a" opacity="0.75"/>
+            <ellipse cx="330" cy="170" rx="18" ry="13" fill="#0a3d1a" opacity="0.65"/>
+            <circle cx="354" cy="127" r="2" fill="#ffdd44" opacity="0.85" style="animation:city-blink 1.8s ease-in-out infinite"/>
+            <circle cx="440" cy="115" r="2" fill="#ffdd44" opacity="0.8" style="animation:city-blink 2.1s ease-in-out infinite 0.3s"/>
+          </g>
+          <!-- clouds layer (separate slower drift) -->
+          <g style="animation:earth-rotate 40s linear infinite reverse" opacity="0.13">
+            <ellipse cx="115" cy="108" rx="28" ry="7" fill="#fff"/>
+            <ellipse cx="200" cy="168" rx="22" ry="5" fill="#fff"/>
+            <ellipse cx="82" cy="178" rx="17" ry="5" fill="#fff"/>
+          </g>
         </g>
-        <circle cx="80" cy="80" r="70" fill="none" stroke="#4db8ff" stroke-width="1" opacity="0.3"/>
+        <!-- lat/long grid -->
+        <circle cx="150" cy="150" r="118" fill="none" stroke="#0a6a4a" stroke-width="0.4" opacity="0.2"/>
+        <ellipse cx="150" cy="150" rx="118" ry="55" fill="none" stroke="#0a5a3a" stroke-width="0.3" opacity="0.18"/>
+        <ellipse cx="150" cy="150" rx="118" ry="95" fill="none" stroke="#0a5a3a" stroke-width="0.3" opacity="0.14"/>
+        <line x1="150" y1="32" x2="150" y2="268" stroke="#0a5a3a" stroke-width="0.3" opacity="0.18"/>
+        <!-- INDIA glow -->
+        <circle cx="178" cy="148" r="16" fill="#00d4a0" opacity="0.12" id="india-halo"/>
+        <circle cx="178" cy="148" r="5" fill="#00d4a0" opacity="0.9" id="india-dot" style="animation:india-pulse 1.5s ease-in-out infinite"/>
+        <circle cx="178" cy="148" r="2.5" fill="#fff" opacity="0.95"/>
+        <!-- pulse rings from India -->
+        <circle cx="178" cy="148" r="5" fill="none" stroke="#00d4a0" stroke-width="2" style="animation:pulse-ring 2s ease-out infinite"/>
+        <circle cx="178" cy="148" r="5" fill="none" stroke="#00d4a0" stroke-width="1.5" style="animation:pulse-ring 2s ease-out infinite 0.7s"/>
+        <!-- IoT data lines India to world -->
+        <line x1="178" y1="148" x2="108" y2="118" stroke="#00d4a0" stroke-width="0.8" stroke-dasharray="7 63" style="animation:data-travel 1.8s linear infinite"/>
+        <line x1="178" y1="148" x2="222" y2="108" stroke="#00d4a0" stroke-width="0.8" stroke-dasharray="7 63" style="animation:data-travel 2.2s linear infinite 0.5s"/>
+        <line x1="178" y1="148" x2="98" y2="170" stroke="#3a8aff" stroke-width="0.7" stroke-dasharray="7 63" style="animation:data-travel 2.5s linear infinite 1s"/>
+        <line x1="178" y1="148" x2="228" y2="165" stroke="#3a8aff" stroke-width="0.6" stroke-dasharray="7 63" style="animation:data-travel 2s linear infinite 1.4s"/>
+        <!-- city pings at line ends -->
+        <circle cx="108" cy="118" r="3" fill="#00d4a0" opacity="0.7" style="animation:city-blink 2s ease-in-out infinite 0.3s"/>
+        <circle cx="222" cy="108" r="3" fill="#3a8aff" opacity="0.7" style="animation:city-blink 2s ease-in-out infinite 1.1s"/>
+        <circle cx="98" cy="170" r="3" fill="#3a8aff" opacity="0.6" style="animation:city-blink 2s ease-in-out infinite 0.6s"/>
+        <circle cx="228" cy="165" r="3" fill="#00d4a0" opacity="0.6" style="animation:city-blink 2s ease-in-out infinite 1.5s"/>
+        <!-- atmosphere ring -->
+        <circle cx="150" cy="150" r="122" fill="none" stroke="#00d4a0" stroke-width="1" opacity="0.14"/>
+        <!-- SATELLITES -->
+        <g style="transform-origin:150px 150px;animation:sat-orbit-a 10s linear infinite">
+          <rect x="147" y="54" width="6" height="3" fill="#ccc" rx="1" opacity="0.85"/>
+          <line x1="144" y1="55.5" x2="147" y2="55.5" stroke="#aaa" stroke-width="0.8" opacity="0.7"/>
+          <line x1="153" y1="55.5" x2="156" y2="55.5" stroke="#aaa" stroke-width="0.8" opacity="0.7"/>
+        </g>
+        <g style="transform-origin:150px 150px;animation:sat-orbit-b 16s linear infinite">
+          <rect x="147" y="44" width="5" height="2.5" fill="#88aaff" rx="1" opacity="0.8"/>
+          <line x1="144" y1="45.25" x2="147" y2="45.25" stroke="#88aaff" stroke-width="0.7" opacity="0.6"/>
+          <line x1="152" y1="45.25" x2="155" y2="45.25" stroke="#88aaff" stroke-width="0.7" opacity="0.6"/>
+        </g>
+        <g style="transform-origin:150px 150px;animation:sat-orbit-c 7s linear infinite">
+          <rect x="147" y="60" width="5" height="2.5" fill="#00d4a0" rx="1" opacity="0.75"/>
+          <line x1="144" y1="61.25" x2="147" y2="61.25" stroke="#00d4a0" stroke-width="0.7" opacity="0.5"/>
+          <line x1="152" y1="61.25" x2="155" y2="61.25" stroke="#00d4a0" stroke-width="0.7" opacity="0.5"/>
+        </g>
+        <!-- water ripple below earth (pour reaction) -->
+        <circle cx="150" cy="272" r="4" fill="none" stroke="#00d4a0" stroke-width="2.5" style="animation:water-ripple 3s ease-out infinite"/>
+        <circle cx="150" cy="272" r="4" fill="none" stroke="#00d4a0" stroke-width="1.5" style="animation:water-ripple 3s ease-out infinite 1s"/>
+        <circle cx="150" cy="272" r="4" fill="none" stroke="#00d4a0" stroke-width="1" style="animation:water-ripple 3s ease-out infinite 2s"/>
+        <!-- floating particles -->
+        <circle cx="60" cy="260" r="1.8" fill="#00d4a0" style="animation:particle-float 5s ease-out infinite"/>
+        <circle cx="240" cy="255" r="1.5" fill="#3a8aff" style="animation:particle-float 6s ease-out infinite 1.5s"/>
+        <circle cx="120" cy="265" r="1.2" fill="#00d4a0" style="animation:particle-float 4.5s ease-out infinite 3s"/>
+        <circle cx="200" cy="258" r="1.5" fill="#3a8aff" style="animation:particle-float 7s ease-out infinite 0.8s"/>
+        <!-- dharanova label -->
+        <text x="150" y="295" text-anchor="middle" font-size="7" fill="#1a5a4a" font-family="sans-serif" letter-spacing="2" opacity="0.7">POWERED BY DHARANOVA</text>
       </svg>
     </div>
     <div class="ms-right">
@@ -1871,54 +1966,17 @@ html, body {
     <div class="slide-dots"><div class="sdot on" id="sd1"></div><div class="sdot" id="sd2"></div></div>
   </div>
 
-  <div class="mslide ms-india" id="ms2">
-    <div class="ms-left">
-      <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:6px;">
-        <div class="india-stripe"></div>
-        <div>
-          <div class="ms-eyebrow">India &middot; IoT &middot; Innovation</div>
-          <div class="ms-headline">Sensing<br>India's<br>Future</div>
-        </div>
+  <div class="mslide" id="ms2" style="background:linear-gradient(120deg,#060606,#0a0a0a,#080808);border:1px solid #1a1a1a;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:24px;">
+      <div style="width:100%;height:100%;display:flex;
+                  align-items:center;justify-content:center;
+                  padding:12px;">
+        <img src="/static/iotsummit26.jpg"
+             style="width:100%;height:100%;object-fit:contain;
+                    display:block;border-radius:8px;"
+             alt="IoT Summit 26">
       </div>
-      <div class="ms-body">From smart agriculture to industrial monitoring &mdash;<br>Dharanova IoT sensors solve real problems<br>across the nation, grounded in Indian soil.</div>
-      <div class="ms-live-stat">
-        <span class="ms-live-num" style="font-size:20px;">Bharat</span>
-        <span class="ms-live-lbl">powered by<br>IoT innovation</span>
-      </div>
-      <div class="ms-badge">Built in India by <strong>DHARANOVA</strong></div>
+      <div class="slide-dots"><div class="sdot" id="sd3"></div><div class="sdot on" id="sd4"></div></div>
     </div>
-    <div class="ms-centre">
-      <svg width="150" height="165" viewBox="-5 -5 215 255" xmlns="http://www.w3.org/2000/svg">
-        <path d="M 199.5,63.1 L 200.0,66.4 L 197.6,68.0 L 198.2,73.3 L 193.3,71.7 L 184.4,77.8 L 184.6,82.8 L 180.9,90.1 L 180.5,94.3 L 177.5,101.5 L 172.1,99.5 L 171.8,108.5 L 170.3,111.5 L 171.0,115.2 L 167.7,117.3 L 164.0,103.5 L 162.2,103.5 L 161.0,109.1 L 157.3,104.5 L 159.4,99.6 L 162.5,99.1 L 165.6,91.7 L 161.7,90.2 L 155.3,90.3 L 148.8,89.1 L 148.2,83.1 L 144.9,82.6 L 139.5,78.9 L 137.1,84.8 L 142.0,89.4 L 137.8,92.7 L 136.2,95.8 L 140.5,98.2 L 139.3,103.4 L 141.7,110.0 L 142.7,117.2 L 141.8,120.3 L 137.1,120.2 L 128.7,122.0 L 129.0,128.6 L 125.4,133.8 L 115.5,139.6 L 107.9,149.9 L 102.7,155.4 L 95.9,161.1 L 95.9,165.1 L 92.5,167.3 L 86.3,170.4 L 83.1,170.8 L 81.1,177.5 L 82.5,188.8 L 82.9,196.1 L 80.0,204.3 L 79.9,219.1 L 76.4,219.6 L 73.3,226.2 L 75.4,229.1 L 69.1,231.6 L 66.8,237.5 L 64.1,240.0 L 57.6,231.9 L 54.4,219.7 L 51.8,210.9 L 49.4,206.7 L 45.8,198.4 L 44.1,187.5 L 42.9,182.0 L 36.7,170.0 L 33.8,153.1 L 31.8,142.0 L 31.8,131.4 L 30.5,123.3 L 20.5,128.5 L 15.7,127.4 L 6.8,116.9 L 10.1,113.7 L 8.0,110.3 L 0.0,102.9 L 4.6,97.1 L 19.6,97.1 L 18.3,89.6 L 14.4,85.2 L 13.6,78.5 L 9.2,74.6 L 16.7,65.4 L 24.7,66.1 L 31.8,56.9 L 36.1,48.1 L 42.7,39.4 L 42.6,33.1 L 48.5,28.1 L 42.9,23.8 L 40.6,17.9 L 38.1,10.3 L 41.5,6.5 L 51.9,8.6 L 59.5,7.3 L 66.1,0.0 L 73.5,10.2 L 72.8,17.3 L 75.5,21.8 L 75.3,26.2 L 70.4,25.1 L 72.3,34.7 L 79.0,40.2 L 88.5,46.3 L 84.2,50.2 L 81.5,58.4 L 88.1,61.7 L 94.6,66.0 L 103.5,70.9 L 112.9,72.0 L 116.9,76.4 L 122.1,77.3 L 130.4,79.3 L 136.1,79.2 L 136.9,75.7 L 136.0,70.2 L 136.5,66.4 L 140.7,64.6 L 141.2,71.4 L 141.4,73.2 L 147.6,76.5 L 151.9,75.1 L 157.7,75.7 L 163.3,75.5 L 163.8,70.1 L 161.0,67.3 L 166.5,66.2 L 172.7,59.7 L 180.6,54.2 L 186.4,56.3 L 191.2,52.7 L 194.4,58.1 L 192.1,61.7 L 199.5,63.1 Z"
-          fill="rgba(40,18,0,0.85)" stroke="#ff9933" stroke-width="1.2" stroke-linejoin="round"/>
-        <ellipse cx="105" cy="248" rx="8" ry="11" fill="rgba(40,18,0,0.7)" stroke="#ff9933" stroke-width="1"/>
-        <circle cx="94" cy="73" r="5" fill="#ff9933"><animate attributeName="r" values="4;8;4" dur="2.0s" repeatCount="indefinite"/></circle>
-        <text x="100" y="72" fill="#ffcc66" font-size="10" font-family="monospace" font-weight="bold">Delhi</text>
-        <circle cx="50" cy="148" r="5" fill="#ff9933"><animate attributeName="r" values="4;8;4" dur="2.4s" repeatCount="indefinite"/></circle>
-        <text x="4" y="147" fill="#ffcc66" font-size="10" font-family="monospace" font-weight="bold">Mumbai</text>
-        <circle cx="138" cy="118" r="5" fill="#ff9933"><animate attributeName="r" values="4;8;4" dur="1.8s" repeatCount="indefinite"/></circle>
-        <text x="144" y="117" fill="#ffcc66" font-size="10" font-family="monospace" font-weight="bold">Kolkata</text>
-        <circle cx="95" cy="162" r="5" fill="#ff9933"><animate attributeName="r" values="4;8;4" dur="2.2s" repeatCount="indefinite"/></circle>
-        <text x="100" y="161" fill="#ffcc66" font-size="10" font-family="monospace" font-weight="bold">Hyd</text>
-        <circle cx="88" cy="192" r="5" fill="#ff9933"><animate attributeName="r" values="4;8;4" dur="2.6s" repeatCount="indefinite"/></circle>
-        <text x="55" y="192" fill="#ffcc66" font-size="10" font-family="monospace" font-weight="bold">Blr</text>
-        <circle cx="110" cy="192" r="5" fill="#ff9933"><animate attributeName="r" values="4;8;4" dur="2.8s" repeatCount="indefinite"/></circle>
-        <text x="116" y="192" fill="#ffcc66" font-size="10" font-family="monospace" font-weight="bold">Chennai</text>
-        <line x1="94" y1="73" x2="50" y2="148" stroke="#ff9933" stroke-width="0.7" opacity="0.25"/>
-        <line x1="94" y1="73" x2="138" y2="118" stroke="#ff9933" stroke-width="0.7" opacity="0.25"/>
-        <line x1="50" y1="148" x2="95" y2="162" stroke="#ff9933" stroke-width="0.7" opacity="0.25"/>
-        <line x1="138" y1="118" x2="95" y2="162" stroke="#ff9933" stroke-width="0.7" opacity="0.25"/>
-        <line x1="95" y1="162" x2="88" y2="192" stroke="#ff9933" stroke-width="0.7" opacity="0.25"/>
-        <line x1="95" y1="162" x2="110" y2="192" stroke="#ff9933" stroke-width="0.7" opacity="0.25"/>
-      </svg>
-    </div>
-    <div class="ms-right">
-      <div class="ms-stat"><div class="ms-stat-val">IoT</div><div class="ms-stat-lbl">Smart agriculture &amp; water management</div></div>
-      <div class="ms-stat"><div class="ms-stat-val">Edge</div><div class="ms-stat-lbl">Real-time sensing at point of action</div></div>
-      <div class="ms-stat"><div class="ms-stat-val">Open</div><div class="ms-stat-lbl">Open hardware &mdash; accessible to all</div></div>
-    </div>
-    <div class="slide-dots"><div class="sdot" id="sd3"></div><div class="sdot on" id="sd4"></div></div>
-  </div>
 
 </div><!-- /marketing-zone -->
 </div><!-- /main-wrap -->

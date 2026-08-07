@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Juice Battle — Stall Ops Reference</title>
+<style>
+  :root {
+    --bg:       #0d0f12;
+    --surface:  #141720;
+    --border:   #252a35;
+    --accent:   #f5a623;
+    --green:    #3ecf8e;
+    --red:      #e05c5c;
+    --blue:     #5c9ee0;
+    --purple:   #9b7fe8;
+    --muted:    #6b7280;
+    --text:     #e2e6f0;
+    --dim:      #a0a8b8;
+    --code-bg:  #0a0c10;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    padding: 32px 24px 64px;
+    max-width: 860px;
+    margin: 0 auto;
+  }
+
+  /* ── Header ── */
+  .header {
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 20px;
+    margin-bottom: 32px;
+  }
+  .header-top {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 6px;
+  }
+  .title {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: -0.5px;
+  }
+  .subtitle {
+    color: var(--muted);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .meta {
+    color: var(--muted);
+    font-size: 11px;
+  }
+  .meta span { color: var(--dim); }
+
+  /* ── Section ── */
+  .section { margin-bottom: 36px; }
+
+  .section-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* ── Command card ── */
+  .cmd-group { display: flex; flex-direction: column; gap: 8px; }
+
+  .cmd {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .cmd-desc {
+    padding: 8px 14px 6px;
+    color: var(--dim);
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .cmd-desc .tag {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 2px 6px;
+    border-radius: 3px;
+    background: rgba(255,255,255,0.06);
+    color: var(--muted);
+    flex-shrink: 0;
+  }
+  .tag.game   { background: rgba(245,166,35,0.12);  color: var(--accent); }
+  .tag.audio  { background: rgba(155,127,232,0.12); color: var(--purple); }
+  .tag.ble    { background: rgba(92,158,224,0.12);  color: var(--blue); }
+  .tag.kiosk  { background: rgba(62,207,142,0.12);  color: var(--green); }
+  .tag.sys    { background: rgba(224,92,92,0.12);   color: var(--red); }
+  .tag.diag   { background: rgba(255,255,255,0.06); color: var(--muted); }
+
+  .cmd-line {
+    font-family: inherit;
+    background: var(--code-bg);
+    color: #c9d1e0;
+    padding: 9px 14px;
+    font-size: 12.5px;
+    white-space: pre;
+    overflow-x: auto;
+    border-top: 1px solid var(--border);
+    position: relative;
+  }
+  .cmd-line .prompt { color: var(--muted); user-select: none; }
+  .cmd-line .kw   { color: #7dd3fc; }   /* keywords, flags */
+  .cmd-line .val  { color: #86efac; }   /* values, paths */
+  .cmd-line .cmt  { color: #4b5563; font-style: italic; }
+
+  /* multi-line variant */
+  .cmd-line.multi { line-height: 1.8; }
+
+  /* ── Note box ── */
+  .note {
+    background: rgba(245,166,35,0.06);
+    border: 1px solid rgba(245,166,35,0.18);
+    border-radius: 6px;
+    padding: 10px 14px;
+    color: var(--dim);
+    font-size: 11.5px;
+    margin-top: 8px;
+    line-height: 1.7;
+  }
+  .note strong { color: var(--accent); }
+
+  /* ── Quick-ref table ── */
+  .ref-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+  .ref-table th {
+    text-align: left;
+    color: var(--muted);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 6px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .ref-table td {
+    padding: 8px 12px;
+    border-bottom: 1px solid rgba(37,42,53,0.6);
+    vertical-align: top;
+  }
+  .ref-table tr:last-child td { border-bottom: none; }
+  .ref-table .key {
+    font-family: inherit;
+    color: #86efac;
+    white-space: nowrap;
+  }
+  .ref-table .desc { color: var(--dim); }
+
+  /* ── Footer ── */
+  .footer {
+    margin-top: 48px;
+    border-top: 1px solid var(--border);
+    padding-top: 16px;
+    color: var(--muted);
+    font-size: 10.5px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--green); margin-right: 6px; vertical-align: middle; }
+
+  @media (max-width: 600px) {
+    body { padding: 20px 14px 48px; }
+    .cmd-line { font-size: 11px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-top">
+    <div class="title">Juice Battle — Stall Ops</div>
+    <div class="subtitle">Linux Command Reference</div>
+  </div>
+  <div class="meta">
+    Board: <span>Arduino UNO Q (AQ3)</span> &nbsp;·&nbsp;
+    Host: <span>arduino@AQ3</span> &nbsp;·&nbsp;
+    Service: <span>juice-battle</span> &nbsp;·&nbsp;
+    Updated: <span>2026-08-06 · S018</span>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-label"><span class="tag game">GAME CONTROL</span></div>
+  <div class="cmd-group">
+
+    <div class="cmd">
+      <div class="cmd-desc"><span class="tag game">game</span> Trigger game over manually (announces winner, shows overlay)</div>
+      <div class="cmd-line"><span class="prompt">$ </span><span class="kw">curl</span> -s -X POST <span class="val">http://localhost:5000/game_over</span> | python3 -m json.tool</div>
+    </div>
+
+    <div class="cmd">
+      <div class="cmd-desc"><span class="tag game">game</span> Reset Jar 0 (Lemon Warrior) score to zero</div>
+      <div class="cmd-line"><span class="prompt">$ </span><span class="kw">curl</span> -s -X POST <span class="val">http://localhost:5000/reset/0</span> | python3 -m json.tool</div>
+    </div>
+
+    <div class="cmd">
+      <div class="cmd-desc"><span class="tag game">game</span> Reset Jar 1 (Melon Crusher) score to zero</div>
+      <div class="cmd-line"><span class="prompt">$ </span><span class="kw">curl</span> -s -X POST <span class="val">http://localhost:5000/reset/1</span> | python3 -m json.tool</div>
+    </div>
+
+    <div class="cmd">
+      <div class="cmd-desc"><span class="tag game">game</span> Adjust glass count — Jar 0: +1 (correct a missed pour)</div>
+      <div class="cmd-line"><span class="prompt">$ </span><span class="kw">curl</span> -s -X POST <span class="val">"http://localhost:5000/adjust/0/1"</span> | python3 -m json.tool</div>
+    </div>
+
+    <div class="cmd">
+      <div class="cmd-desc"><span class="tag game">game</span> Adjust glass count — Jar 0: -1 (undo a false pour)</div>
+      <div class="cmd-line"><span class="prompt">$ </span><span class="kw">curl</span> -s -X POST <span class="val">"http://localhost:5000/adjust/0/-1"</span> | python3 -m json.tool</div>
+    </div>
+
+    <div class="cmd">
+      <div class="cmd-desc"><span class="tag game">game</span> Adjust glass count — Jar 1: +1</div>
+      <div class="cmd-line"><span class="prompt">$ </span><span class="kw">curl</span> -s -X POST <span class="val">"http://localhost:5000/adjust/1/1"</span> | python3 -m json.tool</div>
+    </div>
+
+    <div class="cmd">
+      <div class="cmd-desc"><span class="tag game">game</span> Adjust glass count — Jar 1: -1</div>
+      <div class="cmd-line"><span class="prompt">$ </span><span class="kw">curl</span> -s -X POST <span class="val">"http://localhost:5000/adjust/1/-1"</span> | python3 -m json.tool</div>
+    </div>
+
+  </div>
+  <div class="note"><strong>Note:</strong> adjust commands do NOT trigger glass.mp3 — by design. They are developer corrections, not real pours.</div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-label"><span class="tag audio">AUDIO CONTROL</span></div>
+  <div class="cmd-group">
+
+    <div class="cmd">
+      <div class="cmd-desc"><span class="tag audio">audio</span> Silence everything (mute USB speaker at hardware level)</div>
+      <div class="cmd-line"><span class="prompt">$ </span><span class="kw">amixer</span> -c 0 sset Speaker <span class="val">0%</span></div>
+    </div>
+
+    <div class="cmd">
+      <div class="cmd-desc"><span class="tag audio">audio</span> Restore audio to working volume</div>
+      <div class="cmd-line"><span class="prompt">$ </span><span class="kw">amixer</span> -c 0 sset Speaker <span class="val">90%</span></div>
+    </div>
+
+    <div class="cmd">
+      <div class="cmd-desc"><span class="tag audio">audio</span> Check what volume is currently set</div>
+      <div class="cmd-line"><span class="prompt">$ </span><span class="kw">amixer</span> -c 0 sget Speaker</div>
+    </div>
+
+    <div class="cmd">
+      <div class="cmd-desc"><span class="tag audio">audio</span> List ALSA mixer controls (if Speaker doesn't work, check what name to use)</div>
+      <div class="cmd-line"><span class="prompt">$ </span><span class="kw">amixer</span> -c 0 scontrols</div>
+    </div>
+
+    <div class="cmd">
+      <div class="cmd-desc"><span class="tag audio">audio</span> List all ALSA sound cards (USB adapter should be "Device")</div>
+      <div class="cmd-line"><span class="prompt">$ </span><span class="kw">aplay</span> -l</div>
+    </div>
+
+    <div class="cmd">
+      <div class="cmd-desc"><span class="tag audio">audio</span> Quick audio sanity check — plays a test tone</div>
+      <div class="cmd-line"><span class="prompt">$ </span><span class="kw">speaker-test</span> -c 2 -t wav <span class="cmt">  # Ctrl+C to stop</span></div>
+    </div>
+
+  </div>
+  <div class="note"><strong>Why muting at hardware level works:</strong> pygame → SDL2 → ALSA → hardware. amixer talks to the ALSA mixer directly. pygame keeps running and playing — it just produces silence at the speaker. Full resume with one command.</div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-label"><span class="tag sys">SERVICE MANAGEMENT</span></div>
+  <div class="cmd-group">
+
+    <div class="cmd">
+      <div class="cmd-desc"><span class="tag sys">service</span> Restart game service (also triggers kiosk auto-reload within ~3s)</div>
+      <div class="cmd-line"><span class="prompt">$ </span><span class="kw">sudo systemctl</span> restart <span class="val">juice-battle</span></div>
+    </div>
+
+    <div class="cmd">
+      <div class="cmd-desc"><span class="tag sys">service</span> Check game service status</div>
+      <div class="cmd-line"><span class="prompt">$ </span><span class="kw">sudo systemctl</span> status <span class="val">juice-battle</span> --no-pager</div>
+    </div>
+
+    <div class="cmd">
+      <div class="cmd-desc"><span class="tag sys">service</span> Restart BLE scanner service</div>
+      <div class="cmd-line"><span class="prompt">$ </span><span class="kw">sudo systemctl</span> restart <span class="val">juice-ble-scanner</span></div>
+    </div>
+
+    <div class="cmd">
+      <div class="cmd-desc"><span class="tag sys">service</span> Check BLE scanner status</div>
+      <div class="cmd-line"><span class="prompt">$ </span><span class="kw">sudo systemctl</span> status <span class="val">juice-ble-scanner</span> --no-pager</div>
+    </div>
+
+    <div class="cmd">
+      <div class="cmd-desc"><span class="tag sys">service</span> Restart both services (scorched-earth recovery)</div>
+      <div class="cmd-line multi"><span class="prompt">$ </span><span class="kw">sudo systemctl</span> restart <span class="val">juice-ble-scanner</span> &amp;&amp; <span class="kw">sleep</span> 2 &amp;&amp; <span class="kw">sudo systemctl</span> restart <span class="val">juice-battle</span></div>
+    </div>
+
+  </div>
+  <div class="note"><strong>Restart order matters:</strong> scanner first, then game. Scanner must be listening on TCP :7001 before game's transport client tries to connect.</div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-label"><span class="tag diag">LIVE LOGS</span></div>
+  <div class="cmd-group">
+
+    <div class="cmd">
+      <div class="cmd-desc"><span class="tag diag">logs</span> Watch all game events — pours, scoring, announcements</div>
+      <div class="cmd-line"><span class="prompt">$ </span><span class="kw">journalctl</span> -u juice-battle -f</div>
+    </div>
+
+    <div class="cmd">
+      <div class="cmd-desc"><span class="tag diag">logs</span> Watch game logs — filtered to audio and pour events only</div>
+      <div class="cmd-line"><span class="prompt">$ </span><span class="kw">journalctl</span> -u juice-battle -f | <span class="kw">grep</span> -E <span class="val">"AmbientPlayer|SoundPlayer|POUR_SETTLED|announcement"</span></div>
+    </div>
+
+    <div class="cmd">
+      <div class="cmd-desc"><span class="tag diag">logs</span> Watch BLE scanner — node connect/disconnect events</div>
+      <div class="cmd-line"><span class="prompt">$ </span><span class="kw">sudo journalctl</span> -u juice-ble-scanner -f</div>
+    </div>
+
+    <div class="cmd">
+      <div class="cmd-desc"><span class="tag diag">logs</span> Last 50 lines of game log (post-mortem, not live)</div>
+      <div class="cmd-line"><span class="prompt">$ </span><span class="kw">journalctl</span> -u juice-battle -n 50 --no-pager</div>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-label"><span class="tag ble">BLE / NODE DIAGNOSTICS</span></div>
+  <div class="cmd-group">
+
+    <div class="cmd">
+      <div class="cmd-desc"><span class="tag ble">BLE</span> Check which JB nodes BlueZ currently knows about</div>
+      <div class="cmd-line"><span class="prompt">$ </span><span class="kw">bluetoothctl</span> devices | <span class="kw">grep</span> JB</div>
+    </div>
+
+    <div class="cmd">
+      <div class="cmd-desc"><span class="tag ble">BLE</span> Check if BlueZ is actively scanning</div>
+      <div class="cmd-line"><span class="prompt">$ </span><span class="kw">bluetoothctl</span> show | <span class="kw">grep</span> -i <span class="val">"discover\|scanning"</span></div>
+    </div>
+
+    <div class="cmd">
+      <div class="cmd-desc"><span class="tag ble">BLE</span> Is the scanner's TCP port open?</div>
+      <div class="cmd-line"><span class="prompt">$ </span><span class="kw">ss</span> -tlnp | <span class="kw">grep</span> <span class="val">7001</span></div>
+    </div>
+
+    <div class="cmd">
+      <div class="cmd-desc"><span class="tag ble">BLE</span> Force BlueZ to scan — use if a node won't appear after 30s</div>
+      <div class="cmd-line multi"><span class="prompt">$ </span><span class="kw">bluetoothctl</span> scan on &amp;
+<span class="prompt">$ </span><span class="kw">sleep</span> 15 &amp;&amp; <span class="kw">bluetoothctl</span> devices | <span class="kw">grep</span> JB</div>
+    </div>
+
+    <div class="cmd">
+      <div class="cmd-desc"><span class="tag ble">BLE</span> Verify transport host config (must be 127.0.0.1, not Docker IP)</div>
+      <div class="cmd-line"><span class="prompt">$ </span><span class="kw">grep</span> <span class="val">"TRANSPORT_CLIENT_HOST"</span> ~/arduino_apps/juice-battle/hub/config.py</div>
+    </div>
+
+  </div>
+  <div class="note">
+    <strong>Node won't connect — checklist:</strong><br>
+    1. LED on? → 2. Power cycle node → 3. <code>bluetoothctl devices | grep JB</code> → 4. Force scan above → 5. <code>sudo systemctl restart juice-ble-scanner</code> → 6. Check node isn't paired to another device (laptop BT)
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-label"><span class="tag kiosk">KIOSK / DISPLAY</span></div>
+  <div class="cmd-group">
+
+    <div class="cmd">
+      <div class="cmd-desc"><span class="tag kiosk">kiosk</span> Step 1 — always do this first in any SSH session before using xdotool</div>
+      <div class="cmd-line"><span class="prompt">$ </span><span class="kw">export</span> DISPLAY=:0 <span class="cmt">  # must export — inline DISPLAY= does NOT cross pipe boundaries</span></div>
+    </div>
+
+    <div class="cmd">
+      <div class="cmd-desc"><span class="tag kiosk">kiosk</span> Bring game screen back to front (focus stolen by another window)</div>
+      <div class="cmd-line multi"><span class="prompt">$ </span><span class="kw">export</span> DISPLAY=:0
+<span class="prompt">$ </span>WID=$(xdotool search --name <span class="val">"Juice Battle"</span> | head -1) &amp;&amp; xdotool windowactivate $WID</div>
+    </div>
+
+    <div class="cmd">
+      <div class="cmd-desc"><span class="tag kiosk">kiosk</span> Force Chromium kiosk to reload the page</div>
+      <div class="cmd-line multi"><span class="prompt">$ </span><span class="kw">export</span> DISPLAY=:0
+<span class="prompt">$ </span>xdotool search --name <span class="val">"Juice Battle"</span> | head -1 | \
+  <span class="kw">xargs</span> -I{} bash -c <span class="val">'DISPLAY=:0 xdotool key --window {} ctrl+r'</span></div>
+    </div>
+
+    <div class="cmd">
+      <div class="cmd-desc"><span class="tag kiosk">kiosk</span> Check Chromium window is visible (returns window ID if found, blank if not)</div>
+      <div class="cmd-line multi"><span class="prompt">$ </span><span class="kw">export</span> DISPLAY=:0
+<span class="prompt">$ </span>xdotool search --name <span class="val">"Juice Battle"</span></div>
+    </div>
+
+    <div class="cmd">
+      <div class="cmd-desc"><span class="tag kiosk">kiosk</span> Open ops reference HTML on the screen (this file)</div>
+      <div class="cmd-line"><span class="prompt">$ </span>DISPLAY=:0 <span class="kw">chromium</span> <span class="val">~/ArduinoApps/juice_battle/docs/juice_battle_stall_ops.html</span></div>
+    </div>
+
+    <div class="cmd">
+      <div class="cmd-desc"><span class="tag kiosk">kiosk</span> Navigate Chromium back to game dashboard (after viewing ops page)</div>
+      <div class="cmd-line multi"><span class="prompt">$ </span><span class="kw">export</span> DISPLAY=:0
+<span class="prompt">$ </span>WID=$(xdotool search --onlyvisible --class chromium | head -1)
+<span class="prompt">$ </span>xdotool key --window $WID <span class="val">ctrl+l</span>  <span class="cmt">  # focus address bar</span>
+<span class="prompt">$ </span>xdotool type --window $WID <span class="val">"http://localhost:5000/v3"</span>
+<span class="prompt">$ </span>xdotool key --window $WID <span class="val">Return</span></div>
+    </div>
+
+    <div class="cmd">
+      <div class="cmd-desc"><span class="tag kiosk">kiosk</span> Kill Chromium entirely and relaunch kiosk (nuclear option)</div>
+      <div class="cmd-line multi"><span class="prompt">$ </span><span class="kw">pkill</span> -f chromium
+<span class="prompt">$ </span><span class="kw">sleep</span> 2
+<span class="prompt">$ </span>DISPLAY=:0 <span class="kw">chromium</span> --kiosk --noerrdialogs --disable-infobars <span class="val">http://localhost:5000/v3</span> &amp;</div>
+    </div>
+
+  </div>
+  <div class="note">
+    <strong>Why DISPLAY=:0 must be exported, not just inline:</strong> When you write <code>DISPLAY=:0 xdotool ... | xargs ...</code>, the inline assignment only applies to <code>xdotool</code> on the left of the pipe. <code>xargs</code> runs in a new subshell with no DISPLAY. Always <code>export DISPLAY=:0</code> first, then all subsequent commands in that session inherit it automatically.
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-label"><span class="tag diag">QUICK-REFERENCE TABLE</span></div>
+  <table class="ref-table">
+    <thead>
+      <tr>
+        <th>Situation</th>
+        <th>Command</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="desc">Speaker not working after replug</td>
+        <td class="key">aplay -l &nbsp;<span style="color:var(--muted)">→ check "Device" appears</span></td>
+      </tr>
+      <tr>
+        <td class="desc">Need silence fast (speech on stage)</td>
+        <td class="key">amixer -c 0 sset Speaker 0%</td>
+      </tr>
+      <tr>
+        <td class="desc">Restore sound after silence</td>
+        <td class="key">amixer -c 0 sset Speaker 90%</td>
+      </tr>
+      <tr>
+        <td class="desc">Dashboard frozen / not updating</td>
+        <td class="key">sudo systemctl restart juice-battle</td>
+      </tr>
+      <tr>
+        <td class="desc">JB-1 not showing on dashboard</td>
+        <td class="key">sudo systemctl restart juice-ble-scanner</td>
+      </tr>
+      <tr>
+        <td class="desc">Game screen not visible / focus lost</td>
+        <td class="key">export DISPLAY=:0 &amp;&amp; WID=$(xdotool search --name "Juice Battle" | head -1) &amp;&amp; xdotool windowactivate $WID</td>
+      </tr>
+      <tr>
+        <td class="desc">Navigate back to game from ops page</td>
+        <td class="key">export DISPLAY=:0 then type URL http://localhost:5000/v3 via xdotool (see kiosk section)</td>
+      </tr>
+      <tr>
+        <td class="desc">Missed pour (forgot to score)</td>
+        <td class="key">curl -X POST http://localhost:5000/adjust/0/1</td>
+      </tr>
+      <tr>
+        <td class="desc">False pour (scored when shouldn't)</td>
+        <td class="key">curl -X POST http://localhost:5000/adjust/0/-1</td>
+      </tr>
+      <tr>
+        <td class="desc">End the round now</td>
+        <td class="key">curl -X POST http://localhost:5000/game_over</td>
+      </tr>
+      <tr>
+        <td class="desc">Start fresh (reset both scores)</td>
+        <td class="key">curl -X POST localhost:5000/reset/0 &amp;&amp; curl -X POST localhost:5000/reset/1</td>
+      </tr>
+      <tr>
+        <td class="desc">Everything broken — nuke and restart</td>
+        <td class="key">sudo systemctl restart juice-ble-scanner &amp;&amp; sleep 2 &amp;&amp; sudo systemctl restart juice-battle</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+
+<div class="footer">
+  <div><span class="dot"></span>Juice Battle · Arduino UNO Q (AQ3) · Dharanova</div>
+  <div>S018 · 2026-08-06</div>
+</div>
+
+</body>
+</html>
