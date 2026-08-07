@@ -1550,6 +1550,7 @@ html, body {
 .glasses-label { font-size: 10px; color: #444; text-transform: uppercase; letter-spacing: 2px; }
 .share-pct { font-size: 11px; color: #4a4a4a; letter-spacing: 1px; text-transform: uppercase; }
 .streak-badge { display: none; background: #1a1400; border: 1px solid #5a4400; color: #e8b830; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 20px; letter-spacing: 0.5px; }
+.round-wins{font-size:0.7rem;letter-spacing:0.12em;color:#555;margin-top:4px;text-transform:uppercase;font-weight:600;}
 .bottom { flex-shrink: 0; margin-top: 8px; display: flex; flex-direction: column; align-items: center; gap: 4px; width: 100%; }
 .progress-bar { width: 100%; height: 4px; background: #131313; border-radius: 2px; overflow: hidden; margin: 2px 0; }
 .progress-fill { height: 100%; border-radius: 2px; transition: width 0.5s ease; }
@@ -1742,6 +1743,7 @@ html, body {
         <div class="glasses-label">GLASSES</div>
         <div class="share-pct" id="share-0">&nbsp;</div>
         <div class="streak-badge" id="streak-0"></div>
+        <div class="round-wins" id="wins-0">ROUND WINS: 0</div>
       </div>
     </div>
     <div class="bottom">
@@ -1810,6 +1812,7 @@ html, body {
         <div class="glasses-label">GLASSES</div>
         <div class="share-pct" id="share-1">&nbsp;</div>
         <div class="streak-badge" id="streak-1"></div>
+        <div class="round-wins" id="wins-1">ROUND WINS: 0</div>
       </div>
     </div>
     <div class="bottom">
@@ -2035,7 +2038,7 @@ socket.on('state',(data)=>{
   const c0=gc['0']??0,c1=gc['1']??0,total=c0+c1,p0=total>0?Math.round(c0/total*100):50,p1=100-p0;
   const s0=el('share-0');if(s0)s0.textContent=total>0?p0+'% OF ALL POURS':' ';
   const s1=el('share-1');if(s1)s1.textContent=total>0?p1+'% OF ALL POURS':' ';
-  updateTicker(c0,c1,data.all_time_served??0);
+  updateTicker(c0,c1,data.session_glasses??0);
   updateMarketingStats(data.all_time_served??0,total);
   const pill=el('lead-pill'),pb='padding:4px 10px;border-radius:20px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;';
   if(c0>c1){pill.textContent='LEMON LEADS';pill.style.cssText=pb+'background:#0d1508;color:#b8e83a;border:1px solid #4a6a1a;';}
@@ -2048,6 +2051,11 @@ socket.on('state',(data)=>{
   else{el('status-dot').className='status-dot disconnected';el('status-text').innerHTML=warnings.map(w=>'<span class="node-warning">'+w+'</span>').join(' &middot; ');}
   if(data.game_over&&!gameOverHandled){gameOverHandled=true;handleGameOver(data.winner);}
   if(!data.game_over){gameOverHandled=false;el('game-over-btn').disabled=false;}
+  // Round wins per jar — updates small text below score digit
+  const rw=data.round_wins||{};
+  const w0el=el('wins-0'),w1el=el('wins-1');
+  if(w0el)w0el.textContent='ROUND WINS: '+(rw.lemon||0);
+  if(w1el)w1el.textContent='ROUND WINS: '+(rw.melon||0);
 });
 function handleGameOver(winner){playSound('fanfare');setTimeout(()=>{playSound('cheer');setTimeout(()=>{sounds.cheer.pause();sounds.cheer.currentTime=0;},4000);},1500);el('game-over-btn').disabled=true;const w=String(winner);let name,color,isDraw;if(w==='0'){name='LEMON WARRIOR';color='#b8e83a';isDraw=false;}else if(w==='1'){name='MELON CRUSHER';color='#ff5f8f';isDraw=false;}else{name="IT'S A DRAW";color='#c67b3f';isDraw=true;}el('overlay-name').textContent=name;el('overlay-name').style.color=color;el('overlay-sub').style.display=isDraw?'none':'';const destSvg=el('overlay-char'),drawLogoEl=el('overlay-draw-logo');if(isDraw){destSvg.style.display='none';drawLogoEl.style.display='';destSvg.innerHTML='';}else{destSvg.style.display='';drawLogoEl.style.display='none';const srcSvg=el('char-'+w);destSvg.innerHTML=srcSvg?srcSvg.innerHTML:'';}const c0=prevCount['0'],c1=prevCount['1'],wg=isDraw?c0:(w==='0'?c0:c1),lg=isDraw?c1:(w==='0'?c1:c0);el('overlay-score').textContent=wg+' GLASS'+(wg!==1?'ES':'')+' VS '+lg+' GLASS'+(lg!==1?'ES':'');const overlay=el('winner-overlay');overlay.style.opacity='0';overlay.style.transition='';overlay.style.display='flex';void overlay.offsetWidth;overlay.style.transition='opacity 0.5s ease';overlay.style.opacity='1';setTimeout(()=>{overlay.style.transition='opacity 0.8s ease';overlay.style.opacity='0';setTimeout(()=>{overlay.style.display='none';},800);},5000);}
 function resetJar(n){fetch('/reset/'+n,{method:'POST'}).then(r=>r.json()).then(d=>{if(!d.ok){console.error('reset failed',d);return;}streak['0']=0;streak['1']=0;prevCount[String(n)]=0;minPourSec=null;[0,1].forEach(i=>{const b=el('streak-'+i);b.style.display='none';b.textContent='';});updateJarFill(n,0,150);});}
@@ -2095,6 +2103,10 @@ class Dashboard:
         self._storage = storage
         self._all_time_served    = 0
         self._all_time_served_ts = 0.0
+        self._session_glasses    = 0
+        self._session_glasses_ts = 0.0
+        self._round_wins         = {'lemon': 0, 'melon': 0, 'tie': 0}
+        self._round_wins_ts      = 0.0
 
         self._app = Flask(__name__)
         # threading mode: real OS threads, no monkey-patching.
@@ -2123,9 +2135,18 @@ class Dashboard:
 
     def _build_payload(self, state: dict) -> dict:
         now = time.time()
+        # All-time counter: refresh every 5s (DB read, not per-event)
         if now - self._all_time_served_ts >= 5.0:
             self._all_time_served    = self._storage.get_all_time_glasses()
             self._all_time_served_ts = now
+        # Session glasses: refresh every 2s (increments every pour)
+        if now - self._session_glasses_ts >= 2.0:
+            self._session_glasses    = self._game.get_session_glasses()
+            self._session_glasses_ts = now
+        # Round wins: refresh every 5s (only changes at round end)
+        if now - self._round_wins_ts >= 5.0:
+            self._round_wins    = self._game.get_round_wins()
+            self._round_wins_ts = now
         return {
             'glass_count':     state['glass_count'],
             'partial_g':       state['partial_g'],
@@ -2136,6 +2157,8 @@ class Dashboard:
             'game_over':       state['game_over'],
             'winner':          state['winner'],
             'all_time_served': self._all_time_served,
+            'session_glasses': self._session_glasses,
+            'round_wins':      self._round_wins,
         }
 
     def _reset_node(self, node_id: int):
