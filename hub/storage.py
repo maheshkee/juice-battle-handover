@@ -364,6 +364,16 @@ class Storage:
             )
             self._conn.commit()
 
+    def clear_round_results(self, session_id: int) -> None:
+        """Delete all round results for this session. Called when operator
+        resets the tournament to round 1 — win counts start fresh."""
+        with self._lock:
+            self._conn.execute(
+                "DELETE FROM round_results WHERE session_id = ?",
+                (session_id,)
+            )
+            self._conn.commit()
+
     def get_session_wins(self, session_id: int) -> dict:
         """Return round win counts per node for this session.
         Returns {'lemon': N, 'melon': N, 'tie': N}"""

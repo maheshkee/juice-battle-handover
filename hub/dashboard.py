@@ -1767,6 +1767,7 @@ html, body {
     </div>
     <div class="vs-col-top">
       <div class="vs-text">VS</div>
+      <div id="round-label" style="font-size:0.65rem;letter-spacing:0.15em;color:#555;text-transform:uppercase;margin-bottom:6px;">ROUND 1</div>
       <div class="lead-pill" id="lead-pill">TIED</div>
     </div>
     <div class="feed-panel">
@@ -2044,6 +2045,8 @@ socket.on('state',(data)=>{
   if(c0>c1){pill.textContent='LEMON LEADS';pill.style.cssText=pb+'background:#0d1508;color:#b8e83a;border:1px solid #4a6a1a;';}
   else if(c1>c0){pill.textContent='MELON LEADS';pill.style.cssText=pb+'background:#150a12;color:#ff5f8f;border:1px solid #7a2a4a;';}
   else{pill.textContent='TIED';pill.style.cssText=pb+'background:#1a1a1a;color:#3a3a3a;border:1px solid #2a2a2a;';}
+  const rl=el('round-label');
+  if(rl)rl.textContent='ROUND '+(data.round_number||1);
   const bleStatus=data.ble_status||{},warnings=[];
   [0,1].forEach(n=>{const ns=String(n),cur=bleStatus[ns]||'connected',prv=lastBleStatus[ns]||'connected';if(cur!==prv){if(cur==='disconnected')addFeedEvent('JAR '+n+' disconnected','#e8b830');else addFeedEvent('JAR '+n+' reconnected','#7ab52a');}if(cur==='disconnected')warnings.push('JAR '+n+' RECONNECTING');});
   lastBleStatus=Object.assign({},bleStatus);
@@ -2159,6 +2162,7 @@ class Dashboard:
             'all_time_served': self._all_time_served,
             'session_glasses': self._session_glasses,
             'round_wins':      self._round_wins,
+            'round_number':    state.get('round_number', 1),
         }
 
     def _reset_node(self, node_id: int):
@@ -2195,6 +2199,12 @@ class Dashboard:
     def _reset_rounds(self):
         self._storage.set_round_number(1)
         self._game.round_number = 1
+        # Option A: full tournament reset — clear round win history too
+        # WHY: resetting to round 1 means starting a fresh tournament;
+        # stale win counts from the previous tournament are misleading
+        self._storage.clear_round_results(self._game._session_id)
+        self._round_wins    = {'lemon': 0, 'melon': 0, 'tie': 0}
+        self._round_wins_ts = 0.0
         self._game.glasses_this_round = 0
         self._game._round_in_progress = True
         return jsonify({'status': 'ok', 'round_number': 1})
