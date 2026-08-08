@@ -203,9 +203,52 @@ class AmbientPlayer:
         log.info("AmbientPlayer: skipped to %s", name)
         return name
 
+    def rescan_playlist(self) -> dict:
+        """
+        Hot-plug handler. Re-runs USB detection and reloads music if
+        playlist changed. Safe to call anytime — from udev via curl.
+        Called by POST /audio/rescan_playlist endpoint.
+        """
+        old_playlist = list(self._playlist)
+        new_playlist = _detect_usb_playlist()
+
+        if new_playlist == old_playlist:
+            log.info("AmbientPlayer: rescan — playlist unchanged")
+            return {"changed": False, "playlist": new_playlist}
+
+        # Playlist changed — reload
+        self._playlist = new_playlist
+        self._playlist_index = 0
+        log.info(
+            "AmbientPlayer: rescan — playlist changed → %s",
+            [os.path.basename(p) for p in new_playlist]
+        )
+
+        # Stop current music and restart with new playlist
+        try:
+            pygame.mixer.music.stop()
+            self._music_paused = False
+            threading.Timer(0.5, self._play_current_track).start()
+        except Exception as e:
+            log.warning("AmbientPlayer: rescan reload error: %s", e)
+
+        return {"changed": True, "playlist": [os.path.basename(p) for p in new_playlist]}
+
     # ------------------------------------------------------------------ #
     #  Internal                                                            #
     # ------------------------------------------------------------------ #
+
+    def _play_current_track(self) -> None:
+        """Load and play the track at self._playlist_index."""
+        track = self._playlist[self._playlist_index]
+        if not os.path.isabs(track):
+            track = os.path.join(SOUNDS_DIR, track)
+        pygame.mixer.music.load(track)
+        pygame.mixer.music.set_volume(MUSIC_VOLUME)
+        pygame.mixer.music.play()
+        log.info("AmbientPlayer: now playing track %d/%d: %s",
+                 self._playlist_index + 1, len(self._playlist),
+                 os.path.basename(track))
 
     def _music_loop(self) -> None:
         """Polling playlist loop. Advances to the next track when get_busy() returns False."""

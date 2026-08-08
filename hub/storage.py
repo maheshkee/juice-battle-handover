@@ -401,4 +401,9 @@ class Storage:
                    )""",
                 (session_id, session_id)
             ).fetchone()
-            return row[0] if row else time.time()
+            if not row or row[0] is None:
+                return time.time()
+            try:
+                return float(row[0])
+            except (ValueError, TypeError):
+                return datetime.fromisoformat(row[0]).timestamp()

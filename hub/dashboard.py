@@ -2446,6 +2446,8 @@ class Dashboard:
                                self._audio_resume, methods=['POST'])
         self._app.add_url_rule('/audio/next', 'audio_next',
                                self._audio_next, methods=['POST'])
+        self._app.add_url_rule('/audio/rescan_playlist', 'audio_rescan_playlist',
+                               self._audio_rescan_playlist, methods=['POST'])
         self._app.add_url_rule('/ops', 'ops',
                                self._ops_page, methods=['GET'])
         self._app.add_url_rule('/new_session', 'new_session',
@@ -2542,6 +2544,12 @@ class Dashboard:
             return jsonify({'ok': False, 'error': 'no ambient player'})
         track = self._ambient.next_track()
         return jsonify({'ok': True, 'track': track})
+
+    def _audio_rescan_playlist(self):
+        if self._ambient is None:
+            return jsonify({"error": "no ambient player"}), 503
+        result = self._ambient.rescan_playlist()
+        return jsonify(result)
 
     def _ops_page(self):
         return render_template_string(_OPS_HTML)
