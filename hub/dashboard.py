@@ -6,7 +6,7 @@ No game logic lives here. Display only.
 
 import time
 import config
-from flask import Flask, render_template_string, jsonify, make_response, request
+from flask import Flask, render_template, render_template_string, jsonify, make_response, request
 from flask_socketio import SocketIO, emit
 
 # ── Crowd-facing HTML template ─────────────────────────────────────────────
@@ -2436,6 +2436,7 @@ class Dashboard:
                                self._adjust_count, methods=['POST'])
         self._app.add_url_rule('/v2', 'index_v2', self._serve_v2)
         self._app.add_url_rule('/v3', 'index_v3', self._serve_v3)
+        self._app.add_url_rule('/v4', 'index_v4', self._serve_v4)
         self._app.add_url_rule('/reset_rounds', 'reset_rounds',
                                self._reset_rounds, methods=['POST'])
         self._app.add_url_rule('/audio/volume', 'audio_volume',
@@ -2494,6 +2495,7 @@ class Dashboard:
             'session_glasses': self._session_glasses,
             'round_wins':      self._round_wins,
             'round_number':    state.get('round_number', 1),
+            'round_size':      config.ROUND_SIZE,
         }
 
     def _reset_node(self, node_id: int):
@@ -2619,9 +2621,17 @@ class Dashboard:
         self._game._round_in_progress = True
         return jsonify({'status': 'ok', 'round_number': 1})
 
+    def _serve_v4(self):
+        """Serve the v4 crowd-facing dashboard — Claude Design visual style."""
+        response = make_response(render_template('v4.html'))
+        response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+        return response
+
     def _serve_v3(self):
         """Serve the crowd-facing v3 dashboard with atmospheric background and cause panel."""
-        response = make_response(render_template_string(HTML_V3))
+        response = make_response(render_template('v3.html'))
         response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
         response.headers['Pragma'] = 'no-cache'
         response.headers['Expires'] = '0'
