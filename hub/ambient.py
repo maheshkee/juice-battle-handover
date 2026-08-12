@@ -23,7 +23,7 @@ import config
 log = logging.getLogger(__name__)
 
 SOUNDS_DIR       = os.path.join(os.path.dirname(__file__), "static", "sounds")
-AMBIENT_PLAYLIST = ['varanasi.mp3', 'anirudh.mp3']   # played in order, cycling
+AMBIENT_PLAYLIST = ['fuzzy_horizon.mp3']   # single track, loops forever
 MUSIC_VOLUME     = 0.20   # 0.0–1.0  (background level — low enough to talk over)
 DUCKED_VOLUME    = 0.05   # near-silent while announcement plays
 ANNOUNCE_INTERVAL_S = 30  # seconds between announcements
