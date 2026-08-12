@@ -6,6 +6,7 @@ import socket
 import threading
 import logging
 import time as _time
+import subprocess
 from collections import deque
 import dbus
 import dbus.mainloop.glib
@@ -244,7 +245,7 @@ def _find_characteristic(dev_path: str, node_name: str,
         _connecting_nodes.discard(node_name)
         # Schedule fresh reconnect after 5s — gives BlueZ time to settle
         if dev_path_stored:
-            _reconnect_in(5000, dev_path_stored, node_name)
+            _reconnect_in(10000, dev_path_stored, node_name)
         return False
 
     try:
@@ -348,7 +349,7 @@ def _on_connect_success(dev_path: str, node_name: str) -> bool:
 def _on_connect_fail(dev_path: str, node_name: str) -> bool:
     # WHY: runs on GLib loop via idle_add — safe to update shared state here.
     _connecting_nodes.discard(node_name)
-    _reconnect_in(5000, dev_path, node_name)
+    _reconnect_in(10000, dev_path, node_name)
     return False
 
 
@@ -401,7 +402,7 @@ def _interfaces_removed(path, interfaces):
                 except Exception as e:
                     log.warning("Failed to remove signal receiver for %s: %s", cp, e)
                 del _notify_subs[cp]
-            _reconnect_in(5000, path, name)
+            _reconnect_in(10000, path, name)
             break
 
 
@@ -436,7 +437,7 @@ def _properties_changed(interface, changed, invalidated, path):
                 except Exception as e:
                     log.warning("Failed to remove signal receiver for %s: %s", cp, e)
                 del _notify_subs[cp]
-            _reconnect_in(5000, path, name)
+            _reconnect_in(10000, path, name)
             break
 
 
@@ -493,8 +494,15 @@ def _tcp_accept_loop(server_sock: socket.socket) -> None:
 def watchdog_fn() -> bool:
     elapsed = time.monotonic() - last_packet_time
     if elapsed > WATCHDOG_TIMEOUT_S:
-        log.error("Watchdog triggered - no BLE packets for %ds. Exiting for systemd restart.",
+        log.error("Watchdog triggered - no BLE packets for %ds. Resetting adapter then exiting.",
                   WATCHDOG_TIMEOUT_S)
+        # WHY: systemctl restart bluetooth alone does NOT clear HCI wedge on
+        # Qualcomm UART platform. hciconfig down/up must come first.
+        # Confirmed empirically S022. All three commands required in this order.
+        subprocess.run(['sudo', '/usr/bin/hciconfig', 'hci0', 'down'], check=False)
+        subprocess.run(['sudo', '/usr/bin/hciconfig', 'hci0', 'up'],   check=False)
+        subprocess.run(['sudo', '/usr/bin/systemctl', 'restart', 'bluetooth'], check=False)
+        _time.sleep(5)
         loop.quit()
         sys.exit(1)
     return True  # GLib: must return True to repeat

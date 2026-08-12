@@ -1,4 +1,3 @@
-// NEEDS_REFLASH: comms.cpp — NimBLEDevice::setConnectionParams(16,32,0,500) supervision timeout 5s
 #include "config.h"
 #include "types.h"
 #include "ads1232.h"
@@ -153,12 +152,14 @@ void setup() {
 
     comms_init(g_noise.sigma_g);
 
+
     pinMode(8, OUTPUT);
     digitalWrite(8, HIGH);  // off at boot (active-low)
 
 }
 
 void loop() {
+
     ScaleResult     r  = scale_read(g_cal, g_noise.sigma_g);
     StabilityResult sr = stability_update(r);
 

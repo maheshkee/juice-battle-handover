@@ -1,16 +1,29 @@
 #include "comms.h"
 #include <NimBLEDevice.h>
+#include <algorithm>
 #include "config.h"
 
-static NimBLECharacteristic* s_char    = nullptr;
-static uint16_t               g_seq    = 0;
-static float                  g_sigma_g = 0.0f;
+static NimBLECharacteristic* s_char             = nullptr;
+static uint16_t               g_seq             = 0;
+static float                  g_sigma_g         = 0.0f;
 
 class ServerCallbacks : public NimBLEServerCallbacks {
     void onConnect(NimBLEServer* pServer, NimBLEConnInfo& connInfo) override {
-        // WHY: 5s supervision timeout — if AQ3 vanishes without clean disconnect,
-        // NimBLE detects ghost connection within 5s and restarts advertising.
-        pServer->updateConnParams(connInfo.getConnHandle(), 16, 32, 0, 500);
+        Serial.printf("[COMMS] onConnect fired: peer=%s\n", connInfo.getAddress().toString().c_str());
+        // WHY: reject any device that is not AQ3. Office BT devices steal the
+        // node the moment it advertises. Application-layer MAC check is more
+        // reliable than HCI filter policy on NimBLE.
+        std::string peer = connInfo.getAddress().toString();
+        std::string hub  = std::string(HUB_MAC);
+        std::transform(peer.begin(), peer.end(), peer.begin(), ::tolower);
+        std::transform(hub.begin(),  hub.end(),  hub.begin(),  ::tolower);
+        if (peer != hub) {
+            Serial.printf("[COMMS] rejected %s — not AQ3\n", peer.c_str());
+            pServer->disconnect(connInfo.getConnHandle());
+            NimBLEDevice::startAdvertising();  // onDisconnect may not fire when called from onConnect
+            return;
+        }
+        Serial.printf("[COMMS] AQ3 connected: %s\n", peer.c_str());
     }
 
     void onDisconnect(NimBLEServer* pServer, NimBLEConnInfo& connInfo, int reason) override {
@@ -36,10 +49,10 @@ static void _send_payload(uint8_t msg_type, float delta_g) {
     g_seq++;
 
     s_char->setValue(buf, 13);
-    s_char->notify();
+    bool ok = s_char->notify();
 
-    Serial.printf("[COMMS] tx msg=0x%02X delta=%.1f sigma=%.2f seq=%u\n",
-                  msg_type, delta_g, g_sigma_g, (unsigned)(g_seq - 1));
+    Serial.printf("[COMMS] tx msg=0x%02X delta=%.1f sigma=%.2f seq=%u ok=%d\n",
+                  msg_type, delta_g, g_sigma_g, (unsigned)(g_seq - 1), (int)ok);
 }
 
 void comms_init(float sigma_g) {
@@ -106,8 +119,9 @@ void comms_send_diag(float current_g, float slope_gs, uint8_t state, uint8_t qua
     buf[12] = quality;
 
     s_char->setValue(buf, 13);
-    s_char->notify();
+    bool ok = s_char->notify();
 
-    Serial.printf("[COMMS] tx DIAG current=%.1f slope=%.3f state=%u quality=%u\n",
-                  current_g, slope_gs, (unsigned)state, (unsigned)quality);
+    Serial.printf("[COMMS] tx DIAG current=%.1f slope=%.3f state=%u quality=%u ok=%d\n",
+                  current_g, slope_gs, (unsigned)state, (unsigned)quality, (int)ok);
 }
+

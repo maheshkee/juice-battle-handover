@@ -8,6 +8,8 @@ extern uint8_t NODE_ID;
 // ── Juice Battle GATT UUIDs ──────────────────────────────────────────────────
 // Hub ble_scanner.py searches for JB_CHAR_UUID to find the notify characteristic.
 // These must NOT be reused from gas-cylinder-monitor.
+#define HUB_MAC          "14:B5:CD:E7:41:DD"
+
 #define JB_SERVICE_UUID  "7b4c0e00-9aab-11ed-a8fc-0242ac120002"
 #define JB_CHAR_UUID     "7b4c0f00-9aab-11ed-a8fc-0242ac120002"
 
