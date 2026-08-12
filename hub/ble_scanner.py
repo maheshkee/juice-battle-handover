@@ -12,7 +12,8 @@ import dbus
 import dbus.mainloop.glib
 from gi.repository import GLib
 from config import (DEVICE_PREFIX, TRANSPORT_HOST, TRANSPORT_PORT,
-                    WATCHDOG_TIMEOUT_S, MSG_NAMES, JB_CHAR_UUID, MSG_DIAG)
+                    WATCHDOG_TIMEOUT_S, MSG_NAMES, JB_CHAR_UUID, MSG_DIAG,
+                    NODE_SILENCE_THRESHOLD_S)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -183,9 +184,9 @@ def _on_notify(interface, changed, invalidated, path):
         evt  = parse_jb_payload(data)
         if evt:
             last_packet_time = time.monotonic()
+            _node_last_seen[evt['node']] = _time.time()
             emit_event(evt, clients, clients_lock)
             if evt.get('msg') == 'DIAG':
-                _node_last_seen[evt['node']] = _time.time()
                 _set_hub_led(evt['node'], evt['quality'])
     except Exception as e:
         log.warning("Notify parse error from %s: %s", path, e)
@@ -491,6 +492,65 @@ def _tcp_accept_loop(server_sock: socket.socket) -> None:
             break
 
 
+def _watchdog_per_node() -> bool:
+    """Per-node silence watchdog. Runs every 10s via GLib.timeout_add_seconds.
+    WHY: the global watchdog keys on last_packet_time which is fed by ANY node.
+    If JB-0 is healthy and JB-1 is silent, the global watchdog never fires.
+    This watchdog checks each connected node independently.
+    Returns True so GLib keeps firing it."""
+    now = _time.time()
+    for node_name, mac in KNOWN_NODES.items():
+        # Only check nodes we believe are connected
+        if node_name not in _active_connections:
+            continue
+        # Never touch a node that is mid-connect — causes stuck-connected state
+        if node_name in _connecting_nodes:
+            continue
+        node_id = int(node_name.split('-')[1])
+        last = _node_last_seen.get(node_id, 0)
+        if last == 0:
+            # Never received a packet — just connected, give it time
+            continue
+        silent_for = now - last
+        if silent_for > NODE_SILENCE_THRESHOLD_S:
+            log.warning(
+                "[WATCHDOG-NODE] %s silent for %.0fs — forcing eviction (mac=%s)",
+                node_name, silent_for, mac
+            )
+            try:
+                result = subprocess.run(
+                    ["bluetoothctl", "remove", mac],
+                    capture_output=True, text=True, timeout=5
+                )
+                if result.returncode == 0:
+                    log.warning(
+                        "[WATCHDOG-NODE] %s evicted from BlueZ — reconnect path armed",
+                        node_name
+                    )
+                else:
+                    log.warning(
+                        "[WATCHDOG-NODE] %s bluetoothctl remove failed (rc=%d) — "
+                        "falling back to discovery restart",
+                        node_name, result.returncode
+                    )
+                    _restart_discovery()
+            except subprocess.TimeoutExpired:
+                log.warning(
+                    "[WATCHDOG-NODE] %s bluetoothctl timed out — "
+                    "falling back to discovery restart",
+                    node_name
+                )
+                _restart_discovery()
+            except Exception as e:
+                log.warning(
+                    "[WATCHDOG-NODE] %s eviction error: %s — "
+                    "falling back to discovery restart",
+                    node_name, e
+                )
+                _restart_discovery()
+    return True  # GLib: keep firing
+
+
 def watchdog_fn() -> bool:
     elapsed = time.monotonic() - last_packet_time
     if elapsed > WATCHDOG_TIMEOUT_S:
@@ -561,6 +621,7 @@ def main():
     # Watchdog: check every 10s, exit(1) if no packets for WATCHDOG_TIMEOUT_S
     loop = GLib.MainLoop()
     GLib.timeout_add_seconds(10, watchdog_fn)
+    GLib.timeout_add_seconds(10, _watchdog_per_node)
 
     loop.run()
 
