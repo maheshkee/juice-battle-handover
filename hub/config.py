@@ -28,7 +28,7 @@ TRANSPORT_CLIENT_PORT = 7001
 TRANSPORT_RECONNECT_S = 5   # seconds between reconnect attempts
 
 # BLE watchdog - if no packets for this long, assume chip crashed
-WATCHDOG_TIMEOUT_S = 30
+WATCHDOG_TIMEOUT_S = 120
 NODE_SILENCE_THRESHOLD_S = 30   # per-node silence before forced eviction
 
 # Payload protocol

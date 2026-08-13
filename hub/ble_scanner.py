@@ -42,7 +42,7 @@ _bus                       = None
 # Known node MACs — must match NODE_MAC_TABLE in firmware/node/comms.cpp
 KNOWN_NODES: dict[str, str] = {
     'JB-0': '70:AF:09:32:F3:C2',
-    'JB-1': '10:00:3B:CD:63:32',
+    'JB-1': 'AC:27:6E:53:DC:4A',   # new chip replaced 2026-08-13
 }
 
 # Connection state — per node, keyed by name ("JB-0", "JB-1")
@@ -51,6 +51,8 @@ _connecting_nodes:   set[str]       = set()
 _notify_subs:        dict[str, str] = {}   # char_path → node_name
 
 _node_last_seen: dict[int, float] = {}   # node_id -> epoch
+
+_connect_abort_events: dict = {}  # dev_path → threading.Event; set on disconnect during GATT window
 
 
 def _restart_discovery() -> None:
@@ -306,16 +308,18 @@ def _connect(dev_path: str, node_name: str) -> bool:
     # Thread gets a ready-to-use proxy — no need to access _bus from thread.
     dev_obj = _bus.get_object(BLUEZ, dev_path)
     device  = dbus.Interface(dev_obj, DEVICE_IFACE)
+    abort_event = threading.Event()
+    _connect_abort_events[dev_path] = abort_event
     t = threading.Thread(
         target=_connect_worker,
-        args=(dev_path, node_name, device),
+        args=(dev_path, node_name, device, abort_event),
         daemon=True
     )
     t.start()
     return False  # GLib loop unblocked immediately
 
 
-def _connect_worker(dev_path: str, node_name: str, device) -> None:
+def _connect_worker(dev_path: str, node_name: str, device, abort_event: threading.Event) -> None:
     # WHY: runs in a thread — device.Connect() blocks up to 25s (D-Bus timeout),
     # sleep(4) waits for GATT discovery. Both are safe off the GLib loop.
     # Shared state (_active_connections, _connecting_nodes) is NEVER touched here —
@@ -324,7 +328,18 @@ def _connect_worker(dev_path: str, node_name: str, device) -> None:
         log.info("Connecting to %s...", node_name)
         device.Connect()
         log.info("Connected to %s — waiting for GATT discovery", node_name)
-        time.sleep(4)
+        # WHY: abort_event is set by _properties_changed if Connected=False fires
+        # during this window. If that happens, the connection is already dead —
+        # calling _on_connect_success would create a phantom _active_connections
+        # entry, causing the hub to believe JB-X is connected when it isn't.
+        aborted = abort_event.wait(timeout=4)
+        if aborted:
+            log.warning(
+                "%s disconnected during GATT discovery window — aborting connect",
+                node_name
+            )
+            GLib.idle_add(_on_connect_fail, dev_path, node_name)
+            return
         GLib.idle_add(_on_connect_success, dev_path, node_name)
     except dbus.exceptions.DBusException as e:
         # WHY: UnknownObject means BlueZ deleted the device entry entirely —
@@ -342,6 +357,7 @@ def _connect_worker(dev_path: str, node_name: str, device) -> None:
 
 def _on_connect_success(dev_path: str, node_name: str) -> bool:
     # WHY: runs on GLib loop via idle_add — safe to update shared state here.
+    _connect_abort_events.pop(dev_path, None)
     _active_connections[node_name] = dev_path
     GLib.idle_add(_find_characteristic, dev_path, node_name)
     return False
@@ -349,6 +365,7 @@ def _on_connect_success(dev_path: str, node_name: str) -> bool:
 
 def _on_connect_fail(dev_path: str, node_name: str) -> bool:
     # WHY: runs on GLib loop via idle_add — safe to update shared state here.
+    _connect_abort_events.pop(dev_path, None)
     _connecting_nodes.discard(node_name)
     _reconnect_in(10000, dev_path, node_name)
     return False
@@ -414,6 +431,12 @@ def _properties_changed(interface, changed, invalidated, path):
         return
     if bool(changed['Connected']):
         return  # connect event - handled inside _connect
+    # WHY: if a connect worker is sleeping in its GATT discovery window
+    # when this disconnect fires, it will never see Connected=False —
+    # the event wakes it immediately so it routes to _on_connect_fail
+    # instead of _on_connect_success on a dead connection.
+    if path in _connect_abort_events:
+        _connect_abort_events[path].set()
     # Disconnect: find which node and schedule reconnect
     for name, dev_path in list(_active_connections.items()):
         if dev_path == path:
@@ -514,40 +537,17 @@ def _watchdog_per_node() -> bool:
         silent_for = now - last
         if silent_for > NODE_SILENCE_THRESHOLD_S:
             log.warning(
-                "[WATCHDOG-NODE] %s silent for %.0fs — forcing eviction (mac=%s)",
-                node_name, silent_for, mac
+                "[WATCHDOG-NODE] %s silent for %.0fs — disconnecting via D-Bus",
+                node_name, silent_for
             )
-            try:
-                result = subprocess.run(
-                    ["bluetoothctl", "remove", mac],
-                    capture_output=True, text=True, timeout=5
-                )
-                if result.returncode == 0:
-                    log.warning(
-                        "[WATCHDOG-NODE] %s evicted from BlueZ — reconnect path armed",
-                        node_name
-                    )
-                else:
-                    log.warning(
-                        "[WATCHDOG-NODE] %s bluetoothctl remove failed (rc=%d) — "
-                        "falling back to discovery restart",
-                        node_name, result.returncode
-                    )
+            dev_path = _active_connections.get(node_name)
+            if dev_path:
+                try:
+                    dbus.Interface(_bus.get_object(BLUEZ, dev_path), DEVICE_IFACE).Disconnect()
+                    log.warning("[WATCHDOG-NODE] %s disconnected — _properties_changed will arm reconnect", node_name)
+                except Exception as e:
+                    log.warning("[WATCHDOG-NODE] %s D-Bus Disconnect failed: %s — falling back to discovery restart", node_name, e)
                     _restart_discovery()
-            except subprocess.TimeoutExpired:
-                log.warning(
-                    "[WATCHDOG-NODE] %s bluetoothctl timed out — "
-                    "falling back to discovery restart",
-                    node_name
-                )
-                _restart_discovery()
-            except Exception as e:
-                log.warning(
-                    "[WATCHDOG-NODE] %s eviction error: %s — "
-                    "falling back to discovery restart",
-                    node_name, e
-                )
-                _restart_discovery()
     return True  # GLib: keep firing
 
 

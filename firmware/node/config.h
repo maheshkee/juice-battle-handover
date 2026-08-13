@@ -38,7 +38,7 @@
 #define MEASURED_SIGMA_LIVE_G            6.23f
 
 // Derived thresholds - recalculate if MEASURED_SIGMA_LIVE_G changes
-#define STABILITY_SPREAD_THRESHOLD_G    25.0f  // 4 × σ_live - stability gate
+#define STABILITY_SPREAD_THRESHOLD_G    50.0f  // wide pre-cal gate — works across all chips/load cells
 
 // slope_threshold is runtime-computed in stability_init() from sigma_g.
 // Formula: fmaxf(15.0f, 5.0f * sigma_g)

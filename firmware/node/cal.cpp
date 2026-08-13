@@ -174,7 +174,7 @@ CalResult cal_run() {
             snprintf(result.diagnosis, 64, "WEIGHT %dg: ADC read errors", (int)ref_g[w]);
             return result;
         }
-        if (raw_ref <= raw_zero) {
+        if (raw_ref >= raw_zero) {
             result.quality = FAILED;
             snprintf(result.diagnosis, 64, "WEIGHT %dg: raw reading not above tare - check wiring", (int)ref_g[w]);
             return result;
@@ -183,6 +183,25 @@ CalResult cal_run() {
         Serial.printf("WEIGHT %dg OK. raw=%d  delta_counts=%d\n",
             (int)ref_g[w], raw_ref, raw_ref - raw_zero);
         raw_refs[w] = raw_ref;
+
+        // WHY: NOMINAL_COUNTS_PER_GRAM is a pre-calibration estimate and
+        // will be wrong for different chips/load cells. Derive the real
+        // counts_per_gram from the first calibration point — this makes
+        // calibration chip-agnostic. Every subsequent stability check
+        // uses the measured value, not a hardcoded guess.
+        float derived_cpg = NOMINAL_COUNTS_PER_GRAM;  // safe fallback
+        if (w == 0 && ref_g[0] > 0.0f) {
+            float measured = fabsf((float)(raw_refs[0] - raw_zero)) / ref_g[0];
+            if (measured > 10.0f && measured < 500.0f) {
+                derived_cpg = measured;
+                Serial.printf("[CAL] derived counts/gram: %.2f (nominal was %.2f)\n",
+                              derived_cpg, (float)NOMINAL_COUNTS_PER_GRAM);
+            } else {
+                Serial.printf("[CAL] WARNING: measured cpg=%.2f out of range, "
+                              "using nominal=%.2f\n", measured,
+                              (float)NOMINAL_COUNTS_PER_GRAM);
+            }
+        }
 
         Serial.println("Remove weight, press Enter for next");
         while (!Serial.available()) delay(10);

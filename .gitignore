@@ -62,3 +62,4 @@ htmlcov/
 *.db-shm
 *.db-wal
 *.db-journal
+hub/static/sounds/backup_*/
