@@ -70,7 +70,7 @@ html, body {
 /* ── CHARACTER FACE ── */
 .char-wrap { display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .char-wrap.area-zoom { animation: area-zoom 0.6s ease-out forwards; }
-.char-svg { width: 6.5vw; height: 6.5vw; animation: bob 3s ease-in-out infinite; flex-shrink: 0; }
+.char-svg { width: 7.5vw; height: 7.5vw; animation: bob 3s ease-in-out infinite; flex-shrink: 0; }
 .char-svg.excited     { animation: bob 1.4s ease-in-out infinite; }
 .char-svg.celebrating { animation: celebrate 0.7s ease-in-out; }
 #lemon-eyes, #melon-eyes { transform-box: fill-box; transform-origin: center; }
@@ -132,7 +132,7 @@ html, body {
 #lemon-streak { border: 2px solid #b8d030; color: #b8d030; }
 #melon-streak  { border: 2px solid #ff5f95; color: #ff5f95; }
 
-.spacer { flex: 0 0 12px; min-height: 12px; }
+.spacer { flex: 1 1 auto; min-height: 8px; }
 
 /* ── BOTTLE ── */
 .jar-label {
@@ -141,9 +141,20 @@ html, body {
 }
 #card-melon .jar-label { color: #5a1a3a; }
 .bottle-wrap { display: flex; justify-content: center; flex-shrink: 0; }
-.bottle-svg  { width: 8vw; height: 19vh; min-height: 19vh; }
-.bottle-liquid  { transition: height .5s ease, y .5s ease; }
-.bottle-surface { transition: y1 .5s ease, y2 .5s ease; }
+.bottle-svg  { width: 17vw; height: 26vh; min-height: 26vh; }
+.bottle-liquid  { transition: y .6s cubic-bezier(.36,1.4,.5,1); }
+.bottle-surface {
+    transition: cy .6s cubic-bezier(.36,1.4,.5,1);
+    transform-box: fill-box; transform-origin: center;
+}
+.bottle-surface.settle { animation: liquid-settle 0.7s ease-out; }
+@keyframes liquid-settle {
+    0%   { transform: scaleY(1)    scaleX(1); }
+    28%  { transform: scaleY(0.72) scaleX(1.12); }
+    52%  { transform: scaleY(1.15) scaleX(0.94); }
+    74%  { transform: scaleY(0.94) scaleX(1.04); }
+    100% { transform: scaleY(1)    scaleX(1); }
+}
 
 /* ── RESET BUTTON ── */
 .reset-btn {
@@ -238,7 +249,7 @@ html, body {
 /* BANNER — full-width, scrolling */
 #banner {
     background: #1a1200; border-top: 1px solid #2a2000;
-    border-radius: 8px; flex-shrink: 0;
+    flex-shrink: 0;
     overflow: hidden; display: flex; align-items: center;
     min-height: 5.5vh; padding: 0;
 }
@@ -363,21 +374,69 @@ html, body {
 
     <div class="jar-label">JAR LEVEL</div>
     <div class="bottle-wrap">
-        <svg class="bottle-svg" viewBox="0 0 80 210" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+        <svg class="bottle-svg" viewBox="0 0 500 650" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
             <defs>
-                <clipPath id="clip-lemon">
-                    <path d="M10 45 Q10 32 26 28 L54 28 Q70 32 70 45 L70 196 Q70 206 60 206 L20 206 Q10 206 10 196 Z"/>
+                <clipPath id="jar-clip-lemon">
+                    <path d="M 140 580 L 360 580 C 440 580 470 420 460 270 C 450 130 380 90 350 90 L 150 90 C 120 90 50 130 40 270 C 30 420 60 580 140 580 Z"/>
                 </clipPath>
+                <pattern id="cut-glass-lemon" width="30" height="40" patternUnits="userSpaceOnUse">
+                    <path d="M 15 0 L 30 20 L 15 40 L 0 20 Z" fill="none" stroke="#cfd8dc" stroke-width="1.5"/>
+                    <path d="M 0 0 L 30 40 M 30 0 L 0 40" stroke="#eceff1" stroke-width="0.75"/>
+                    <path d="M 15 0 L 15 40 M 0 20 L 30 20" stroke="#eceff1" stroke-width="0.75"/>
+                </pattern>
+                <linearGradient id="glass-shine-lemon" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stop-color="#ffffff" stop-opacity="0.6"/>
+                    <stop offset="15%" stop-color="#ffffff" stop-opacity="0.1"/>
+                    <stop offset="70%" stop-color="#ffffff" stop-opacity="0.0"/>
+                    <stop offset="85%" stop-color="#ffffff" stop-opacity="0.2"/>
+                    <stop offset="100%" stop-color="#ffffff" stop-opacity="0.5"/>
+                </linearGradient>
+                <filter id="jar-glow-lemon" x="-40%" y="-40%" width="180%" height="180%">
+                    <feGaussianBlur in="SourceGraphic" stdDeviation="9" result="blur"/>
+                    <feColorMatrix in="blur" type="matrix" values="
+                        0 0 0 0 0.72
+                        0 0 0 0 0.82
+                        0 0 0 0 0.19
+                        0 0 0 0.9 0" result="glow"/>
+                    <feMerge>
+                        <feMergeNode in="glow"/>
+                        <feMergeNode in="SourceGraphic"/>
+                    </feMerge>
+                </filter>
             </defs>
-            <rect x="29" y="2" width="22" height="13" rx="3" fill="#b8d030"/>
-            <path d="M29 15 L51 15 L54 28 Q70 32 70 45 L70 196 Q70 206 60 206 L20 206 Q10 206 10 196 L10 45 Q10 32 26 28 Z"
-                  fill="none" stroke="#b8d030" stroke-width="2.5"/>
-            <rect id="lemon-bottle-fill" x="10" y="206" width="60" height="0"
-                  fill="#b8d030" opacity="0.88" clip-path="url(#clip-lemon)" class="bottle-liquid"/>
-            <line id="lemon-bottle-surface" x1="10" y1="206" x2="70" y2="206"
-                  stroke="#eef86e" stroke-width="2" clip-path="url(#clip-lemon)" class="bottle-surface"/>
-            <ellipse cx="22" cy="100" rx="4" ry="14" fill="white" opacity="0.12" clip-path="url(#clip-lemon)"/>
-            <ellipse cx="22" cy="158" rx="3" ry="9"  fill="white" opacity="0.08" clip-path="url(#clip-lemon)"/>
+
+            <!-- base disc (grounds the jar) -->
+            <ellipse cx="250" cy="588" rx="150" ry="18" fill="white" opacity="0.05" stroke="#b8d030" stroke-width="2"/>
+
+            <!-- back wall of glass, with neon-matching outer glow so it belongs to the rest of the theme -->
+            <g filter="url(#jar-glow-lemon)">
+                <path d="M 140 580 L 360 580 C 440 580 470 420 460 270 C 450 130 380 90 350 90 L 150 90 C 120 90 50 130 40 270 C 30 420 60 580 140 580 Z"
+                      fill="#f4f6f8" stroke="#b8d030" stroke-width="4"/>
+            </g>
+
+            <!-- juice level (JS updates y / cy on these two) -->
+            <g clip-path="url(#jar-clip-lemon)">
+                <rect id="lemon-bottle-fill" x="0" y="120" width="500" height="650"
+                      fill="#b8d030" opacity="0.9" class="bottle-liquid"/>
+                <ellipse id="lemon-bottle-surface" cx="250" cy="120" rx="210" ry="20"
+                         fill="#eef86e" opacity="0.9" class="bottle-surface"/>
+            </g>
+
+            <!-- front glass cut-pattern overlay -->
+            <path d="M 140 580 L 360 580 C 440 580 470 420 460 270 C 450 130 380 90 350 90 L 150 90 C 120 90 50 130 40 270 C 30 420 60 580 140 580 Z"
+                  fill="url(#cut-glass-lemon)" opacity="0.65" pointer-events="none"/>
+
+            <!-- glass shine -->
+            <path d="M 140 580 L 360 580 C 440 580 470 420 460 270 C 450 130 380 90 350 90 L 150 90 C 120 90 50 130 40 270 C 30 420 60 580 140 580 Z"
+                  fill="url(#glass-shine-lemon)" pointer-events="none"/>
+
+            <!-- open top rim (glow-matched to the theme) -->
+            <g filter="url(#jar-glow-lemon)">
+                <ellipse cx="250" cy="90" rx="100" ry="15" fill="none" stroke="#b8d030" stroke-width="4"/>
+                <ellipse cx="250" cy="75" rx="102" ry="16" fill="none" stroke="#eef86e" stroke-width="3"/>
+                <ellipse cx="250" cy="60" rx="100" ry="15" fill="none" stroke="#b8d030" stroke-width="4"/>
+            </g>
+            <ellipse cx="250" cy="60" rx="94" ry="11" fill="#e0e0e0" opacity="0.5" stroke="#cfd8dc" stroke-width="1"/>
         </svg>
     </div>
 </div>
@@ -461,21 +520,63 @@ html, body {
 
     <div class="jar-label">JAR LEVEL</div>
     <div class="bottle-wrap">
-        <svg class="bottle-svg" viewBox="0 0 80 210" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+        <svg class="bottle-svg" viewBox="0 0 500 650" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
             <defs>
-                <clipPath id="clip-melon">
-                    <path d="M10 45 Q10 32 26 28 L54 28 Q70 32 70 45 L70 196 Q70 206 60 206 L20 206 Q10 206 10 196 Z"/>
+                <clipPath id="jar-clip-melon">
+                    <path d="M 140 580 L 360 580 C 440 580 470 420 460 270 C 450 130 380 90 350 90 L 150 90 C 120 90 50 130 40 270 C 30 420 60 580 140 580 Z"/>
                 </clipPath>
+                <pattern id="cut-glass-melon" width="30" height="40" patternUnits="userSpaceOnUse">
+                    <path d="M 15 0 L 30 20 L 15 40 L 0 20 Z" fill="none" stroke="#cfd8dc" stroke-width="1.5"/>
+                    <path d="M 0 0 L 30 40 M 30 0 L 0 40" stroke="#eceff1" stroke-width="0.75"/>
+                    <path d="M 15 0 L 15 40 M 0 20 L 30 20" stroke="#eceff1" stroke-width="0.75"/>
+                </pattern>
+                <linearGradient id="glass-shine-melon" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stop-color="#ffffff" stop-opacity="0.6"/>
+                    <stop offset="15%" stop-color="#ffffff" stop-opacity="0.1"/>
+                    <stop offset="70%" stop-color="#ffffff" stop-opacity="0.0"/>
+                    <stop offset="85%" stop-color="#ffffff" stop-opacity="0.2"/>
+                    <stop offset="100%" stop-color="#ffffff" stop-opacity="0.5"/>
+                </linearGradient>
+                <filter id="jar-glow-melon" x="-40%" y="-40%" width="180%" height="180%">
+                    <feGaussianBlur in="SourceGraphic" stdDeviation="9" result="blur"/>
+                    <feColorMatrix in="blur" type="matrix" values="
+                        0 0 0 0 1.0
+                        0 0 0 0 0.37
+                        0 0 0 0 0.58
+                        0 0 0 0.9 0" result="glow"/>
+                    <feMerge>
+                        <feMergeNode in="glow"/>
+                        <feMergeNode in="SourceGraphic"/>
+                    </feMerge>
+                </filter>
             </defs>
-            <rect x="29" y="2" width="22" height="13" rx="3" fill="#ff5f95"/>
-            <path d="M29 15 L51 15 L54 28 Q70 32 70 45 L70 196 Q70 206 60 206 L20 206 Q10 206 10 196 L10 45 Q10 32 26 28 Z"
-                  fill="none" stroke="#ff5f95" stroke-width="2.5"/>
-            <rect id="melon-bottle-fill" x="10" y="206" width="60" height="0"
-                  fill="#ff5f95" opacity="0.88" clip-path="url(#clip-melon)" class="bottle-liquid"/>
-            <line id="melon-bottle-surface" x1="10" y1="206" x2="70" y2="206"
-                  stroke="#ff9fbe" stroke-width="2" clip-path="url(#clip-melon)" class="bottle-surface"/>
-            <ellipse cx="22" cy="100" rx="4" ry="14" fill="white" opacity="0.12" clip-path="url(#clip-melon)"/>
-            <ellipse cx="22" cy="158" rx="3" ry="9"  fill="white" opacity="0.08" clip-path="url(#clip-melon)"/>
+
+            <ellipse cx="250" cy="588" rx="150" ry="18" fill="white" opacity="0.05" stroke="#ff5f95" stroke-width="2"/>
+
+            <g filter="url(#jar-glow-melon)">
+                <path d="M 140 580 L 360 580 C 440 580 470 420 460 270 C 450 130 380 90 350 90 L 150 90 C 120 90 50 130 40 270 C 30 420 60 580 140 580 Z"
+                      fill="#f4f6f8" stroke="#ff5f95" stroke-width="4"/>
+            </g>
+
+            <g clip-path="url(#jar-clip-melon)">
+                <rect id="melon-bottle-fill" x="0" y="120" width="500" height="650"
+                      fill="#ff5f95" opacity="0.9" class="bottle-liquid"/>
+                <ellipse id="melon-bottle-surface" cx="250" cy="120" rx="210" ry="20"
+                         fill="#ff9fbe" opacity="0.9" class="bottle-surface"/>
+            </g>
+
+            <path d="M 140 580 L 360 580 C 440 580 470 420 460 270 C 450 130 380 90 350 90 L 150 90 C 120 90 50 130 40 270 C 30 420 60 580 140 580 Z"
+                  fill="url(#cut-glass-melon)" opacity="0.65" pointer-events="none"/>
+
+            <path d="M 140 580 L 360 580 C 440 580 470 420 460 270 C 450 130 380 90 350 90 L 150 90 C 120 90 50 130 40 270 C 30 420 60 580 140 580 Z"
+                  fill="url(#glass-shine-melon)" pointer-events="none"/>
+
+            <g filter="url(#jar-glow-melon)">
+                <ellipse cx="250" cy="90" rx="100" ry="15" fill="none" stroke="#ff5f95" stroke-width="4"/>
+                <ellipse cx="250" cy="75" rx="102" ry="16" fill="none" stroke="#ff9fbe" stroke-width="3"/>
+                <ellipse cx="250" cy="60" rx="100" ry="15" fill="none" stroke="#ff5f95" stroke-width="4"/>
+            </g>
+            <ellipse cx="250" cy="60" rx="94" ry="11" fill="#e0e0e0" opacity="0.5" stroke="#cfd8dc" stroke-width="1"/>
         </svg>
     </div>
 </div>
@@ -552,16 +653,17 @@ function setCharState(name, state) {
     }
 }
 
-// Bottle: viewBox 0 0 80 210, fill body y=45..206
-const BOTTLE_BASE  = 206;
-const BOTTLE_AVAIL = 161;
+// Bottle: viewBox 0 0 500 650 — jar interior spans y=90(top rim)..580(base)
+// Fill logic ported from the jar-generator script: y=580 empty, y=120 full
+const JAR_EMPTY_Y = 580;
+const JAR_FULL_Y  = 120;
 
 function updateBottle(fillId, surfaceId, pct) {
-    const h = Math.max(0, Math.min(BOTTLE_AVAIL, BOTTLE_AVAIL * pct / 100));
-    const y = (BOTTLE_BASE - h).toFixed(1);
-    const rect = $(fillId), line = $(surfaceId);
-    if (rect) { rect.setAttribute('height', h.toFixed(1)); rect.setAttribute('y', y); }
-    if (line) { line.setAttribute('y1', y); line.setAttribute('y2', y); }
+    const clamped = Math.max(0, Math.min(100, pct));
+    const y = (JAR_EMPTY_Y - (clamped / 100) * (JAR_EMPTY_Y - JAR_FULL_Y)).toFixed(1);
+    const rect = $(fillId), surface = $(surfaceId);
+    if (rect)    rect.setAttribute('y', y);
+    if (surface) surface.setAttribute('cy', y);
 }
 
 // Round timer (element removed from UI — kept as a harmless no-op so
@@ -694,6 +796,14 @@ socket.on('state', data => {
             animateCount(name + '-count', cur);
             streak[name]++; streak[opp] = 0;
 
+            const surfaceEl = $(name + '-bottle-surface');
+            if (surfaceEl) {
+                surfaceEl.classList.remove('settle');
+                void surfaceEl.getBoundingClientRect();
+                surfaceEl.classList.add('settle');
+                setTimeout(() => surfaceEl.classList.remove('settle'), 700);
+            }
+
             const persona = name === 'lemon' ? 'LEMON WARRIOR' : 'MELON CRUSHER';
             if (streak[name] >= 3 && streak[name] % 2 === 1)
                 addFeed(persona + ' on a ' + streak[name] + '-pour streak 🔥', '#e8b830');
@@ -703,7 +813,10 @@ socket.on('state', data => {
             $(name + '-count').textContent = String(cur);
         }
         prevCount[name] = cur;
-        updateBottle(name + '-bottle-fill', name + '-bottle-surface', Math.min(100, cur / rs * 100));
+        // Jar is a dispenser: it starts full and DRAINS as glasses are served,
+        // not fills up. Invert glass-count% into remaining-liquid%.
+        const remainingPct = Math.max(0, 100 - Math.min(100, cur / rs * 100));
+        updateBottle(name + '-bottle-fill', name + '-bottle-surface', remainingPct);
     });
 
     const total = c0 + c1;
