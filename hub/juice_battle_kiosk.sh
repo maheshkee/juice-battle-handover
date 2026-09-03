@@ -59,6 +59,13 @@ chromium \
   export DISPLAY=:0
   sleep 10
   while true; do
+    # Re-assert every cycle — something in the session re-enables DPMS after the
+    # one-shot xset calls at script start (observed: screen still blanked after
+    # a clean reboot despite `xset -dpms`). At 3s cadence the blank timer, which
+    # is minutes, can never elapse.
+    xset s off        2>/dev/null || true
+    xset s noblank    2>/dev/null || true
+    xset -dpms        2>/dev/null || true
     WID=$(xdotool search --name "Juice Battle" 2>/dev/null | head -1)
     if [ -f /tmp/jb_reload ]; then
       rm -f /tmp/jb_reload
