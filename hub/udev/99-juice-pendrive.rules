@@ -1,0 +1,15 @@
+# Juice Battle — USB pendrive auto-mount for music playlist
+# Matches any USB mass storage partition (sd[a-z]1) — safe on this board
+# because internal storage is mmcblk0, no other sd* devices present.
+# Installed to /etc/udev/rules.d/ by setup.sh. Field-proven on AQ3 — keep verbatim.
+
+# On plug-in: mount and signal ambient player to rescan
+ACTION=="add", KERNEL=="sd[a-z]1", SUBSYSTEM=="block", \
+    RUN+="/bin/mkdir -p /media/arduino/pendrive", \
+    RUN+="/bin/mount -t exfat /dev/%k /media/arduino/pendrive", \
+    RUN+="/bin/sh -c 'sleep 2 && /usr/bin/curl -s -X POST http://localhost:5000/audio/rescan_playlist > /tmp/jb-pendrive-mount.log 2>&1 &'"
+
+# On removal: unmount and signal fallback
+ACTION=="remove", KERNEL=="sd[a-z]1", SUBSYSTEM=="block", \
+    RUN+="/bin/umount -l /media/arduino/pendrive", \
+    RUN+="/bin/sh -c 'sleep 1 && /usr/bin/curl -s -X POST http://localhost:5000/audio/rescan_playlist > /tmp/jb-pendrive-remove.log 2>&1 &'"

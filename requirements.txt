@@ -1,0 +1,9 @@
+# Juice Battle hub — runtime Python dependencies (pip).
+# Installed by setup.sh with --break-system-packages (board has no venv).
+#
+# System packages (NOT here — installed via apt in setup.sh): python3-gi,
+# python3-dbus, bluez  — hub/ble_scanner.py imports gi + dbus for BlueZ.
+# arduino.app_utils ships with the board image.
+flask
+flask-socketio
+pygame

@@ -1,6 +1,6 @@
 #!/bin/bash
 # setup.sh — one-time setup for Juice Battle on a fresh Arduino UNO Q board.
-# Run once after cloning the repo. Safe to re-run (socket.io.js skipped if present).
+# Run once after cloning the repo. Safe to re-run (idempotent throughout).
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -11,12 +11,18 @@ echo "    Project root: $SCRIPT_DIR"
 echo ""
 
 # ── STEP 1: System packages ────────────────────────────────────────────────────
-echo "[1/11] Installing apt packages (unclutter, xdotool, python3-pip)..."
-sudo apt-get install -y unclutter xdotool python3-pip
+# unclutter/xdotool: kiosk. python3-gi + python3-dbus + bluez: hub/ble_scanner.py
+# talks to BlueZ over D-Bus. chromium: kiosk browser. curl: kiosk wait-loop +
+# pendrive udev hook.
+echo "[1/13] Installing apt packages..."
+sudo apt-get install -y \
+    unclutter xdotool python3-pip \
+    python3-gi python3-dbus bluez \
+    chromium curl
 
 # ── STEP 2: Python dependencies ────────────────────────────────────────────────
-echo "[2/11] Installing Python dependencies..."
-pip install flask flask-socketio qrcode pillow dbus-python pygame --break-system-packages
+echo "[2/13] Installing Python dependencies (requirements.txt)..."
+pip install -r "$SCRIPT_DIR/requirements.txt" --break-system-packages
 
 # ── STEP 3: Audio output (.asoundrc dmix route + USB adapter) ──────────────────
 # All sound assets are committed under hub/static/sounds/, so audio needs only:
@@ -26,7 +32,7 @@ pip install flask flask-socketio qrcode pillow dbus-python pygame --break-system
 #   4. the Generalplus USB adapter physically plugged in
 # Raw hw: access without dmix causes a continuous ALSA underrun storm — see
 # hub/asoundrc header and CLAUDE.md (root-caused 2026-08-20).
-echo "[3/11] Configuring audio output (.asoundrc dmix route)..."
+echo "[3/13] Configuring audio output (.asoundrc dmix route)..."
 ASOUNDRC="$HOME/.asoundrc"
 CANONICAL="$HUB_DIR/asoundrc"
 if [ ! -f "$CANONICAL" ]; then
@@ -50,11 +56,11 @@ else
 fi
 
 # ── STEP 4: Data directory ─────────────────────────────────────────────────────
-echo "[4/11] Creating data directory..."
+echo "[4/13] Creating data directory..."
 mkdir -p "$HUB_DIR/data"
 
 # ── STEP 5: socket.io.js client (offline-safe) ────────────────────────────────
-echo "[5/11] Checking socket.io.js v4.6.1..."
+echo "[5/13] Checking socket.io.js v4.6.1..."
 SOCKETIO_JS="$HUB_DIR/static/socket.io.js"
 if [ -f "$SOCKETIO_JS" ]; then
     echo "      Already present — skipping download."
@@ -67,19 +73,55 @@ else
 fi
 
 # ── STEP 6: Systemd service files ─────────────────────────────────────────────
-echo "[6/11] Installing and enabling systemd services..."
+echo "[6/13] Installing and enabling systemd services..."
 sudo cp "$HUB_DIR/juice-ble-scanner.service" /etc/systemd/system/
 sudo cp "$HUB_DIR/juice-battle.service"      /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable juice-ble-scanner.service juice-battle.service
 
-# ── STEP 7: Kiosk launch script ───────────────────────────────────────────────
-echo "[7/11] Installing kiosk script..."
+# ── STEP 7: udev hot-plug rules ──────────────────────────────────────────────
+# 99-juice-battle-audio: replugging the USB audio adapter restarts juice-battle.
+# 99-juice-pendrive: a USB stick auto-mounts and the ambient player rescans it
+# for a music playlist. Field-proven on AQ3 — versions in hub/udev/ are canonical.
+echo "[7/13] Installing udev hot-plug rules..."
+sudo cp "$HUB_DIR/udev/99-juice-battle-audio.rules" /etc/udev/rules.d/
+sudo cp "$HUB_DIR/udev/99-juice-pendrive.rules"     /etc/udev/rules.d/
+sudo udevadm control --reload-rules
+
+# ── STEP 8: Kiosk auth (autologin + passwordless service control) ─────────────
+# WHY: the board must boot demo-ready with no password prompt anywhere.
+#  - LightDM drop-in  → 'arduino' logs straight into the desktop.
+#  - sudoers.d/juice-battle → deploy.sh + udev rules restart services unattended.
+#  - App Lab autostart suppressed → it no longer pops over the kiosk (and its
+#    keyring/login prompt no longer appears).
+echo "[8/13] Configuring kiosk auth (autologin + passwordless service control)..."
+sudo mkdir -p /etc/lightdm/lightdm.conf.d
+sudo cp "$HUB_DIR/lightdm/50-juice-battle-autologin.conf" /etc/lightdm/lightdm.conf.d/
+
+if sudo /usr/sbin/visudo -cf "$HUB_DIR/sudoers/juice-battle" >/dev/null; then
+    sudo install -m 0440 -o root -g root "$HUB_DIR/sudoers/juice-battle" /etc/sudoers.d/juice-battle
+    echo "      /etc/sudoers.d/juice-battle installed"
+else
+    echo "      ERROR: hub/sudoers/juice-battle failed visudo check — NOT installed."
+fi
+
+mkdir -p /home/arduino/.config/autostart
+cat > /home/arduino/.config/autostart/ArduinoAppLab.desktop <<'EOF'
+[Desktop Entry]
+Type=Application
+Name=Arduino App Lab
+Exec=/bin/true
+Hidden=true
+X-GNOME-Autostart-enabled=false
+EOF
+
+# ── STEP 9: Kiosk launch script ──────────────────────────────────────────────
+echo "[9/13] Installing kiosk script..."
 cp "$SCRIPT_DIR/hub/juice_battle_kiosk.sh" /home/arduino/juice_battle_kiosk.sh
 chmod +x /home/arduino/juice_battle_kiosk.sh
 
-# ── STEP 8: Autostart desktop entries ─────────────────────────────────────────
-echo "[8/11] Installing autostart desktop files..."
+# ── STEP 10: Autostart desktop entries ───────────────────────────────────────
+echo "[10/13] Installing autostart desktop files..."
 mkdir -p /home/arduino/.config/autostart
 
 cat > /home/arduino/.config/autostart/juice_battle_kiosk.desktop <<'EOF'
@@ -101,24 +143,27 @@ Hidden=true
 X-GNOME-Autostart-enabled=false
 EOF
 
-# ── STEP 9: XFCE kiosk hardening ──────────────────────────────────────────────
-echo "[9/11] Applying XFCE kiosk hardening..."
+# ── STEP 11: XFCE kiosk hardening ────────────────────────────────────────────
+echo "[11/13] Applying XFCE kiosk hardening..."
 xfconf-query -c xfce4-desktop -p /backdrop/screen0/monitor0/color-style -s 0 -t int 2>/dev/null || true
 xfconf-query -c xfce4-desktop -p /backdrop/screen0/monitor0/image-show -s false -t bool 2>/dev/null || true
 xfconf-query -c xfce4-notifyd -p /do-not-disturb -s true 2>/dev/null || true
 
-# ── STEP 10: Start services ───────────────────────────────────────────────────
-echo "[10/11] Starting services..."
+# ── STEP 12: Start services ──────────────────────────────────────────────────
+echo "[12/13] Starting services..."
 sudo systemctl start juice-ble-scanner.service
 echo "      Waiting 4s for BLE scanner to acquire GATT connection..."
 sleep 4
 sudo systemctl start juice-battle.service
 
-# ── STEP 11: Summary ──────────────────────────────────────────────────────────
+# ── STEP 13: Summary ────────────────────────────────────────────────────────
 echo ""
-echo "[11/11] Setup complete."
+echo "[13/13] Setup complete."
 echo ""
 echo "  Dashboard:              http://$(hostname).local:5000/v6"
+echo ""
+echo "  Autologin + kiosk take effect on next reboot. To apply now without a"
+echo "  reboot:  sudo systemctl restart lightdm   (closes the desktop session)"
 echo ""
 echo "  Service status:"
 echo "    systemctl status juice-ble-scanner"

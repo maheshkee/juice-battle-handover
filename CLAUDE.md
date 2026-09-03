@@ -22,6 +22,26 @@ Now committed so any clone works from `setup.sh` alone:
 All sound assets (incl. `flute.mp3`, `fuzzy_horizon.mp3`) are already committed,
 so audio needs no internet/manual downloads — just `pygame` + the USB adapter.
 
+## Board provisioning is now fully in `setup.sh` (2026-09-03)
+More AQ3-only hand-fixes were folded into the repo so a clone + `setup.sh` yields
+a working board with no further manual steps:
+- `hub/udev/99-juice-battle-audio.rules`, `hub/udev/99-juice-pendrive.rules` —
+  committed; `setup.sh` STEP 7 installs them. (Audio-replug restart + music-USB
+  auto-mount previously only existed on AQ3 / in the retired `hub/setup.sh`.)
+- `hub/lightdm/50-juice-battle-autologin.conf` — LightDM drop-in, no password at
+  boot. `setup.sh` STEP 8. Mirrors AQ3's hand-edited `/etc/lightdm/lightdm.conf`.
+- `hub/sudoers/juice-battle` — passwordless `systemctl` for the two JB services;
+  `setup.sh` STEP 8 installs via `visudo -c`. (May be superseded by AQ3's exact
+  existing `/etc/sudoers.d/juice-battle` if it differs — that file wins.)
+- `setup.sh` STEP 8 also suppresses the Arduino App Lab autostart (the thing that
+  popped a keyring/login prompt over the kiosk).
+- `setup.sh` apt line now installs `python3-gi python3-dbus bluez chromium curl`
+  (BLE scanner + kiosk deps that were assumed present).
+- `requirements.txt` added; `setup.sh` uses it. `qrcode`/`pillow`/`dbus-python`
+  dropped from the pip list — confirmed unused at runtime.
+Autologin/kiosk changes need a reboot (or `systemctl restart lightdm`) to apply.
+NOTE: the new `setup.sh` steps have NOT been run on a real board yet.
+
 ## What was just completed (2026-08-20)
 - Audio: root-caused a "mixer not initialized" + underrun-storm failure to a
   stray PulseAudio override fighting raw `hw:` ALSA access. Fixed by routing

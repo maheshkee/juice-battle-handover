@@ -1,0 +1,7 @@
+# Restart juice-battle when the Generalplus USB audio adapter is plugged in.
+# Uses systemd-run because the udev context cannot call systemctl directly.
+# Vendor 1b3f = Generalplus Technology, Product 2008 = USB Audio Device.
+# Installed to /etc/udev/rules.d/ by setup.sh. Field-proven on AQ3 — keep verbatim.
+ACTION=="add", SUBSYSTEM=="usb", \
+    ATTR{idVendor}=="1b3f", ATTR{idProduct}=="2008", \
+    RUN+="/usr/bin/systemd-run --no-block /bin/systemctl restart juice-battle.service"
