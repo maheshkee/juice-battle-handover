@@ -9,6 +9,15 @@ xfconf-query -c xfce4-desktop -p /backdrop/screen0/monitor1/image-show -s false 
 # Silence desktop notifications — prevents popups stealing focus
 xfconf-query -c xfce4-notifyd -p /do-not-disturb -s true 2>/dev/null || true
 
+# Kill screen blanking / DPMS — a kiosk display must never power down or blank.
+# Without this the panel goes black after the X default idle timeout (~10 min)
+# even though Chromium is still running the dashboard underneath.
+export DISPLAY=:0
+xset s off        2>/dev/null || true
+xset s noblank    2>/dev/null || true
+xset -dpms        2>/dev/null || true
+xset dpms 0 0 0   2>/dev/null || true
+
 # Kill any focus-stealing applets before Chromium launches
 pkill blueman-applet 2>/dev/null || true
 pkill blueman-tray   2>/dev/null || true
