@@ -18,7 +18,7 @@ echo ""
 # ── STEP 1: Git pull ───────────────────────────────────────────────────────────
 echo "[1/5] Pulling latest code..."
 cd "$SCRIPT_DIR"
-git pull origin juice-battle-main || echo "      WARNING: git pull failed — deploying local code as-is."
+git pull origin main || echo "      WARNING: git pull failed — deploying local code as-is."
 
 # ── STEP 2: Restart hub ────────────────────────────────────────────────────────
 echo "[2/5] Restarting main app..."

@@ -11,8 +11,8 @@ echo "    Project root: $SCRIPT_DIR"
 echo ""
 
 # ── STEP 1: System packages ────────────────────────────────────────────────────
-echo "[1/10] Installing apt packages (unclutter, xdotool)..."
-sudo apt-get install -y unclutter xdotool
+echo "[1/10] Installing apt packages (unclutter, xdotool, python3-pip)..."
+sudo apt-get install -y unclutter xdotool python3-pip
 
 # ── STEP 2: Python dependencies ────────────────────────────────────────────────
 echo "[2/10] Installing Python dependencies..."
@@ -44,7 +44,7 @@ sudo systemctl enable juice-ble-scanner.service juice-battle.service
 
 # ── STEP 6: Kiosk launch script ───────────────────────────────────────────────
 echo "[6/10] Installing kiosk script..."
-cp "$SCRIPT_DIR/juice_battle_kiosk.sh" /home/arduino/juice_battle_kiosk.sh
+cp "$SCRIPT_DIR/hub/juice_battle_kiosk.sh" /home/arduino/juice_battle_kiosk.sh
 chmod +x /home/arduino/juice_battle_kiosk.sh
 
 # ── STEP 7: Autostart desktop entries ─────────────────────────────────────────
@@ -87,7 +87,7 @@ sudo systemctl start juice-battle.service
 echo ""
 echo "[10/10] Setup complete."
 echo ""
-echo "  Dashboard:              http://AQ3.local:5000/v2"
+echo "  Dashboard:              http://$(hostname).local:5000/v6"
 echo ""
 echo "  Service status:"
 echo "    systemctl status juice-ble-scanner"
