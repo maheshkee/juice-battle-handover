@@ -67,17 +67,10 @@ html, body {
 #card-lemon.pouring { animation: glow-lemon 0.8s ease-out; }
 #card-melon.pouring { animation: glow-melon 0.8s ease-out; }
 
-.node-label {
-    font-size: 0.7vw; color: #3a5a1a;
-    text-transform: uppercase; letter-spacing: 0.2em;
-    margin-bottom: 6px; align-self: center;
-}
-#card-melon .node-label { color: #5a1a3a; }
-
 /* ── CHARACTER FACE ── */
 .char-wrap { display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .char-wrap.area-zoom { animation: area-zoom 0.6s ease-out forwards; }
-.char-svg { width: 5vw; height: 5vw; animation: bob 3s ease-in-out infinite; flex-shrink: 0; }
+.char-svg { width: 6.5vw; height: 6.5vw; animation: bob 3s ease-in-out infinite; flex-shrink: 0; }
 .char-svg.excited     { animation: bob 1.4s ease-in-out infinite; }
 .char-svg.celebrating { animation: celebrate 0.7s ease-in-out; }
 #lemon-eyes, #melon-eyes { transform-box: fill-box; transform-origin: center; }
@@ -139,7 +132,7 @@ html, body {
 #lemon-streak { border: 2px solid #b8d030; color: #b8d030; }
 #melon-streak  { border: 2px solid #ff5f95; color: #ff5f95; }
 
-.spacer { flex: 1; min-height: 4px; }
+.spacer { flex: 0 0 12px; min-height: 12px; }
 
 /* ── BOTTLE ── */
 .jar-label {
@@ -148,7 +141,7 @@ html, body {
 }
 #card-melon .jar-label { color: #5a1a3a; }
 .bottle-wrap { display: flex; justify-content: center; flex-shrink: 0; }
-.bottle-svg  { width: 6vw; height: 16vh; min-height: 16vh; }
+.bottle-svg  { width: 8vw; height: 19vh; min-height: 19vh; }
 .bottle-liquid  { transition: height .5s ease, y .5s ease; }
 .bottle-surface { transition: y1 .5s ease, y2 .5s ease; }
 
@@ -172,22 +165,30 @@ html, body {
     gap: 6px; min-width: 0; min-height: 0;
 }
 
-/* TOP BAR */
-#top-bar {
-    background: #111810; border-radius: 8px; padding: 10px 16px;
-    display: flex; align-items: center; justify-content: space-between;
-    flex-shrink: 0;
-}
-.top-eyebrow {
-    font-size: 0.7vw; color: #3a5a2a;
-    text-transform: uppercase; letter-spacing: 0.2em; margin-bottom: 2px;
-}
-#round-label {
-    font-size: 1.8vw; font-weight: 900;
-    font-family: 'Impact', 'Arial Black', sans-serif;
-    text-transform: uppercase; color: #e8ede8;
+/* LIVE ROW */
+#live-row {
+    display: flex; align-items: center; justify-content: flex-end;
+    padding: 2px 4px; flex-shrink: 0;
 }
 #live-badge { display: flex; align-items: center; gap: 8px; }
+
+/* ROUND STATUS (below logo) */
+#round-status {
+    display: flex; flex-direction: column; align-items: center;
+    gap: 8px; flex-shrink: 0; padding: 14px 0 4px;
+}
+#round-label {
+    font-size: 2.6vw; font-weight: 900;
+    font-family: 'Impact', 'Arial Black', sans-serif;
+    text-transform: uppercase; color: #e8ede8;
+    letter-spacing: 0.06em; text-align: center;
+    text-shadow: 0 0 24px #5ab8ff55, 0 0 4px #ffffff33;
+}
+.lead-mini {
+    font-size: 1.05vw; font-weight: 700; letter-spacing: 0.2em;
+    text-transform: uppercase; color: #888; text-align: center;
+    padding: 5px 20px; border: 1px solid #333; border-radius: 20px;
+}
 .live-dot {
     width: 8px; height: 8px; border-radius: 50%; background: #ff5f95;
     animation: glowpulse 1.5s ease-in-out infinite; flex-shrink: 0;
@@ -213,120 +214,42 @@ html, body {
 .logo-flip-container.flipped .logo-front { opacity: 0; }
 .logo-flip-container.flipped .logo-back  { opacity: 1; }
 
-/* STAT TILES */
-#stat-tiles { display: flex; gap: 6px; flex-shrink: 0; }
-.stat-tile {
-    flex: 1; background: #111810; border: 1px solid #1e2e1e;
-    border-radius: 10px; padding: 14px 10px;
-    display: flex; flex-direction: column; align-items: center;
-    justify-content: center; min-height: 11vh; text-align: center;
-}
-.stat-tile-label {
-    font-size: 0.85vw; color: #5a7a5a;
-    letter-spacing: 0.2em; text-transform: uppercase; margin-bottom: 8px;
-}
-.stat-tile-val {
-    font-size: 2.8vw;
-    font-family: 'Impact', 'Arial Black', sans-serif;
-    font-weight: 900; color: #e8ede8;
-}
-#lead-tile    { font-size: 2.2vw; color: #888; }
-#round-timer  { color: #ffffff; text-shadow: 0 0 10px #ffffff44; font-size: 3vw; }
-#iot-served   { color: #b8d030; text-shadow: 0 0 15px #b8d03088; font-size: 3vw; }
-
-/* FLIP TILES */
-#flip-tiles { display: flex; gap: 6px; flex-shrink: 0; min-height: 16vh; }
-.flip-tile  { flex: 1; perspective: 1000px; }
-.flip-inner {
-    position: relative; width: 100%; height: 100%;
-    transform-style: preserve-3d; transition: transform 0.6s ease;
-}
-.flip-inner.flipped { transform: rotateY(180deg); }
-.flip-front, .flip-back {
-    position: absolute; inset: 0;
-    backface-visibility: hidden; -webkit-backface-visibility: hidden;
-    border-radius: 10px; padding: 12px;
-    display: flex; flex-direction: column;
-    align-items: center; justify-content: center;
-    overflow: hidden; gap: 8px;
-}
-.flip-back { transform: rotateY(180deg); }
-
-.dharanova-tile-front { background: #111810; border: 1px solid #d4921a; }
-.dharanova-stat {
-    font-size: 1.1vw; color: #d4921a; font-weight: 700;
-    text-align: center; text-transform: uppercase; letter-spacing: 0.1em;
-}
-.water-back {
-    background: #0a1a14; border: 1px solid #1a5a3a;
-    align-items: flex-start; gap: 10px;
-}
-.water-eyebrow  { font-size: 0.7vw; letter-spacing: 0.15em; text-transform: uppercase; color: #2a6a4a; }
-.water-headline { font-size: 1.4vw; font-weight: 900; line-height: 1.3; text-transform: uppercase; color: #00c896; }
-.water-sub      { font-size: 1vw; color: #1a5a3a; font-style: italic; }
-
-.iot-summit-front { background: #0a1020; border: 1px solid #3a7abf; }
-.iot-welcome { font-size: 0.9vw; letter-spacing: 0.2em; color: #3a7abf; text-transform: uppercase; }
-.iot-title {
-    font-size: 2.2vw; font-family: 'Impact', 'Arial Black', sans-serif;
-    font-weight: 900; color: #5ab8ff;
-    animation: iot-glow 2s ease-in-out infinite;
-}
-.iot-sub { font-size: 1vw; color: #3a7abf; font-style: italic; }
-@keyframes iot-glow {
-    0%,100% { text-shadow: 0 0 10px #5ab8ff66 }
-    50%      { text-shadow: 0 0 30px #5ab8ff, 0 0 60px #5ab8ff44 }
-}
-
-.alltime-back {
-    background: #111810; border: 1px solid #b8d030;
-    gap: 12px; text-align: center;
-}
-#alltime-served {
-    font-family: 'Impact', 'Arial Black', sans-serif;
-    font-size: 4vw; color: #eef86e; line-height: 1;
-}
-.alltime-label {
-    font-size: 0.9vw; letter-spacing: 0.1em; text-transform: uppercase;
-    color: #5a7a3a; line-height: 1.6;
-}
-
-/* Mascot limb animations */
+/* Mascot limb animations (kept — used only by the removed flip-tile mascot; harmless if unused) */
 @keyframes arm-left  { from { transform: rotate(-25deg) } to { transform: rotate(25deg) } }
 @keyframes arm-right { from { transform: rotate(25deg)  } to { transform: rotate(-25deg) } }
 @keyframes leg-left  { from { transform: rotate(-20deg) } to { transform: rotate(20deg) } }
 @keyframes leg-right { from { transform: rotate(20deg)  } to { transform: rotate(-20deg) } }
 
-/* LIVE FEED */
-#feed-section {
-    flex: 1; background: #0d1209; border: 1px solid #1a2a1a;
-    border-radius: 10px; padding: 12px 16px;
-    overflow: hidden; display: flex; flex-direction: column; min-height: 0;
+/* SERVED SECTION — replaces live feed as the centre's bottom section */
+#served-section {
+    flex: 0 0 60%; background: #111810; border: 1px solid #1e2e1e;
+    border-radius: 10px; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; min-height: 0; gap: 12px;
 }
-.feed-header {
-    font-size: 0.8vw; letter-spacing: 0.25em; text-transform: uppercase;
-    color: #3a5a3a; margin-bottom: 8px; flex-shrink: 0;
+#served-section .stat-tile-label {
+    font-size: 1.15vw; color: #5a7a5a;
+    letter-spacing: 0.25em; text-transform: uppercase;
 }
-#live-feed { overflow: hidden; flex: 1; }
-.feed-row {
-    display: flex; align-items: center; gap: 12px;
-    padding: 8px 0; border-bottom: 1px solid #111810;
+#served-section #iot-served {
+    font-size: 8vw; color: #b8d030; text-shadow: 0 0 30px #b8d03099, 0 0 60px #b8d03044;
+    font-family: 'Impact', 'Arial Black', sans-serif; font-weight: 900; line-height: 1;
 }
-.feed-row:last-child { border-bottom: none; }
-.feed-pill  { width: 6px; height: 22px; border-radius: 3px; flex-shrink: 0; }
-.feed-time  { font-size: 0.9vw; color: #4a5a4a; font-family: monospace; min-width: 3em; flex-shrink: 0; }
-.feed-text  { font-size: 1.1vw; color: #d8e8d8; font-weight: 700; flex: 1; }
-@keyframes feed-slide { from { opacity:0; transform: translateY(-10px) } to { opacity:1; transform: translateY(0) } }
-.feed-row.new-row { animation: feed-slide 0.3s ease-out; }
 
-/* BANNER */
+/* BANNER — full-width, scrolling */
 #banner {
     background: #1a1200; border-top: 1px solid #2a2000;
-    border-radius: 8px; padding: 5px 16px;
-    text-align: center; flex-shrink: 0;
+    border-radius: 8px; flex-shrink: 0;
+    overflow: hidden; display: flex; align-items: center;
+    min-height: 5.5vh; padding: 0;
 }
-.banner-main { font-size: 0.9vw; color: #d4921a; font-weight: 700; letter-spacing: 0.15em; }
-.banner-sub  { font-size: 0.75vw; color: #6a5010; }
+#banner-track {
+    display: flex; width: max-content;
+    animation: ticker-scroll 22s linear infinite;
+}
+.banner-main {
+    white-space: nowrap; padding: 0 40px;
+    font-size: 1.5vw; color: #d4921a; font-weight: 800; letter-spacing: 0.16em;
+}
 
 /* ── OVERLAYS ── */
 #winner-overlay {
@@ -373,21 +296,6 @@ html, body {
 @keyframes area-zoom  { 0%{transform:scale(1)} 30%{transform:scale(1.22)} 100%{transform:scale(1)} }
 @keyframes drainBar   { from{width:100%} to{width:0%} }
 
-/* TICKER */
-#ticker-section {
-    background: #111810; border-radius: 8px; flex-shrink: 0;
-    overflow: hidden; display: flex; align-items: center;
-}
-#ticker-track {
-    display: flex; width: max-content;
-    animation: ticker-scroll 40s linear infinite;
-}
-.ticker-item {
-    white-space: nowrap; padding: 12px 28px;
-    font-size: 0.9vw; font-weight: 700; letter-spacing: 0.15em;
-    color: #d4921a; text-transform: uppercase;
-}
-.ticker-sep { color: #6a5010; padding: 0 4px; }
 @keyframes ticker-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 </style>
 </head>
@@ -428,8 +336,6 @@ html, body {
 
 <!-- ━━ LEFT CARD: LEMON WARRIOR ━━ -->
 <div id="card-lemon" class="player-card">
-    <div class="node-label">NODE A &middot; JAR 0</div>
-
     <div class="char-wrap" id="char-wrap-lemon">
         <svg id="char-0" class="char-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
           <ellipse cx="50" cy="55" rx="33" ry="37" fill="#E8D830"/>
@@ -479,19 +385,15 @@ html, body {
 <!-- ━━ CENTRE PANEL ━━ -->
 <div id="centre">
 
-    <!-- SECTION 1: TOP BAR -->
-    <div id="top-bar">
-        <div>
-            <div class="top-eyebrow">JUICE BATTLE</div>
-            <div id="round-label">ROUND 1 — BEST OF 10</div>
-        </div>
-        <div id="live-badge">
+    <!-- LIVE indicator row (top) -->
+    <div id="live-row">
+        <span id="live-badge">
             <span id="live-dot" class="live-dot"></span>
             <span id="live-text">LIVE</span>
-        </div>
+        </span>
     </div>
 
-    <!-- SECTION 2: LOGO FLIP ZONE -->
+    <!-- LOGO FLIP ZONE -->
     <div id="logo-flip-zone">
         <div class="logo-flip-container" id="logo-flip-container">
             <div class="logo-face logo-front">
@@ -514,96 +416,22 @@ html, body {
         </div>
     </div>
 
-    <!-- SECTION 3: TICKER -->
-    <div id="ticker-section">
-        <div id="ticker-track">
-            <span class="ticker-item">Dharanova builds connected hardware — intelligence built into everyday objects</span>
-            <span class="ticker-sep">&nbsp;&nbsp;&nbsp;&middot;&nbsp;&nbsp;&nbsp;</span>
-            <span class="ticker-item">Dharanova builds connected hardware — intelligence built into everyday objects</span>
-            <span class="ticker-sep">&nbsp;&nbsp;&nbsp;&middot;&nbsp;&nbsp;&nbsp;</span>
-        </div>
+    <!-- ROUND STATUS (below logo) -->
+    <div id="round-status">
+        <div id="round-label">ROUND 1 — BEST OF 10</div>
+        <div id="lead-tile" class="lead-mini">TIED</div>
     </div>
 
-    <!-- SECTION 4: STAT TILES -->
-    <div id="stat-tiles">
-        <div class="stat-tile">
-            <div class="stat-tile-label">LEAD</div>
-            <div class="stat-tile-val" id="lead-tile">TIED</div>
-        </div>
-        <div class="stat-tile">
-            <div class="stat-tile-label">ROUND TIME</div>
-            <div class="stat-tile-val" id="round-timer">00:00</div>
-        </div>
-        <div class="stat-tile">
-            <div class="stat-tile-label">IoT ENTHUSIASTS SERVED</div>
-            <div class="stat-tile-val" id="iot-served">0</div>
-        </div>
-    </div>
-
-    <!-- SECTION 5: FLIP TILES -->
-    <div id="flip-tiles">
-
-        <!-- Tile A: Dharanova mascot ↔ Water conservation stat -->
-        <div class="flip-tile">
-            <div class="flip-inner" id="flip-a">
-                <div class="flip-front dharanova-tile-front">
-                    <svg viewBox="0 0 60 80" width="54" height="72" style="overflow:visible;flex-shrink:0">
-                        <circle cx="30" cy="10" r="9" fill="none" stroke="#d4921a" stroke-width="2.5"/>
-                        <line x1="30" y1="19" x2="30" y2="50" stroke="#d4921a" stroke-width="2.5" stroke-linecap="round"/>
-                        <line x1="30" y1="29" x2="13" y2="43" stroke="#d4921a" stroke-width="2.5" stroke-linecap="round"
-                              style="transform-origin:30px 29px;animation:arm-left .5s ease-in-out infinite alternate"/>
-                        <line x1="30" y1="29" x2="47" y2="43" stroke="#d4921a" stroke-width="2.5" stroke-linecap="round"
-                              style="transform-origin:30px 29px;animation:arm-right .5s ease-in-out infinite alternate"/>
-                        <line x1="30" y1="50" x2="16" y2="70" stroke="#d4921a" stroke-width="2.5" stroke-linecap="round"
-                              style="transform-origin:30px 50px;animation:leg-left .5s ease-in-out infinite alternate"/>
-                        <line x1="30" y1="50" x2="44" y2="70" stroke="#d4921a" stroke-width="2.5" stroke-linecap="round"
-                              style="transform-origin:30px 50px;animation:leg-right .5s ease-in-out infinite alternate"/>
-                    </svg>
-                    <div class="dharanova-stat">40% OF WATER LOST WITHOUT MEASUREMENT</div>
-                </div>
-                <div class="flip-back water-back">
-                    <div class="water-eyebrow">💧 PRECISION IoT &middot; WATER CONSERVATION</div>
-                    <div class="water-headline">40% OF WATER<br>IS LOST WITHOUT<br>MEASUREMENT</div>
-                    <div class="water-sub">What gets measured, gets managed</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Tile B: IoT Summit welcome ↔ All-time stat -->
-        <div class="flip-tile">
-            <div class="flip-inner" id="flip-b">
-                <div class="flip-front iot-summit-front">
-                    <div class="iot-welcome">WELCOME TO</div>
-                    <div class="iot-title">IoT SUMMIT 2026</div>
-                    <div class="iot-sub">Connecting the Future</div>
-                </div>
-                <div class="flip-back alltime-back">
-                    <div id="alltime-served">0</div>
-                    <div class="alltime-label">GLASSES MEASURED AT THIS STALL TODAY</div>
-                </div>
-            </div>
-        </div>
-
-    </div>
-
-    <!-- SECTION 6: LIVE FEED -->
-    <div id="feed-section">
-        <div class="feed-header">LIVE FEED</div>
-        <div id="live-feed">
-            <div class="feed-row">
-                <div class="feed-pill" style="background:#1a2a1a"></div>
-                <div class="feed-time">—</div>
-                <div class="feed-text" style="color:#1a2a1a">Waiting for first pour&hellip;</div>
-            </div>
-        </div>
+    <!-- SERVED SECTION (replaces live feed) -->
+    <div id="served-section">
+        <div class="stat-tile-label">IoT ENTHUSIASTS SERVED</div>
+        <div id="iot-served">0</div>
     </div>
 
 </div><!-- /centre -->
 
 <!-- ━━ RIGHT CARD: MELON CRUSHER ━━ -->
 <div id="card-melon" class="player-card">
-    <div class="node-label">NODE B &middot; JAR 1</div>
-
     <div class="char-wrap" id="char-wrap-melon">
         <svg id="char-1" class="char-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
           <circle cx="50" cy="50" r="38" fill="#3a8a30"/>
@@ -654,10 +482,13 @@ html, body {
 
 </div><!-- /layout -->
 
-<!-- DHARANOVA BANNER — full width, spans below the entire layout -->
+<!-- DHARANOVA BANNER — full width, scrolling -->
 <div id="banner">
-    <div class="banner-main">🌿 DHARANOVA WELCOMES ALL IoT ENTHUSIASTS TO THIS SUMMIT 🌿</div>
-    <div class="banner-sub">Where grounded innovation meets real-world sensing — thank you for being here</div>
+    <div id="banner-track">
+        <span class="banner-main">DHARANOVA WELCOMES ALL IoT ENTHUSIASTS</span>
+        <span class="banner-main">DHARANOVA WELCOMES ALL IoT ENTHUSIASTS</span>
+        <span class="banner-main">DHARANOVA WELCOMES ALL IoT ENTHUSIASTS</span>
+    </div>
 </div>
 
 <script src="/static/socket.io.js"></script>
@@ -733,19 +564,9 @@ function updateBottle(fillId, surfaceId, pct) {
     if (line) { line.setAttribute('y1', y); line.setAttribute('y2', y); }
 }
 
-// Round timer
-let roundStartTs = Date.now();
-setInterval(() => {
-    const secs = Math.floor((Date.now() - roundStartTs) / 1000);
-    $('round-timer').textContent =
-        String(Math.floor(secs / 60)).padStart(2,'0') + ':' +
-        String(secs % 60).padStart(2,'0');
-}, 1000);
-
-function resetTimer() {
-    roundStartTs = Date.now();
-    $('round-timer').textContent = '00:00';
-}
+// Round timer (element removed from UI — kept as a harmless no-op so
+// round_over/round_begin handlers below can still call it safely)
+function resetTimer() {}
 
 // Logo crossfade zone — 8s
 let logoFlipState = false;
@@ -754,15 +575,8 @@ setInterval(() => {
     $('logo-flip-container').classList.toggle('flipped', logoFlipState);
 }, 8000);
 
-// Flip tiles — 10s (offset so they don't sync with logo)
-let tileFlipState = false;
-setInterval(() => {
-    tileFlipState = !tileFlipState;
-    $('flip-a').classList.toggle('flipped', tileFlipState);
-    $('flip-b').classList.toggle('flipped', tileFlipState);
-}, 10000);
-
-// Live feed
+// Live feed (element removed from UI — addFeed()/renderFeed() below are
+// harmless no-ops now, kept only because on_pour_settled visuals still call addFeed())
 const feedEvents = [];
 function nowHHMM() {
     const d = new Date();
@@ -930,7 +744,6 @@ socket.on('state', data => {
     });
 
     $('iot-served').textContent     = String(data.session_glasses  ?? 0);
-    $('alltime-served').textContent = String(data.all_time_served  ?? 0);
 
     if (data.game_over && !gameOverHandled) { gameOverHandled = true; handleGameOver(data.winner); }
     if (!data.game_over) gameOverHandled = false;

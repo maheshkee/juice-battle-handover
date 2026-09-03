@@ -1444,6 +1444,7 @@ class Dashboard:
         self._app.add_url_rule('/v3', 'index_v3', self._serve_v3)
         self._app.add_url_rule('/v4', 'index_v4', self._serve_v4)
         self._app.add_url_rule('/v5', 'index_v5', self._serve_v5)
+        self._app.add_url_rule('/v6', 'index_v6', self._serve_v6)
         self._app.add_url_rule('/reset_rounds', 'reset_rounds',
                                self._reset_rounds, methods=['POST'])
         self._app.add_url_rule('/audio/volume', 'audio_volume',
@@ -1645,6 +1646,14 @@ class Dashboard:
         response.headers['Pragma'] = 'no-cache'
         response.headers['Expires'] = '0'
         return response
+
+    def _serve_v6(self):
+            """Serve the v6 crowd-facing dashboard — Claude Design visual style."""
+            response = make_response(render_template('v6.html'))
+            response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+            response.headers['Pragma'] = 'no-cache'
+            response.headers['Expires'] = '0'
+            return response
 
     def _serve_v3(self):
         """Serve the crowd-facing v3 dashboard with atmospheric background and cause panel."""
