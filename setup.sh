@@ -149,12 +149,14 @@ xfconf-query -c xfce4-desktop -p /backdrop/screen0/monitor0/color-style -s 0 -t 
 xfconf-query -c xfce4-desktop -p /backdrop/screen0/monitor0/image-show -s false -t bool 2>/dev/null || true
 xfconf-query -c xfce4-notifyd -p /do-not-disturb -s true 2>/dev/null || true
 
-# ── STEP 12: Start services ──────────────────────────────────────────────────
-echo "[12/13] Starting services..."
-sudo systemctl start juice-ble-scanner.service
+# ── STEP 12: (Re)start services ──────────────────────────────────────────────
+# restart, not start: on a re-run the old instance is already up with stale
+# config (unit file / .asoundrc just changed) and `start` would be a no-op.
+echo "[12/13] (Re)starting services..."
+sudo systemctl restart juice-ble-scanner.service
 echo "      Waiting 4s for BLE scanner to acquire GATT connection..."
 sleep 4
-sudo systemctl start juice-battle.service
+sudo systemctl restart juice-battle.service
 
 # ── STEP 13: Summary ────────────────────────────────────────────────────────
 echo ""
