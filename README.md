@@ -24,7 +24,7 @@ A two-player crowd-interactive juice-pouring game with real-time BLE weighing, p
 - Dashboard: `http://AQ3:5000/` live on Arzopa 28" via wireless HDMI kiosk
 - Auto-round system: `ROUND_SIZE=10` glasses combined, persisted in SQLite `kv_store`, 10 s TTS cooldown
 - Clean-restart flag: SIGTERM → fresh scores; crash or power loss → session resumes
-- Audio: varanasi.mp3 → anirudh.mp3 ordered playlist; TTS announcements; pygame buffer 4096
+- Audio: `fuzzy_horizon.mp3` single-track loop; TTS announcements; pygame buffer 8192, `~/.asoundrc` dmix route (installed by `setup.sh` from `hub/asoundrc`)
 - BLE ghost-connection watchdog: 60 s eviction cycle via `bluetoothctl remove`; firmware supervision timeout 5 s
 
 ### Next session scope

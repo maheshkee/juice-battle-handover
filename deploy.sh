@@ -20,8 +20,19 @@ echo "[1/5] Pulling latest code..."
 cd "$SCRIPT_DIR"
 git pull origin main || echo "      WARNING: git pull failed — deploying local code as-is."
 
-# ── STEP 2: Restart hub ────────────────────────────────────────────────────────
-echo "[2/5] Restarting main app..."
+# ── STEP 2: Re-sync systemd unit files, then restart hub ──────────────────────
+# WHY: a plain restart does NOT pick up changes to the unit files in the repo
+# (e.g. dropping AUDIODEV). Without this re-copy the installed unit silently
+# drifts from the repo. cmp avoids a needless daemon-reload when nothing changed.
+echo "[2/5] Syncing service units + restarting main app..."
+for unit in juice-battle.service juice-ble-scanner.service; do
+    if ! cmp -s "$SCRIPT_DIR/hub/$unit" "/etc/systemd/system/$unit"; then
+        sudo cp "$SCRIPT_DIR/hub/$unit" "/etc/systemd/system/$unit"
+        echo "      updated /etc/systemd/system/$unit"
+        NEED_RELOAD=1
+    fi
+done
+if [ -n "$NEED_RELOAD" ]; then sudo systemctl daemon-reload; fi
 sudo systemctl restart juice-battle.service
 echo "      Main app restarted."
 

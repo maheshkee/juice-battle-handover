@@ -7,6 +7,21 @@ feature development — the project is in live product testing at AQ3, working
 toward stall deployment. Both nodes (JB-0, JB-1) connect, score, and have each
 completed a verified end-to-end pour test with correct glass counts (2026-08-20).
 
+## Audio config is now repo-managed (2026-09-03)
+The 2026-08-20 audio fix lived only as a hand-edited `~/.asoundrc` + a hand-edited
+installed unit on AQ3 — never committed. A clone onto a second board (Dharanova-2)
+ran `setup.sh` and got the pre-fix raw-`hw:` config → underrun storm again.
+Now committed so any clone works from `setup.sh` alone:
+- `hub/asoundrc` — canonical dmix config (byte-identical to AQ3's working file);
+  `setup.sh` STEP 3 installs it to `~/.asoundrc` (backs up any existing one).
+- `hub/juice-battle.service` — `AUDIODEV=hw:Device` removed (it bypassed dmix).
+- `deploy.sh` now re-syncs unit files to `/etc/systemd/system` before restart, so
+  the installed units can't silently drift from the repo again.
+- `hub/setup.sh` and `hub/deploy.sh` were stale divergent copies — now thin
+  wrappers that exec the root scripts.
+All sound assets (incl. `flute.mp3`, `fuzzy_horizon.mp3`) are already committed,
+so audio needs no internet/manual downloads — just `pygame` + the USB adapter.
+
 ## What was just completed (2026-08-20)
 - Audio: root-caused a "mixer not initialized" + underrun-storm failure to a
   stray PulseAudio override fighting raw `hw:` ALSA access. Fixed by routing

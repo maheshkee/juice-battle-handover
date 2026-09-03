@@ -1,20 +1,8 @@
 #!/bin/bash
-# deploy.sh - redeploy Juice Battle after code changes to hub/ Python files.
-# Does NOT touch the BLE scanner service - BLE connection stays live.
-# Does NOT touch firmware - use Arduino IDE for .ino changes.
+# hub/deploy.sh — DEPRECATED entry point, kept for muscle memory.
+# The canonical redeploy script is the repo-root deploy.sh, which also re-syncs
+# the systemd unit files (this copy did not, letting the installed units drift).
 set -e
-
-echo "=== Juice Battle Redeploy ==="
-
-echo "[1/2] Restarting main app (game + dashboard)..."
-sudo systemctl restart juice-battle.service
-
-echo "[2/2] Waiting for startup..."
-sleep 2
-
-echo ""
-systemctl status juice-battle.service --no-pager -l
-
-echo ""
-echo "=== Tailing logs - Ctrl+C to exit ==="
-journalctl -u juice-battle.service -f
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+echo "hub/deploy.sh is deprecated — running $REPO_ROOT/deploy.sh instead."
+exec "$REPO_ROOT/deploy.sh" "$@"

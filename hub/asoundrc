@@ -1,0 +1,38 @@
+# Juice Battle canonical ALSA config — installed to ~/.asoundrc by setup.sh.
+#
+# WHY dmix (not raw `type hw`):
+#   pygame/SDL opens the ALSA "default" PCM with a small period. Raw hw: access
+#   has zero jitter tolerance on the Generalplus USB adapter, so any decode
+#   hiccup triggers a self-reinforcing snd_pcm_recover() retry loop — a
+#   continuous underrun storm that pegs a core and garbles/silences output.
+#   Routing "default" through dmix adds a software buffering + mixing layer that
+#   absorbs the jitter. Root-caused and fixed 2026-08-20 (see CLAUDE.md).
+#
+# WHY card NAME "Device" (not a number):
+#   ALSA card numbers depend on enumeration order and change across reboots /
+#   replug. The USB adapter always registers as card name "Device".
+#
+# The slave rate/buffer MUST match hub/config.py PYGAME_MIXER_* (48000 / 8192)
+# so pygame and dmix agree and no resampling is inserted.
+#
+# NOTE: the juice-battle.service must NOT set AUDIODEV — that would make SDL open
+# hw:Device directly and bypass this dmix route entirely.
+
+pcm.!default {
+    type plug
+    slave.pcm "dmixed"
+}
+pcm.dmixed {
+    type dmix
+    ipc_key 1027
+    slave {
+        pcm "hw:Device,0"
+        rate 48000
+        period_size 1024
+        buffer_size 8192
+    }
+}
+ctl.!default {
+    type hw
+    card "Device"
+}

@@ -14,8 +14,10 @@ StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=jb-main
 Environment=PYTHONUNBUFFERED=1
+# SDL opens the ALSA "default" PCM, which ~/.asoundrc routes through dmix.
+# Do NOT add AUDIODEV=hw:Device here — it makes SDL open the raw hw device and
+# bypass the dmix buffering layer, causing a continuous ALSA underrun storm.
 Environment=SDL_AUDIODRIVER=alsa
-Environment=AUDIODEV=hw:Device
 TimeoutStopSec=5
 
 [Install]
