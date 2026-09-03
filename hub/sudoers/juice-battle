@@ -1,26 +1,5 @@
-# Juice Battle — passwordless control of just this project's services, so
-# deploy.sh and the udev hot-plug rules can restart things unattended on the
-# kiosk (no password prompt blocking a demo).
+# Juice Battle — passwordless service + BlueZ control on the kiosk, so deploy.sh,
+# the udev hot-plug rules, and the BLE scanner never hit a password prompt.
 # Installed to /etc/sudoers.d/juice-battle by setup.sh (mode 0440, visudo-checked).
-#
-# NOTE: if AQ3's existing /etc/sudoers.d/juice-battle differs, that field-proven
-# file is the source of truth — replace this with its exact contents.
-
-Cmnd_Alias JB_CTL = /usr/bin/systemctl start juice-battle.service, \
-                    /usr/bin/systemctl stop juice-battle.service, \
-                    /usr/bin/systemctl restart juice-battle.service, \
-                    /usr/bin/systemctl start juice-ble-scanner.service, \
-                    /usr/bin/systemctl stop juice-ble-scanner.service, \
-                    /usr/bin/systemctl restart juice-ble-scanner.service, \
-                    /usr/bin/systemctl daemon-reload, \
-                    /usr/bin/systemctl status juice-battle.service, \
-                    /bin/systemctl start juice-battle.service, \
-                    /bin/systemctl stop juice-battle.service, \
-                    /bin/systemctl restart juice-battle.service, \
-                    /bin/systemctl start juice-ble-scanner.service, \
-                    /bin/systemctl stop juice-ble-scanner.service, \
-                    /bin/systemctl restart juice-ble-scanner.service, \
-                    /bin/systemctl daemon-reload, \
-                    /bin/systemctl status juice-battle.service
-
-arduino ALL=(root) NOPASSWD: JB_CTL
+# Byte-for-byte the file field-proven on AQ3.
+arduino ALL=(root) NOPASSWD: /usr/bin/hciconfig, /usr/bin/systemctl
