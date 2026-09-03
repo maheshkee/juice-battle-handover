@@ -38,12 +38,12 @@ html, body {
 }
 
 @keyframes lemon-pulse {
-    0%,100% { box-shadow: 0 0 15px #b8d03066 }
-    50%      { box-shadow: 0 0 50px #b8d030, 0 0 100px #b8d03044 }
+    0%,100% { box-shadow: 0 0 10px #b8d03050 }
+    50%      { box-shadow: 0 0 32px #b8d030aa, 0 0 62px #b8d03030 }
 }
 @keyframes melon-pulse {
-    0%,100% { box-shadow: 0 0 15px #ff5f9566 }
-    50%      { box-shadow: 0 0 50px #ff5f95, 0 0 100px #ff5f9544 }
+    0%,100% { box-shadow: 0 0 10px #ff5f9550 }
+    50%      { box-shadow: 0 0 32px #ff5f95aa, 0 0 62px #ff5f9530 }
 }
 #card-lemon {
     background: #0d1a08;
@@ -58,11 +58,11 @@ html, body {
 
 @keyframes glow-lemon {
     0%,100% { box-shadow: none; border-color: #b8d030; }
-    40% { box-shadow: 0 0 70px rgba(184,208,48,.85), 0 0 35px rgba(184,208,48,.5) inset; border-color: #ffffff; }
+    40% { box-shadow: 0 0 44px rgba(184,208,48,.65), 0 0 22px rgba(184,208,48,.35) inset; border-color: #ffffff; }
 }
 @keyframes glow-melon {
     0%,100% { box-shadow: none; border-color: #ff5f95; }
-    40% { box-shadow: 0 0 70px rgba(255,95,149,.85), 0 0 35px rgba(255,95,149,.5) inset; border-color: #ffffff; }
+    40% { box-shadow: 0 0 44px rgba(255,95,149,.65), 0 0 22px rgba(255,95,149,.35) inset; border-color: #ffffff; }
 }
 #card-lemon.pouring { animation: glow-lemon 0.8s ease-out; }
 #card-melon.pouring { animation: glow-melon 0.8s ease-out; }
@@ -70,7 +70,7 @@ html, body {
 /* ── CHARACTER FACE ── */
 .char-wrap { display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .char-wrap.area-zoom { animation: area-zoom 0.6s ease-out forwards; }
-.char-svg { width: 7.5vw; height: 7.5vw; animation: bob 3s ease-in-out infinite; flex-shrink: 0; }
+.char-svg { width: 6.5vw; height: 6.5vw; animation: bob 3s ease-in-out infinite; flex-shrink: 0; }
 .char-svg.excited     { animation: bob 1.4s ease-in-out infinite; }
 .char-svg.celebrating { animation: celebrate 0.7s ease-in-out; }
 #lemon-eyes, #melon-eyes { transform-box: fill-box; transform-origin: center; }
@@ -87,31 +87,31 @@ html, body {
     font-size: 2.2vw; font-weight: 900;
     font-family: 'Impact', 'Arial Black', sans-serif;
     text-transform: uppercase; letter-spacing: 0.05em;
-    text-align: center; flex-shrink: 0; margin: 8px 0;
+    text-align: center; flex-shrink: 0; margin: 12px 0;
 }
-.lemon-name { color: #b8d030; text-shadow: 0 0 20px #b8d030, 0 0 50px #b8d03088; }
-.melon-name { color: #ff5f95; text-shadow: 0 0 20px #ff5f95, 0 0 50px #ff5f9588; }
+.lemon-name { color: #b8d030; text-shadow: 0 0 15px #b8d030, 0 0 35px #b8d03066; }
+.melon-name { color: #ff5f95; text-shadow: 0 0 15px #ff5f95, 0 0 35px #ff5f9566; }
 
 .glass-count {
     font-family: 'Impact', 'Arial Black', sans-serif;
     font-weight: 900; font-size: 16vw; line-height: 0.9;
     text-align: center; flex-shrink: 0;
 }
-#card-lemon .glass-count { color: #eef86e; text-shadow: 0 0 40px #b8d030, 0 0 80px #b8d03066; }
-#card-melon .glass-count { color: #ff5f95; text-shadow: 0 0 40px #ff5f95, 0 0 80px #ff5f9566; }
+#card-lemon .glass-count { color: #eef86e; text-shadow: 0 0 18px #b8d03099; }
+#card-melon .glass-count { color: #ff5f95; text-shadow: 0 0 18px #ff5f9599; }
 .glass-count.numpop     { animation: numpop 0.5s ease-out; }
 .glass-count.digit-swap { animation: digit-swap 0.5s ease-in-out forwards; }
 
 .count-label {
     font-size: 1.4vw; text-transform: uppercase; letter-spacing: 0.4em;
-    color: #6a8a4a; text-align: center; flex-shrink: 0; margin: 4px 0;
+    color: #6a8a4a; text-align: center; flex-shrink: 0; margin: 2px 0;
 }
 #card-melon .count-label { color: #8a4a6a; }
 
 .share-pct-card {
     font-size: 1.5vw; font-weight: 900;
     font-family: 'Impact', 'Arial Black', sans-serif;
-    text-align: center; flex-shrink: 0; margin: 6px 0;
+    text-align: center; flex-shrink: 0; margin: 3px 0;
 }
 #lemon-share-pct { color: #b8d030; }
 #melon-share-pct { color: #ff5f95; }
@@ -119,7 +119,7 @@ html, body {
 .round-wins-line {
     font-size: 1.3vw; font-weight: 700;
     letter-spacing: 0.1em; text-transform: uppercase;
-    color: #c8d8b8; text-align: center; flex-shrink: 0; margin: 4px 0;
+    color: #c8d8b8; text-align: center; flex-shrink: 0; margin: 2px 0;
 }
 #card-melon .round-wins-line { color: #d8b8c8; }
 
@@ -141,7 +141,7 @@ html, body {
 }
 #card-melon .jar-label { color: #5a1a3a; }
 .bottle-wrap { display: flex; justify-content: center; flex-shrink: 0; }
-.bottle-svg  { width: 17vw; height: 26vh; min-height: 26vh; }
+.bottle-svg  { width: 15vw; height: 22vh; min-height: 22vh; }
 .bottle-liquid  { transition: y .6s cubic-bezier(.36,1.4,.5,1); }
 .bottle-surface {
     transition: cy .6s cubic-bezier(.36,1.4,.5,1);
@@ -191,15 +191,23 @@ html, body {
 #round-label {
     font-size: 2.6vw; font-weight: 900;
     font-family: 'Impact', 'Arial Black', sans-serif;
-    text-transform: uppercase; color: #e8ede8;
-    letter-spacing: 0.06em; text-align: center;
-    text-shadow: 0 0 24px #5ab8ff55, 0 0 4px #ffffff33;
+    text-transform: uppercase; letter-spacing: 0.06em; text-align: center;
+    background: linear-gradient(90deg, #b8d030, #e8b830, #ff5f95);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
 }
-.lead-mini {
-    font-size: 1.05vw; font-weight: 700; letter-spacing: 0.2em;
-    text-transform: uppercase; color: #888; text-align: center;
-    padding: 5px 20px; border: 1px solid #333; border-radius: 20px;
+#round-pips {
+    display: flex; align-items: center; justify-content: center; gap: 18px;
 }
+.pip-row { display: flex; gap: 6px; }
+.pip-row.pip-row-melon { flex-direction: row-reverse; }
+.pip {
+    width: 0.9vw; height: 0.9vw; min-width: 10px; min-height: 10px;
+    border-radius: 50%; border: 1.5px solid #333; background: transparent;
+    transition: background 0.3s ease, border-color 0.3s ease;
+}
+.pip.filled-lemon { background: #b8d030; border-color: #b8d030; box-shadow: 0 0 6px #b8d03077; }
+.pip.filled-melon { background: #ff5f95; border-color: #ff5f95; box-shadow: 0 0 6px #ff5f9577; }
+#round-vs { font-size: 0.85vw; color: #666; letter-spacing: 0.15em; }
 .live-dot {
     width: 8px; height: 8px; border-radius: 50%; background: #ff5f95;
     animation: glowpulse 1.5s ease-in-out infinite; flex-shrink: 0;
@@ -233,33 +241,39 @@ html, body {
 
 /* SERVED SECTION — replaces live feed as the centre's bottom section */
 #served-section {
-    flex: 0 0 60%; background: #111810; border: 1px solid #1e2e1e;
+    flex: 0 0 auto; background: #111810; border: 1px solid #3a5a1a55;
     border-radius: 10px; display: flex; flex-direction: column;
-    align-items: center; justify-content: center; min-height: 0; gap: 12px;
+    align-items: center; justify-content: center; gap: 6px;
+    padding: 18px 24px;
+}
+#served-icon {
+    width: 3vw; height: 2.9vw;
+    filter: drop-shadow(0 0 6px #b8d03088);
 }
 #served-section .stat-tile-label {
-    font-size: 1.15vw; color: #5a7a5a;
-    letter-spacing: 0.25em; text-transform: uppercase;
+    font-size: 1vw; color: #5a7a5a;
+    letter-spacing: 0.2em; text-transform: uppercase;
 }
 #served-section #iot-served {
-    font-size: 8vw; color: #b8d030; text-shadow: 0 0 30px #b8d03099, 0 0 60px #b8d03044;
+    font-size: 3.6vw; color: #b8d030; text-shadow: 0 0 18px #b8d03077;
     font-family: 'Impact', 'Arial Black', sans-serif; font-weight: 900; line-height: 1;
 }
+#centre-filler { flex: 1 1 auto; }
 
 /* BANNER — full-width, scrolling */
 #banner {
     background: #1a1200; border-top: 1px solid #2a2000;
     flex-shrink: 0;
-    overflow: hidden; display: flex; align-items: center;
-    min-height: 5.5vh; padding: 0;
+    display: flex; align-items: center;
+    min-height: 9vh; padding: 0 3vw;
 }
 #banner-track {
-    display: flex; width: max-content;
-    animation: ticker-scroll 22s linear infinite;
+    display: flex; width: 100%;
+    justify-content: center; align-items: center; gap: 1vw;
 }
 .banner-main {
-    white-space: nowrap; padding: 0 40px;
-    font-size: 1.5vw; color: #d4921a; font-weight: 800; letter-spacing: 0.16em;
+    white-space: nowrap;
+    font-size: 2.6vw; color: #d4921a; font-weight: 800; letter-spacing: 0.03em;
 }
 
 /* ── OVERLAYS ── */
@@ -306,8 +320,6 @@ html, body {
 @keyframes glowpulse  { 0%,100%{opacity:.35} 50%{opacity:1} }
 @keyframes area-zoom  { 0%{transform:scale(1)} 30%{transform:scale(1.22)} 100%{transform:scale(1)} }
 @keyframes drainBar   { from{width:100%} to{width:0%} }
-
-@keyframes ticker-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 </style>
 </head>
 <body>
@@ -331,7 +343,7 @@ html, body {
 <div id="round-over-overlay">
     <div id="ro-heading">ROUND COMPLETE</div>
     <div class="ro-score-row">
-        <span style="color:#b8d030;font-size:1.2vw;font-weight:700;">🍋 Lemon Warrior</span>
+        <span style="color:#b8d030;font-size:1.2vw;font-weight:700;">🍋 Lime Slasher</span>
         <span id="ro-score0" class="ro-val" style="color:#eef86e;">0</span>
     </div>
     <div class="ro-score-row">
@@ -345,7 +357,7 @@ html, body {
 <!-- ══ MAIN LAYOUT ══ -->
 <div id="layout">
 
-<!-- ━━ LEFT CARD: LEMON WARRIOR ━━ -->
+<!-- ━━ LEFT CARD: LIME SLASHER ━━ -->
 <div id="card-lemon" class="player-card">
     <div class="char-wrap" id="char-wrap-lemon">
         <svg id="char-0" class="char-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
@@ -363,7 +375,7 @@ html, body {
         </svg>
     </div>
 
-    <div class="persona-name lemon-name">LEMON WARRIOR</div>
+    <div class="persona-name lemon-name">LIME SLASHER</div>
     <div class="glass-count" id="lemon-count">0</div>
     <div class="count-label">GLASSES</div>
     <div class="share-pct-card" id="lemon-share-pct">&nbsp;</div>
@@ -478,14 +490,32 @@ html, body {
     <!-- ROUND STATUS (below logo) -->
     <div id="round-status">
         <div id="round-label">ROUND 1 — BEST OF 10</div>
-        <div id="lead-tile" class="lead-mini">TIED</div>
+        <div id="round-pips">
+            <div class="pip-row" id="lemon-pips"></div>
+            <span id="round-vs">VS</span>
+            <div class="pip-row pip-row-melon" id="melon-pips"></div>
+        </div>
     </div>
 
     <!-- SERVED SECTION (replaces live feed) -->
     <div id="served-section">
-        <div class="stat-tile-label">IoT ENTHUSIASTS SERVED</div>
+        <svg id="served-icon" viewBox="0 0 50 48" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <clipPath id="served-back-clip">
+                    <rect x="26" y="0" width="24" height="48"/>
+                </clipPath>
+            </defs>
+            <g clip-path="url(#served-back-clip)">
+                <circle cx="33" cy="16" r="5" fill="none" stroke="#b8d030" stroke-width="3" opacity="0.7"/>
+                <path d="M23 42c0-6 4.5-10 10-10s10 4 10 10" fill="none" stroke="#b8d030" stroke-width="3" stroke-linecap="round" opacity="0.7"/>
+            </g>
+            <circle cx="18" cy="15" r="7" fill="none" stroke="#b8d030" stroke-width="3.5"/>
+            <path d="M4 42c0-8 6.3-14 14-14s14 6 14 14" fill="none" stroke="#b8d030" stroke-width="3.5" stroke-linecap="round"/>
+        </svg>
         <div id="iot-served">0</div>
+        <div class="stat-tile-label">IoT ENTHUSIASTS SERVED</div>
     </div>
+    <div id="centre-filler"></div>
 
 </div><!-- /centre -->
 
@@ -583,12 +613,14 @@ html, body {
 
 </div><!-- /layout -->
 
-<!-- DHARANOVA BANNER — full width, scrolling -->
+<!-- DHARANOVA BANNER — full width, static, edge-to-edge -->
 <div id="banner">
     <div id="banner-track">
-        <span class="banner-main">DHARANOVA WELCOMES ALL IoT ENTHUSIASTS</span>
-        <span class="banner-main">DHARANOVA WELCOMES ALL IoT ENTHUSIASTS</span>
-        <span class="banner-main">DHARANOVA WELCOMES ALL IoT ENTHUSIASTS</span>
+        <span class="banner-main">DHARANOVA</span>
+        <span class="banner-main">WELCOMES</span>
+        <span class="banner-main">ALL</span>
+        <span class="banner-main">IOT</span>
+        <span class="banner-main">ENTHUSIASTS</span>
     </div>
 </div>
 
@@ -664,6 +696,18 @@ function updateBottle(fillId, surfaceId, pct) {
     const rect = $(fillId), surface = $(surfaceId);
     if (rect)    rect.setAttribute('y', y);
     if (surface) surface.setAttribute('cy', y);
+}
+
+// Split round-win pips (fighting-game style): filled dots cluster toward
+// the centre "VS", empty slots trail toward the outer edge on each side.
+function renderPips(containerId, filledCount, totalSlots, filledClass) {
+    const el = $(containerId);
+    if (!el) return;
+    const filled = Math.max(0, Math.min(totalSlots, filledCount));
+    const empty = totalSlots - filled;
+    el.innerHTML =
+        '<span class="pip"></span>'.repeat(empty) +
+        `<span class="pip ${filledClass}"></span>`.repeat(filled);
 }
 
 // Round timer (element removed from UI — kept as a harmless no-op so
@@ -804,7 +848,7 @@ socket.on('state', data => {
                 setTimeout(() => surfaceEl.classList.remove('settle'), 700);
             }
 
-            const persona = name === 'lemon' ? 'LEMON WARRIOR' : 'MELON CRUSHER';
+            const persona = name === 'lemon' ? 'LIME SLASHER' : 'MELON CRUSHER';
             if (streak[name] >= 3 && streak[name] % 2 === 1)
                 addFeed(persona + ' on a ' + streak[name] + '-pour streak 🔥', '#e8b830');
             addFeed(persona + ' — glass #' + cur, col);
@@ -827,24 +871,14 @@ socket.on('state', data => {
     if (lspt) lspt.textContent = total > 0 ? lPct + '% OF ALL POURS' : '—';
     if (mspt) mspt.textContent = total > 0 ? mPct + '% OF ALL POURS' : '—';
 
-    // Lead tile
-    const leadEl = $('lead-tile');
-    if (c0 > c1) {
-        leadEl.textContent = 'LEMON +' + (c0 - c1);
-        leadEl.style.color = '#eef86e'; leadEl.style.textShadow = '0 0 15px #b8d030';
-    } else if (c1 > c0) {
-        leadEl.textContent = 'MELON +' + (c1 - c0);
-        leadEl.style.color = '#ff5f95'; leadEl.style.textShadow = '0 0 15px #ff5f95';
-    } else {
-        leadEl.textContent = 'TIED';
-        leadEl.style.color = '#888'; leadEl.style.textShadow = 'none';
-    }
-
     $('round-label').textContent = 'ROUND ' + (data.round_number || 1) + ' — BEST OF ' + rs;
 
     const rw = data.round_wins || {};
     $('lemon-wins').textContent = 'ROUND WINS: ' + (rw.lemon || 0);
     $('melon-wins').textContent = 'ROUND WINS: ' + (rw.melon || 0);
+
+    renderPips('lemon-pips', rw.lemon || 0, Math.max(1, Math.ceil(rs / 2)), 'filled-lemon');
+    renderPips('melon-pips', rw.melon || 0, Math.max(1, Math.ceil(rs / 2)), 'filled-melon');
 
     ['lemon', 'melon'].forEach(n => {
         const badge = $(n + '-streak');
@@ -863,7 +897,7 @@ socket.on('state', data => {
 });
 
 socket.on('round_over', data => {
-    const names   = ['🍋 Lemon Warrior', '🍉 Melon Crusher'];
+    const names   = ['🍋 Lime Slasher', '🍉 Melon Crusher'];
     const winText = data.winner === -1 ? "IT'S A TIE! 🤝" : names[data.winner] + ' WINS! 🏆';
     $('ro-heading').textContent = 'ROUND ' + data.round + ' COMPLETE';
     $('ro-score0').textContent  = data.score0;
@@ -886,7 +920,7 @@ socket.on('round_begin', () => {
 function handleGameOver(winner) {
     const w = String(winner);
     let name, color, emoji;
-    if (w === '0')      { name = 'LEMON WARRIOR'; color = '#eef86e'; emoji = '🍋'; }
+    if (w === '0')      { name = 'LIME SLASHER'; color = '#eef86e'; emoji = '🍋'; }
     else if (w === '1') { name = 'MELON CRUSHER';  color = '#ff5f95'; emoji = '🍉'; }
     else                { name = "IT'S A DRAW";    color = '#c67b3f'; emoji = '🏆'; }
 
