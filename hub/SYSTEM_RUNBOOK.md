@@ -72,6 +72,43 @@ _Last updated: 2026-08-20 | Hardware: Arduino UNO Q (AQ3)_
 
 Run these steps IN ORDER every time the system is set up at a stall.
 
+### 3.0 — Event-day quick card (AQ3, the locked hub)
+
+Working reference: git tag `demo-live-2026-09-04`. AQ3's `juice-ble-scanner` and
+`juice-battle` are `enabled` — power-on alone brings the whole system up.
+**Never run `juice-ble-scanner` on any other board while AQ3 is live** — two BLE
+centrals fighting for the same node MACs kills both links (§2 BLE rules).
+
+**Cold → live-ready (~10 min):**
+1. Connect AQ3: mains power, HDMI to panel, USB audio adapter → speaker.
+2. Power on both jars (JB-0, JB-1) on **fully charged batteries / solid USB power**.
+   Place them within ~2 m line-of-sight of AQ3.
+3. Power on AQ3. Wait ~90 s: autologin → kiosk → scoreboard fills the panel.
+4. From a terminal (SSH or local) run the health block (§3 Step 2–3, or the
+   one-liner in §5). All green → continue.
+5. `curl -s -X POST http://localhost:5000/new_session` — zero the board.
+6. One real pour on **each** jar → glass count ticks up on screen.
+   Then `new_session` again to clear the two test pours.
+7. Live. On screen, the **JB-0 / JB-1 chips** (top-right) must both be
+   **green + pulsing** = both nodes connected.
+
+**During the day — leave it running.** It self-heals: scanner watchdog resets
+BLE after 120 s of silence, `juice-battle` has `Restart=always`, the kiosk loop
+re-raises the window and keeps the screen awake every 3 s. Only intervene if
+something is visibly wrong — see §5 / §6.
+
+**End of day:** `sudo systemctl poweroff` on AQ3; power off both jars to save
+battery. Services stay `enabled` — next power-on is demo-ready with nothing typed.
+Node MACs are fixed, so they re-pair automatically.
+
+**Per-event cadence (multiple demos → summit 15 Sep, 09:00–17:00):**
+- Each event: the cold → live-ready flow above. Nothing else.
+- Weekly / before summit: fully charge jars; if told there's a code update,
+  on AQ3 only: `git pull && ./deploy.sh`, then `sudo systemctl reboot` (picks up
+  any kiosk-script change), then re-run the health block.
+- Summit: arrive 45 min early, run the flow, do the test pours + `new_session`,
+  then leave it — it is built to run 8 h unattended.
+
 ### Step 1 — Power on
 Power on the Arduino UNO Q hub. Services start automatically.
 The pendrive can be plugged in before OR after power-on — it auto-mounts.
@@ -115,12 +152,16 @@ Listen for music from speaker. If silent:
 ```bash
 sudo journalctl -u juice-battle -n 10 --no-pager | grep -iE "ambient|track|playing"
 ```
-Expected: `now playing track 1/2: varanasi.mp3` (or pendrive tracks if plugged in)
+Expected: `now playing track 1/1: fuzzy_horizon.mp3` (or pendrive tracks if plugged in)
 
 ### Step 7 — Verify kiosk display
 Open http://AQ3.local:5000/ on phone to confirm dashboard is live.
-(Kiosk itself boots to `static/splash.html`, which redirects to `/v4` automatically.)
-If kiosk screen shows error page: `DISPLAY=:0 xdotool key F5`
+(Kiosk itself boots to `static/splash.html`, which redirects to `/v6` automatically.)
+On the panel, the **JB-0 / JB-1 chips** top-right are the at-a-glance node health:
+green + pulse = connected, solid amber = that jar dropped (auto-reconnects),
+grey = no state yet. Both must be green before going live.
+If kiosk screen shows an error page: `touch /tmp/jb_reload` (reloads within 3 s)
+or `DISPLAY=:0 xdotool key F5`
 
 ### Step 8 — Set ROUND_SIZE before going live
 ```bash

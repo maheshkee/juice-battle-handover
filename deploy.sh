@@ -7,6 +7,9 @@
 #   ./deploy.sh --ble    — restart hub + BLE scanner
 #   ./deploy.sh -b       — same as --ble
 #
+# Also re-syncs the installed kiosk script (~/juice_battle_kiosk.sh) from the
+# repo — takes effect on the next kiosk relaunch (reboot / session restart).
+#
 # Does NOT touch firmware — use Arduino IDE for .ino changes.
 set -e
 
@@ -36,8 +39,22 @@ if [ -n "$NEED_RELOAD" ]; then sudo systemctl daemon-reload; fi
 sudo systemctl restart juice-battle.service
 echo "      Main app restarted."
 
-# ── STEP 3: Optional BLE restart ──────────────────────────────────────────────
-echo "[3/5] BLE scanner..."
+# ── STEP 3: Re-sync the installed kiosk script ───────────────────────────────
+# WHY: setup.sh copies hub/juice_battle_kiosk.sh to ~/juice_battle_kiosk.sh, but
+# deploy.sh used to skip it — a git pull with a kiosk-script change (e.g. the
+# screen-blank/DPMS fix) never reached the running board. Applies on next kiosk
+# relaunch (reboot or session restart), not live.
+echo "[3/6] Syncing kiosk script..."
+if ! cmp -s "$SCRIPT_DIR/hub/juice_battle_kiosk.sh" "$HOME/juice_battle_kiosk.sh"; then
+    cp "$SCRIPT_DIR/hub/juice_battle_kiosk.sh" "$HOME/juice_battle_kiosk.sh"
+    chmod +x "$HOME/juice_battle_kiosk.sh"
+    echo "      updated ~/juice_battle_kiosk.sh (reboot or restart the kiosk to apply)"
+else
+    echo "      already current."
+fi
+
+# ── STEP 4: Optional BLE restart ──────────────────────────────────────────────
+echo "[4/6] BLE scanner..."
 if [ "$1" = "--ble" ] || [ "$1" = "-b" ]; then
     sudo systemctl restart juice-ble-scanner.service
     echo "      BLE scanner restarted."
@@ -45,12 +62,12 @@ else
     echo "      BLE scanner untouched (pass --ble to restart it too)."
 fi
 
-# ── STEP 4: Wait and show status ──────────────────────────────────────────────
-echo "[4/5] Waiting 3s for startup..."
+# ── STEP 5: Wait and show status ──────────────────────────────────────────────
+echo "[5/6] Waiting 3s for startup..."
 sleep 3
 systemctl status juice-battle.service --no-pager | head -8
 
-# ── STEP 5: Tail logs ─────────────────────────────────────────────────────────
+# ── STEP 6: Tail logs ─────────────────────────────────────────────────────────
 echo ""
-echo "[5/5] Tailing logs — Ctrl+C to exit."
+echo "[6/6] Tailing logs — Ctrl+C to exit."
 journalctl -u juice-battle.service -f
