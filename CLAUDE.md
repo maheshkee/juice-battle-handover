@@ -1,11 +1,33 @@
 # CLAUDE.md — Juice Battle
-# Current position updated: Day 2 live product test / 2026-08-20
+# Current position updated: 2026-09-04 — AQ3 locked as production/demo hub
 
 ## Current position
 Firmware and hub are both built and hardware-verified. This is no longer active
-feature development — the project is in live product testing at AQ3, working
+feature development — the project is in live product testing / demo, working
 toward stall deployment. Both nodes (JB-0, JB-1) connect, score, and have each
 completed a verified end-to-end pour test with correct glass counts (2026-08-20).
+
+## AQ3 is the locked production + demo board (2026-09-04)
+Verified working reference: git tag **`demo-live-2026-09-04`** (commit `17b7612`).
+On 2026-09-04 09:15 IST, AQ3 came up clean: scanner connected to both nodes in
+~15 s, live HEARTBEAT/DIAG streaming, `/state` ble_status/node_status all good,
+audio (music + announcements) audible with underruns NOT climbing, kiosk on `/v6`.
+Both `juice-ble-scanner` and `juice-battle` are `enabled` on AQ3 → auto-start on
+power-up. Nothing to type for a live session — just power on.
+- **Dharanova-2 is NOT used as a hub.** Its on-board BLE could not hold a GATT
+  link to the nodes (connect → drop within 4 s, both nodes, persistent through
+  reboot + BlueZ cache clear + node power-cycle). The nodes themselves are fine —
+  proven by AQ3 connecting to them immediately. Keep Dharanova-2's
+  `juice-ble-scanner` + `juice-battle` **stopped and disabled**.
+- **RULE: only ONE provisioned board may run `juice-ble-scanner` at a time.**
+  Two BLE centrals racing the same node MACs each steal the link mid-handshake —
+  this is what stalled the 2026-09-04 AM demo prep (AQ3's scanner was still
+  enabled and holding both nodes while Dharanova-2 tried to connect).
+- v6 dashboard now shows a per-node BLE indicator: `JB-0` / `JB-1` chips top-
+  right of the centre panel — green + slow pulse = connected, solid amber =
+  disconnected, grey = no state yet. Driven by `data.ble_status` in the Socket.IO
+  `state` payload; `hub/game.py` `_node_status` defaults to `disconnected` and
+  only flips to `connected` on a real `NODE_CONNECTED` from the scanner.
 
 ## Audio config is now repo-managed (2026-09-03)
 The 2026-08-20 audio fix lived only as a hand-edited `~/.asoundrc` + a hand-edited
