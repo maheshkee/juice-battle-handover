@@ -16,6 +16,17 @@ class SoundPlayer:
     _SOUNDS_DIR = os.path.join(os.path.dirname(__file__), "static", "sounds")
 
     def __init__(self):
+        self._ok = False
+        self._init_mixer()
+
+    def _init_mixer(self) -> bool:
+        """Bring up pygame.mixer. Returns True on success. Safe to call repeatedly.
+        WHY: the USB audio device / dmix can be briefly unavailable right after
+        boot (ALSA "Broken pipe"). A one-shot init at startup would then disable
+        pour dings for the whole session. Instead we retry lazily from play(),
+        so the first sound request after the device settles brings it up."""
+        if self._ok:
+            return True
         try:
             _pygame.mixer.init(
                 frequency=config.PYGAME_MIXER_FREQUENCY,
@@ -26,12 +37,12 @@ class SoundPlayer:
             self._ok = True
             log.info("SoundPlayer: pygame.mixer initialised")
         except Exception as e:
-            self._ok = False
-            log.warning("SoundPlayer: mixer init failed (%s) — audio disabled", e)
+            log.warning("SoundPlayer: mixer init failed (%s) — will retry on next play()", e)
+        return self._ok
 
     def play(self, name: str) -> None:
         """Play <name>.mp3 from static/sounds/. Non-blocking."""
-        if not self._ok:
+        if not self._ok and not self._init_mixer():
             return
         path = os.path.join(self._SOUNDS_DIR, f"{name}.mp3")
         if not os.path.exists(path):
