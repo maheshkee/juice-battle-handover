@@ -89,7 +89,7 @@ class Game:
         self._last_settled_t   = {0: None, 1: None}  # time.monotonic() of last event
         self._bounce_until     = {0: 0.0,  1: 0.0}  # wall time: suppress after disturbance
         self._settling_until   = {0: 0.0,  1: 0.0}  # wall time: suppress after anomaly
-        self._node_status      = {0: 'connected', 1: 'connected'}  # BLE connectivity
+        self._node_status      = {0: 'disconnected', 1: 'disconnected'}  # BLE connectivity; flips to 'connected' only on a real NODE_CONNECTED event from the scanner
         self._live_fill_g          = {0: None, 1: None}  # best current absolute-weight estimate
         self._live_fill_updated_ms = {0: None, 1: None}  # wall-clock ms of last update
         self._live_fill_baseline_g = {0: None, 1: None}  # internal: weight at this pour episode's start

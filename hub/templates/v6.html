@@ -179,9 +179,19 @@ html, body {
 /* LIVE ROW */
 #live-row {
     display: flex; align-items: center; justify-content: flex-end;
-    padding: 2px 4px; flex-shrink: 0;
+    gap: 18px; padding: 2px 4px; flex-shrink: 0;
 }
 #live-badge { display: flex; align-items: center; gap: 8px; }
+#node-badge { display: flex; align-items: center; gap: 10px; }
+.node-chip { display: flex; align-items: center; gap: 5px;
+    font-size: 0.8vw; font-weight: 700; letter-spacing: 0.1em; color: #5a6a5a; }
+.node-chip .node-dot {
+    width: 8px; height: 8px; border-radius: 50%; background: #334433; flex-shrink: 0;
+}
+.node-chip.up   .node-dot { background: #7ab52a; animation: glowpulse 1.5s ease-in-out infinite; }
+.node-chip.up             { color: #7ab52a; }
+.node-chip.down .node-dot { background: #e8b830; }
+.node-chip.down           { color: #e8b830; }
 
 /* ROUND STATUS (below logo) */
 #round-status {
@@ -458,6 +468,10 @@ html, body {
 
     <!-- LIVE indicator row (top) -->
     <div id="live-row">
+        <span id="node-badge">
+            <span class="node-chip" id="node-chip-0"><span class="node-dot"></span>JB-0</span>
+            <span class="node-chip" id="node-chip-1"><span class="node-dot"></span>JB-1</span>
+        </span>
         <span id="live-badge">
             <span id="live-dot" class="live-dot"></span>
             <span id="live-text">LIVE</span>
@@ -796,6 +810,17 @@ socket.on('state', data => {
     const gc = data.glass_count || {};
     const pg = data.partial_g   || {};
     const rs = data.round_size  || 10;
+
+    // Node BLE connectivity — hub sets ble_status[n] to 'connected'/'disconnected'
+    // from GATT link events. Amber dot = jar is offline / reconnecting.
+    const ble = data.ble_status || {};
+    [0, 1].forEach(n => {
+        const chip = $('node-chip-' + n);
+        if (!chip) return;
+        const up = ble[String(n)] === 'connected';
+        chip.classList.toggle('up', up);
+        chip.classList.toggle('down', !up);
+    });
     const c0 = gc['0'] ?? 0;
     const c1 = gc['1'] ?? 0;
     const p0 = pg['0'] ?? 0;
