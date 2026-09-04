@@ -55,7 +55,7 @@ MSG_NAMES = {
 }
 
 # Game parameters
-GLASS_VOLUME_G = 150.0
+GLASS_VOLUME_G = 120.0
 MIN_DELTA_G    = 10.0
 
 # --- Pour event thresholds (game.py) ---

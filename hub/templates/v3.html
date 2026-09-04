@@ -536,7 +536,7 @@ function triggerRipple(n){const ring=document.createElement('div');ring.classNam
 // CAUSE PANEL ROTATION
 (function(){var cur=1;setInterval(function(){var s1=el('ms1'),s2=el('ms2'),d1=el('sd1'),d2=el('sd2'),d3=el('sd3'),d4=el('sd4');if(cur===1){s1.classList.remove('active');s2.classList.add('active');d1.classList.remove('on');d2.classList.add('on');d3.classList.remove('on');d4.classList.add('on');cur=2;}else{s2.classList.remove('active');s1.classList.add('active');d2.classList.remove('on');d1.classList.add('on');d4.classList.remove('on');d3.classList.add('on');cur=1;}},7000);})();
 // MARKETING STATS
-function updateMarketingStats(allTime,total){var l=el('ms-litres');if(l)l.textContent=((total*150)/1000).toFixed(2)+'L';var g=el('ms-glasses');if(g)g.textContent=allTime;}
+function updateMarketingStats(allTime,total){var l=el('ms-litres');if(l)l.textContent=((total*120)/1000).toFixed(2)+'L';var g=el('ms-glasses');if(g)g.textContent=allTime;}
 // SOCKET + GAME LOGIC
 const socket=io();
 const sounds={glass:new Audio('/static/sounds/glass.mp3'),pour:new Audio('/static/sounds/pour.mp3'),fanfare:new Audio('/static/sounds/fanfare.mp3'),cheer:new Audio('/static/sounds/cheer.mp3')};
@@ -569,7 +569,7 @@ socket.on('disconnect',()=>{el('status-text').textContent='RECONNECTING...';wasD
 socket.on('connect',()=>{el('status-text').textContent='CONNECTED';if(wasDisconnected){wasDisconnected=false;window.location.reload();}});
 socket.io.on('reconnect',()=>{window.location.reload();});
 socket.on('state',(data)=>{
-  const gc=data.glass_count||{},pg=data.partial_g||{},vol=data.glass_volume_g||150;
+  const gc=data.glass_count||{},pg=data.partial_g||{},vol=data.glass_volume_g||120;
   if(!initialized){prevCount['0']=gc['0']??0;prevCount['1']=gc['1']??0;prevPartial['0']=pg['0']??0;prevPartial['1']=pg['1']??0;el('count-0').textContent=String(prevCount['0']);el('count-1').textContent=String(prevCount['1']);initialized=true;}
   const p0Inc=(pg['0']??0)>prevPartial['0'],p1Inc=(pg['1']??0)>prevPartial['1'];
   if(p0Inc&&!prevPourActive['0'])pourStartTs['0']=Date.now();if(p1Inc&&!prevPourActive['1'])pourStartTs['1']=Date.now();
@@ -627,7 +627,7 @@ socket.on('state',(data)=>{
   if(w1el)w1el.textContent='ROUND WINS: '+(rw.melon||0);
 });
 function handleGameOver(winner){playSound('fanfare');setTimeout(()=>{playSound('cheer');setTimeout(()=>{sounds.cheer.pause();sounds.cheer.currentTime=0;},4000);},1500);el('game-over-btn').disabled=true;const w=String(winner);let name,color,isDraw;if(w==='0'){name='LEMON WARRIOR';color='#b8e83a';isDraw=false;}else if(w==='1'){name='MELON CRUSHER';color='#ff5f8f';isDraw=false;}else{name="IT'S A DRAW";color='#c67b3f';isDraw=true;}el('overlay-name').textContent=name;el('overlay-name').style.color=color;el('overlay-sub').style.display=isDraw?'none':'';const destSvg=el('overlay-char'),drawLogoEl=el('overlay-draw-logo');if(isDraw){destSvg.style.display='none';drawLogoEl.style.display='';destSvg.innerHTML='';}else{destSvg.style.display='';drawLogoEl.style.display='none';const srcSvg=el('char-'+w);destSvg.innerHTML=srcSvg?srcSvg.innerHTML:'';}const c0=prevCount['0'],c1=prevCount['1'],wg=isDraw?c0:(w==='0'?c0:c1),lg=isDraw?c1:(w==='0'?c1:c0);el('overlay-score').textContent=wg+' GLASS'+(wg!==1?'ES':'')+' VS '+lg+' GLASS'+(lg!==1?'ES':'');const overlay=el('winner-overlay');overlay.style.opacity='0';overlay.style.transition='';overlay.style.display='flex';void overlay.offsetWidth;overlay.style.transition='opacity 0.5s ease';overlay.style.opacity='1';setTimeout(()=>{overlay.style.transition='opacity 0.8s ease';overlay.style.opacity='0';setTimeout(()=>{overlay.style.display='none';},800);},5000);}
-function resetJar(n){fetch('/reset/'+n,{method:'POST'}).then(r=>r.json()).then(d=>{if(!d.ok){console.error('reset failed',d);return;}streak['0']=0;streak['1']=0;prevCount[String(n)]=0;minPourSec=null;[0,1].forEach(i=>{const b=el('streak-'+i);b.style.display='none';b.textContent='';});updateJarFill(n,0,150);});}
+function resetJar(n){fetch('/reset/'+n,{method:'POST'}).then(r=>r.json()).then(d=>{if(!d.ok){console.error('reset failed',d);return;}streak['0']=0;streak['1']=0;prevCount[String(n)]=0;minPourSec=null;[0,1].forEach(i=>{const b=el('streak-'+i);b.style.display='none';b.textContent='';});updateJarFill(n,0,120);});}
 function triggerGameOver(){fetch('/game_over',{method:'POST'}).then(r=>r.json()).then(d=>{if(!d.ok)console.error('game_over failed',d);});}
 socket.on('round_over',function(data){
   var names=['🍋 Lemon Warrior','🍈 Melon Crusher'];
