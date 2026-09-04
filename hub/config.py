@@ -55,7 +55,7 @@ MSG_NAMES = {
 }
 
 # Game parameters
-GLASS_VOLUME_G = 120.0
+GLASS_VOLUME_G = 100.0
 MIN_DELTA_G    = 10.0
 
 # --- Pour event thresholds (game.py) ---
@@ -70,9 +70,12 @@ POUR_MIN_G    = 10.0   # coincidentally equals MIN_DELTA_G (10.0); unrelated con
 POUR_WINDOW_S = 20.0   # was 8.0 - extended for multi-settlement pours (max observed gap: 13.95s)
 
 # POUR_MAX_G_FRAC: single settled delta > this many glasses is physically not a pour
-#   (jar lifted off platform = ~5000g positive delta = 33 false glasses).
+#   (jar lifted off platform = ~5000g positive delta = 50 false glasses).
 #   Log as anomaly, do not score.
-POUR_MAX_G_FRAC = 3.0   # coincidentally equals POUR_SIGMA_K (3.0); unrelated concern — do not merge
+#   4.0 with GLASS_VOLUME_G=100 → 400g ceiling. Bumped from 3.0 when the gate
+#   dropped 120→100 (2026-09-04) so the jar-lift ceiling stays near its prior
+#   360g and two generous ~150g glasses poured in one motion aren't rejected.
+POUR_MAX_G_FRAC = 4.0
 
 BOUNCE_SETTLE_S  = 5.0    # suppress all events after large negative disturbance
 ANOMALY_SETTLE_S = 30.0   # suppress all events after jar-removal anomaly
