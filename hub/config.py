@@ -85,7 +85,7 @@ ACTIVE_DASHBOARD_VERSION = "v5"
 
 RESUME_SESSION = True   # WHY: on restart, resume active session from DB
 
-ROUND_SIZE = 2   # glasses per round (both jars combined)
+ROUND_SIZE = 10   # glasses per round (both jars combined)
 
 # pygame.mixer init parameters — identical in game.py and ambient.py.
 # buffer=8192 (16x default 512) gives ARM Cortex-A53 enough headroom to decode

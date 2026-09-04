@@ -327,6 +327,9 @@ class Game:
             return
 
         with self._lock:
+            # A scored pour is live proof the node's BLE link is up (see on_diag).
+            self._node_status[node_id] = 'connected'
+
             if not self._running:
                 # Event arrived before start() or after stop() - discard silently
                 return
@@ -521,10 +524,14 @@ class Game:
         if node_id not in (0, 1):
             return
         current_g = evt.get('current_g')
-        if current_g is None:
-            return
         with self._lock:
-            if not self._running:
+            # Live DIAG traffic (every ~5s) proves this node's BLE link is up.
+            # Flip the flag here too, not only on NODE_CONNECTED: after a
+            # juice-battle restart the scanner stays connected to the nodes and
+            # never re-emits NODE_CONNECTED, so this is the only signal that
+            # recovers ble_status from its 'disconnected' default.
+            self._node_status[node_id] = 'connected'
+            if current_g is None or not self._running:
                 return
             self._live_fill_g[node_id]          = float(current_g)
             self._live_fill_updated_ms[node_id] = int(time.time() * 1000)
