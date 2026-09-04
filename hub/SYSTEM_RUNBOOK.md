@@ -86,11 +86,18 @@ centrals fighting for the same node MACs kills both links (§2 BLE rules).
 3. Power on AQ3. Wait ~90 s: autologin → kiosk → scoreboard fills the panel.
 4. From a terminal (SSH or local) run the health block (§3 Step 2–3, or the
    one-liner in §5). All green → continue.
-5. `curl -s -X POST http://localhost:5000/new_session` — zero the board.
-6. One real pour on **each** jar → glass count ticks up on screen.
-   Then `new_session` again to clear the two test pours.
+5. **Fresh DB for this demo** (wipes all history incl. the all-time counter):
+   ```bash
+   sudo systemctl stop juice-battle
+   rm -f ~/ArduinoApps/juice_battle/hub/data/jb.db
+   sudo systemctl start juice-battle
+   ```
+   (Lighter option, keeps history: `curl -s -X POST localhost:5000/new_session`.)
+6. Wait ~8 s, then one real pour on **each** jar → glass count ticks up on screen.
+   Then repeat step 5 to clear the two test pours.
 7. Live. On screen, the **JB-0 / JB-1 chips** (top-right) must both be
-   **green + pulsing** = both nodes connected.
+   **green + pulsing** = both nodes connected. (After any juice-battle restart
+   they recover within ~5 s from live node traffic — no reconnect needed.)
 
 **During the day — leave it running.** It self-heals: scanner watchdog resets
 BLE after 120 s of silence, `juice-battle` has `Restart=always`, the kiosk loop
