@@ -164,7 +164,9 @@ class Storage:
                      grams: float, window_open_ts=None) -> None:
         VALID = {
             'ANOMALY_DELTA', 'ANOMALY_CLR', 'DISTURBANCE_CLR',
-            'ABANDONED_WINDOW', 'ABANDONED_BOUNDARY', 'RESIDUE'
+            'ABANDONED_WINDOW', 'ABANDONED_BOUNDARY', 'RESIDUE',
+            'DISTINCT_POUR_CLR',   # sub-threshold partial dropped: next pour was a
+                                   # separate person, not a split-settle continuation
         }
         if reason not in VALID:
             raise ValueError(f"Unknown overflow reason: {reason}")

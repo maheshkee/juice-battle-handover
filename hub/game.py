@@ -73,14 +73,19 @@ class Game:
         transport.on_event(game.on_pour_settled, msg_filter="POUR_SETTLED")
 
     Glass counting rules:
-      - Noise filter: delta_g must exceed max(POUR_MIN_G, POUR_SIGMA_K * sigma_g)
-      - Pour window:  events arriving within POUR_WINDOW_S of each other
-                      accumulate (same physical pour, split settle events).
-                      Gap > POUR_WINDOW_S resets partial_g - new visitor, fresh start.
-      - Count:        while partial_g >= GLASS_VOLUME_G: glass_count += 1,
-                      partial_g -= GLASS_VOLUME_G
-      - Remainder:    stays in partial_g, waiting for next split event within window.
-                      Discarded on window expiry.
+      - Noise filter:  delta_g must exceed max(POUR_MIN_G, POUR_SIGMA_K * sigma_g)
+      - Split settle:  multiple settle events from ONE physical pour (platform
+                       ringing down) have NO POUR_ACTIVE between them, so they
+                       accumulate into partial_g.
+      - Distinct pour: a POUR_ACTIVE since the last settle means real juice
+                       flowed again = a SEPARATE pour. Any sub-threshold partial
+                       from the previous pour is discarded before this one is
+                       counted - one person's leftover is never credited to the
+                       next person (billing correctness).
+      - Count:         while partial_g >= GLASS_VOLUME_G: glass_count += 1,
+                       partial_g -= GLASS_VOLUME_G
+      - Remainder:     residue dies at glass-fire; an un-counted partial is also
+                       discarded on the next distinct pour or on window expiry.
 
     Thread safety: Transport callbacks fire on GLib thread. get_state() may be
     called from dashboard thread. One lock protects all mutable state.
@@ -98,6 +103,7 @@ class Game:
         self._glass_count      = {0: 0,    1: 0}
         self._last_seq         = {0: -1,   1: -1}    # dedup guard
         self._last_settled_t   = {0: None, 1: None}  # time.monotonic() of last event
+        self._flow_since_settle = {0: False, 1: False}  # POUR_ACTIVE seen since last settle = a physically distinct pour
         self._bounce_until     = {0: 0.0,  1: 0.0}  # wall time: suppress after disturbance
         self._settling_until   = {0: 0.0,  1: 0.0}  # wall time: suppress after anomaly
         self._node_status      = {0: 'disconnected', 1: 'disconnected'}  # BLE connectivity; flips to 'connected' only on a real NODE_CONNECTED event from the scanner
@@ -129,6 +135,7 @@ class Game:
             self._glass_count      = {0: 0,    1: 0}
             self._last_seq         = {0: -1,   1: -1}
             self._last_settled_t   = {0: None, 1: None}
+            self._flow_since_settle = {0: False, 1: False}
             self._bounce_until     = {0: 0.0,  1: 0.0}
             self._settling_until   = {0: 0.0,  1: 0.0}
             self._live_fill_g          = {0: None, 1: None}
@@ -313,6 +320,7 @@ class Game:
             self._node_status[node_id] = 'connected'
             self._partial_g[node_id]       = 0.0
             self._partial_open_ts[node_id] = None
+            self._flow_since_settle[node_id] = False
             self._live_fill_baseline_g[node_id] = None
         log.info("NODE_CONNECTED: node=%d partial_g reset", node_id)
 
@@ -417,6 +425,25 @@ class Game:
             self._boundary_check(node_id, now, seq)
             self._last_settled_t[node_id] = now
 
+            # --- Distinct-pour guard (billing correctness) ---
+            # A POUR_ACTIVE arrived since the previous settle → real juice flowed →
+            # this is a physically SEPARATE pour, not the same pour still ringing
+            # down. Any sub-threshold partial left by the previous pour belongs to
+            # a different person. Drop it: one person's leftover must NEVER be
+            # added to the next person's pour to manufacture a glass.
+            # (Split-settle of ONE pour produces no POUR_ACTIVE between fragments,
+            #  so the flag stays False and those fragments still accumulate.)
+            if self._flow_since_settle[node_id] and self._partial_g[node_id] > 0:
+                log.info("DISTINCT POUR: node=%d discarding prior partial=%.1fg "
+                         "(new pour, not a continuation)",
+                         node_id, self._partial_g[node_id])
+                self._storage.log_overflow(
+                    node_id, seq, 'DISTINCT_POUR_CLR',
+                    self._partial_g[node_id], self._partial_open_ts[node_id])
+                self._partial_g[node_id] = 0.0
+                self._partial_open_ts[node_id] = None
+            self._flow_since_settle[node_id] = False
+
             # --- Accumulate and count ---
             if self._partial_g[node_id] == 0:
                 self._partial_open_ts[node_id] = now_wall
@@ -468,6 +495,10 @@ class Game:
         with self._lock:
             if not self._running:
                 return
+            # Real juice is flowing → mark that the NEXT settle is a distinct
+            # pour, so on_pour_settled won't merge a previous person's leftover
+            # partial into it (see the distinct-pour guard there).
+            self._flow_since_settle[node_id] = True
             now = time.monotonic()
             if (self._last_settled_t[node_id] is not None and
                     now - self._last_settled_t[node_id] > config.POUR_WINDOW_S):

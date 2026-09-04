@@ -7,6 +7,21 @@ feature development — the project is in live product testing / demo, working
 toward stall deployment. Both nodes (JB-0, JB-1) connect, score, and have each
 completed a verified end-to-end pour test with correct glass counts (2026-08-20).
 
+## Live-tuning during demo runs (2026-09-04)
+- `GLASS_VOLUME_G` 150 → 120 → **100** g. 120 was "too tight" in live testing.
+- `POUR_MAX_G_FRAC` 3.0 → **4.0** so the jar-lift ceiling holds at ~400 g after
+  the gate drop (was heading to 300 g).
+- **Distinct-pour guard added to `game.py` (billing-correctness fix).** Bug seen
+  live: person A withdrew ~95 g (no glass), then person B withdrew ~105 g and the
+  count jumped by **2** — A's leftover was credited to B. Fix: a `POUR_ACTIVE`
+  since the last settle marks a physically separate pour; any sub-threshold
+  partial from the previous pour is discarded (`DISTINCT_POUR_CLR`) before the
+  new one is counted. Split-settle of ONE pour has no `POUR_ACTIVE` between
+  fragments, so it still accumulates. Residual known gap: a very slow trickle
+  (<~30 g/s) never fires `POUR_ACTIVE`, so it could still merge — uncommon at
+  stall pour speeds. Verified: `hub/test_distinct_pour.py`, 5/5.
+- Demo run times tracked in `docs/DEMO_LOG.md`.
+
 ## AQ3 is the locked production + demo board (2026-09-04)
 Verified working reference: git tag **`demo-live-2026-09-04`** (commit `17b7612`).
 On 2026-09-04 09:15 IST, AQ3 came up clean: scanner connected to both nodes in
